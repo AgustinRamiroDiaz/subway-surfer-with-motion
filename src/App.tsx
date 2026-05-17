@@ -158,11 +158,15 @@ function App() {
     setModelStatus('Loading model');
 
     try {
-      const { detector, runtime } = await loadYoloDetector({
+      const { detector, runtime, fallbackReason } = await loadYoloDetector({
         onStatusChange: ({ message }) => setModelStatus(message),
       });
       detectorRef.current = detector;
-      setModelStatus(`Model ready on ${runtime}`);
+      setModelStatus(
+        fallbackReason
+          ? `Model ready on ${runtime}. WebGPU fallback: ${fallbackReason}`
+          : `Model ready on ${runtime}`
+      );
       return detectorRef.current;
     } finally {
       setIsLoading(false);

@@ -19,9 +19,27 @@ export type DetectorLoadState = {
   message: string;
 };
 
+type DetectorRuntime = 'WebGPU' | 'WASM';
+
 type DetectorLoadOptions = {
   onStatusChange?: (state: DetectorLoadState) => void;
 };
+
+type DetectorLoadResult = {
+  detector: Detector;
+  runtime: DetectorRuntime;
+  fallbackReason?: string;
+};
+
+type NavigatorWithGpu = Navigator & {
+  gpu?: {
+    requestAdapter: () => Promise<unknown>;
+  };
+};
+
+function getErrorMessage(cause: unknown) {
+  return cause instanceof Error ? cause.message : String(cause);
+}
 
 async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOptions) {
   const { env, pipeline } = await import('@huggingface/transformers');
@@ -44,29 +62,54 @@ async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOp
   return detector as Detector;
 }
 
-export async function loadYoloDetector(options: DetectorLoadOptions = {}) {
-  const preferWebGpu = 'gpu' in navigator;
+async function getWebGpuFallbackReason() {
+  const nav = navigator as NavigatorWithGpu;
 
-  if (!preferWebGpu) {
+  if (!nav.gpu) {
+    return 'navigator.gpu is not available in this browser';
+  }
+
+  try {
+    const adapter = await nav.gpu.requestAdapter();
+    if (!adapter) {
+      return 'no WebGPU adapter was returned for this device/browser';
+    }
+  } catch (cause) {
+    return `requestAdapter failed: ${getErrorMessage(cause)}`;
+  }
+
+  return null;
+}
+
+export async function loadYoloDetector(options: DetectorLoadOptions = {}): Promise<DetectorLoadResult> {
+  const fallbackReason = await getWebGpuFallbackReason();
+
+  if (fallbackReason) {
+    options.onStatusChange?.({ message: `WebGPU unavailable: ${fallbackReason}` });
     const detector = await createDetector('wasm', options);
     return {
       detector,
       runtime: 'WASM',
+      fallbackReason,
     };
   }
 
   try {
+    options.onStatusChange?.({ message: 'Loading model on WebGPU' });
     const detector = await createDetector('webgpu', options);
     return {
       detector,
       runtime: 'WebGPU',
     };
-  } catch {
-    options.onStatusChange?.({ message: 'WebGPU unavailable, falling back to WASM' });
+  } catch (cause) {
+    const reason = `WebGPU pipeline failed: ${getErrorMessage(cause)}`;
+    console.warn(reason);
+    options.onStatusChange?.({ message: `${reason}; falling back to WASM` });
     const detector = await createDetector('wasm', options);
     return {
       detector,
       runtime: 'WASM',
+      fallbackReason: reason,
     };
   }
 }
