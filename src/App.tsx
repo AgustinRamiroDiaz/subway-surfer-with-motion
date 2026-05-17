@@ -412,15 +412,15 @@ function App() {
   return (
     <main className="app-shell">
       <section className="workspace" aria-label="Motion game workspace">
-        <div className="play-split">
-          <section className="game-stage" aria-label="Main game">
-            <GameScene playerColumn={playerColumn} laneLabel={playerLane} />
-          </section>
+        <section className="game-stage" aria-label="Main game">
+          <GameScene playerColumn={playerColumn} laneLabel={playerLane} />
+        </section>
 
-          <section className="video-stage" aria-label="Camera feedback">
-            <div className="stage-heading camera-heading">
+        <aside className="control-panel" aria-label="Detection controls">
+          <section className="video-stage sidebar-camera" aria-label="Camera feedback">
+            <div className="sidebar-camera-label">
               <p className="eyebrow">Camera feedback</p>
-              <h2>{selectedModel.label}</h2>
+              <strong>{selectedModel.label}</strong>
             </div>
             <video
               ref={videoRef}
@@ -442,16 +442,12 @@ function App() {
             <canvas ref={frameRef} className="frame-buffer" aria-hidden="true" />
 
             {!cameraEnabled && (
-              <div className="empty-state">
-                <p className="eyebrow">{selectedModel.label} ONNX</p>
-                <h2>Start the camera</h2>
-                <p>Stand in one of the three columns to move the player.</p>
+              <div className="camera-empty-state">
+                <p>Start camera</p>
               </div>
             )}
           </section>
-        </div>
 
-        <aside className="control-panel" aria-label="Detection controls">
           <div>
             <p className="eyebrow">Status</p>
             <h2>{status}</h2>
