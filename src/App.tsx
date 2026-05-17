@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import {
+  DEFAULT_DETECTOR_RUNTIME_ID,
   DEFAULT_YOLO_MODEL_ID,
+  DETECTOR_RUNTIMES,
   YOLO_MODELS,
   loadYoloDetector,
   type Detector,
-  type PoseDetection,
+  type DetectorRuntimeId,
+  type DetectorTimings,
+  type PersonDetection,
   type PoseKeypoint,
   type YoloModelId,
 } from './aiDetector';
@@ -12,6 +16,12 @@ import './App.css';
 
 const DETECTION_INTERVAL_MS = 180;
 const DEFAULT_THRESHOLD = 0.45;
+type FrameTimings = DetectorTimings & {
+  captureMs: number;
+  drawMs: number;
+  loopMs: number;
+};
+
 const POSE_CONNECTIONS = [
   ['Left Shoulder', 'Right Shoulder'],
   ['Left Shoulder', 'Left Elbow'],
@@ -35,7 +45,7 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
-function clampBox(box: PoseDetection['box'], width: number, height: number) {
+function clampBox(box: PersonDetection['box'], width: number, height: number) {
   return {
     xmin: Math.max(0, Math.min(width, box.xmin)),
     ymin: Math.max(0, Math.min(height, box.ymin)),
@@ -48,6 +58,10 @@ function findKeypoint(keypoints: PoseKeypoint[], label: string) {
   return keypoints.find((keypoint) => keypoint.label === label);
 }
 
+function formatMs(value: number) {
+  return `${Math.round(value)} ms`;
+}
+
 function App() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const overlayRef = useRef<HTMLCanvasElement | null>(null);
@@ -58,6 +72,7 @@ function App() {
   const detectingRef = useRef(false);
   const thresholdRef = useRef(DEFAULT_THRESHOLD);
   const selectedModelRef = useRef<YoloModelId>(DEFAULT_YOLO_MODEL_ID);
+  const selectedRuntimeRef = useRef<DetectorRuntimeId>(DEFAULT_DETECTOR_RUNTIME_ID);
 
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
@@ -65,9 +80,11 @@ function App() {
   const [status, setStatus] = useState('Camera idle');
   const [modelStatus, setModelStatus] = useState('Model not loaded');
   const [selectedModelId, setSelectedModelId] = useState<YoloModelId>(DEFAULT_YOLO_MODEL_ID);
-  const [detections, setDetections] = useState<PoseDetection[]>([]);
+  const [selectedRuntimeId, setSelectedRuntimeId] = useState<DetectorRuntimeId>(DEFAULT_DETECTOR_RUNTIME_ID);
+  const [detections, setDetections] = useState<PersonDetection[]>([]);
   const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
   const [lastInferenceMs, setLastInferenceMs] = useState<number | null>(null);
+  const [frameTimings, setFrameTimings] = useState<FrameTimings | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -78,7 +95,11 @@ function App() {
     selectedModelRef.current = selectedModelId;
   }, [selectedModelId]);
 
-  const drawDetections = useCallback((items: PoseDetection[]) => {
+  useEffect(() => {
+    selectedRuntimeRef.current = selectedRuntimeId;
+  }, [selectedRuntimeId]);
+
+  const drawDetections = useCallback((items: PersonDetection[]) => {
     const video = videoRef.current;
     const canvas = overlayRef.current;
     if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
@@ -117,26 +138,28 @@ function App() {
       context.fillStyle = '#dfffee';
       context.fillText(label, box.xmin + 8, labelY + 5);
 
-      context.strokeStyle = '#ffcc4d';
-      context.lineWidth = Math.max(2, Math.round(canvas.width / 360));
-      POSE_CONNECTIONS.forEach(([fromLabel, toLabel]) => {
-        const from = findKeypoint(item.keypoints, fromLabel);
-        const to = findKeypoint(item.keypoints, toLabel);
-        if (!from || !to) {
-          return;
-        }
-        context.beginPath();
-        context.moveTo(from.x, from.y);
-        context.lineTo(to.x, to.y);
-        context.stroke();
-      });
+      if (item.keypoints?.length) {
+        context.strokeStyle = '#ffcc4d';
+        context.lineWidth = Math.max(2, Math.round(canvas.width / 360));
+        POSE_CONNECTIONS.forEach(([fromLabel, toLabel]) => {
+          const from = findKeypoint(item.keypoints ?? [], fromLabel);
+          const to = findKeypoint(item.keypoints ?? [], toLabel);
+          if (!from || !to) {
+            return;
+          }
+          context.beginPath();
+          context.moveTo(from.x, from.y);
+          context.lineTo(to.x, to.y);
+          context.stroke();
+        });
 
-      item.keypoints.forEach((keypoint) => {
-        context.beginPath();
-        context.fillStyle = '#ff5f7a';
-        context.arc(keypoint.x, keypoint.y, Math.max(4, Math.round(canvas.width / 180)), 0, Math.PI * 2);
-        context.fill();
-      });
+        item.keypoints.forEach((keypoint) => {
+          context.beginPath();
+          context.fillStyle = '#ff5f7a';
+          context.arc(keypoint.x, keypoint.y, Math.max(4, Math.round(canvas.width / 180)), 0, Math.PI * 2);
+          context.fill();
+        });
+      }
     });
   }, []);
 
@@ -181,18 +204,30 @@ function App() {
 
     syncCanvasSize();
     frameContext.drawImage(video, 0, 0, frame.width, frame.height);
+    const captureDoneAt = performance.now();
 
     const startedAt = performance.now();
     try {
-      const output = await detector(frame, {
+      const result = await detector(frame, {
         threshold: thresholdRef.current,
         percentage: false,
       });
-      const sorted = [...output].sort((a, b) => b.score - a.score);
+      const detectorDoneAt = performance.now();
+      const sorted = [...result.detections].sort((a, b) => b.score - a.score);
       setDetections(sorted);
-      setLastInferenceMs(Math.round(performance.now() - startedAt));
-      setStatus(sorted.length ? `${sorted.length} person pose${sorted.length === 1 ? '' : 's'} detected` : 'Scanning');
+      setStatus(sorted.length ? `${sorted.length} person${sorted.length === 1 ? '' : 's'} detected` : 'Scanning');
+      const drawStartedAt = performance.now();
       drawDetections(sorted);
+      const drawDoneAt = performance.now();
+      const loopMs = drawDoneAt - startedAt;
+
+      setLastInferenceMs(Math.round(result.timings.totalMs));
+      setFrameTimings({
+        ...result.timings,
+        captureMs: captureDoneAt - startedAt,
+        drawMs: drawDoneAt - drawStartedAt,
+        loopMs,
+      });
     } catch (cause) {
       detectingRef.current = false;
       setIsDetecting(false);
@@ -217,6 +252,7 @@ function App() {
     try {
       const { detector, runtime, fallbackReason } = await loadYoloDetector({
         modelId: selectedModelId,
+        runtime: selectedRuntimeId,
         onStatusChange: ({ message }) => setModelStatus(message),
       });
       detectorRef.current = detector;
@@ -229,7 +265,19 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedModelId]);
+  }, [selectedModelId, selectedRuntimeId]);
+
+  const resetDetector = useCallback(() => {
+    stopDetection();
+    detectorRef.current = null;
+    setDetections([]);
+    setLastInferenceMs(null);
+    setFrameTimings(null);
+    setModelStatus('Model not loaded');
+
+    const overlay = overlayRef.current;
+    overlay?.getContext('2d')?.clearRect(0, 0, overlay.width, overlay.height);
+  }, [stopDetection]);
 
   const handleModelChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
     const nextModelId = event.target.value as YoloModelId;
@@ -237,17 +285,21 @@ function App() {
       return;
     }
 
-    stopDetection();
-    detectorRef.current = null;
     selectedModelRef.current = nextModelId;
     setSelectedModelId(nextModelId);
-    setDetections([]);
-    setLastInferenceMs(null);
-    setModelStatus('Model not loaded');
+    resetDetector();
+  }, [resetDetector]);
 
-    const overlay = overlayRef.current;
-    overlay?.getContext('2d')?.clearRect(0, 0, overlay.width, overlay.height);
-  }, [stopDetection]);
+  const handleRuntimeChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    const nextRuntimeId = event.target.value as DetectorRuntimeId;
+    if (nextRuntimeId === selectedRuntimeRef.current) {
+      return;
+    }
+
+    selectedRuntimeRef.current = nextRuntimeId;
+    setSelectedRuntimeId(nextRuntimeId);
+    resetDetector();
+  }, [resetDetector]);
 
   const startCamera = useCallback(async () => {
     setError(null);
@@ -316,6 +368,7 @@ function App() {
     setCameraEnabled(false);
     setDetections([]);
     setLastInferenceMs(null);
+    setFrameTimings(null);
     setStatus('Camera idle');
   }, [stopDetection]);
 
@@ -333,7 +386,7 @@ function App() {
 
   return (
     <main className="app-shell">
-      <section className="workspace" aria-label="Real-time pose estimation workspace">
+      <section className="workspace" aria-label="Real-time person detection workspace">
         <div className="video-stage">
           <video
             ref={videoRef}
@@ -349,7 +402,7 @@ function App() {
             <div className="empty-state">
               <p className="eyebrow">{selectedModel.label} ONNX</p>
               <h1>Live camera detection</h1>
-              <p>Estimate person position and body keypoints locally in your browser.</p>
+              <p>Scan for people locally in your browser, with optional body keypoints.</p>
             </div>
           )}
         </div>
@@ -364,6 +417,42 @@ function App() {
             )}
           </div>
 
+          {frameTimings && (
+            <div className="timing-panel" aria-label="Frame timing breakdown">
+              <p className="eyebrow">Timing</p>
+              <dl>
+                <div>
+                  <dt>Capture</dt>
+                  <dd>{formatMs(frameTimings.captureMs)}</dd>
+                </div>
+                <div>
+                  <dt>Raw image</dt>
+                  <dd>{formatMs(frameTimings.rawImageMs)}</dd>
+                </div>
+                <div>
+                  <dt>Preprocess</dt>
+                  <dd>{formatMs(frameTimings.preprocessMs)}</dd>
+                </div>
+                <div>
+                  <dt>Model</dt>
+                  <dd>{formatMs(frameTimings.modelMs)}</dd>
+                </div>
+                <div>
+                  <dt>Postprocess</dt>
+                  <dd>{formatMs(frameTimings.postprocessMs)}</dd>
+                </div>
+                <div>
+                  <dt>Draw</dt>
+                  <dd>{formatMs(frameTimings.drawMs)}</dd>
+                </div>
+                <div>
+                  <dt>Total</dt>
+                  <dd>{formatMs(frameTimings.loopMs)}</dd>
+                </div>
+              </dl>
+            </div>
+          )}
+
           {error && <p className="error-message">{error}</p>}
 
           <label className="model-control">
@@ -372,6 +461,17 @@ function App() {
               {YOLO_MODELS.map((model) => (
                 <option key={model.id} value={model.id}>
                   {model.label} · {model.description}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="model-control">
+            <span>Runtime</span>
+            <select value={selectedRuntimeId} onChange={handleRuntimeChange} disabled={isLoading}>
+              {DETECTOR_RUNTIMES.map((runtime) => (
+                <option key={runtime.id} value={runtime.id}>
+                  {runtime.label} · {runtime.description}
                 </option>
               ))}
             </select>
@@ -414,7 +514,9 @@ function App() {
                 {detections.slice(0, 8).map((detection, index) => (
                   <li key={`${detection.label}-${index}-${Math.round(detection.score * 1000)}`}>
                     <span>Person {index + 1}</span>
-                    <strong>{detection.keypoints.length} points</strong>
+                    <strong>
+                      {detection.keypoints?.length ? `${detection.keypoints.length} points` : formatPercent(detection.score)}
+                    </strong>
                   </li>
                 ))}
               </ul>

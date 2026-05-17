@@ -1,19 +1,50 @@
 export const YOLO_MODELS = [
   {
+    id: 'onnx-community/yolo26n-ONNX',
+    label: 'YOLO26n',
+    description: 'Nano detection',
+    task: 'detection',
+  },
+  {
+    id: 'onnx-community/yolo26s-ONNX',
+    label: 'YOLO26s',
+    description: 'Small detection',
+    task: 'detection',
+  },
+  {
     id: 'onnx-community/yolo26n-pose-ONNX',
     label: 'YOLO26n-pose',
     description: 'Nano pose',
+    task: 'pose',
   },
   {
     id: 'onnx-community/yolo26s-pose-ONNX',
     label: 'YOLO26s-pose',
     description: 'Small pose',
+    task: 'pose',
   },
 ] as const;
 
 export type YoloModelId = (typeof YOLO_MODELS)[number]['id'];
 
-export const DEFAULT_YOLO_MODEL_ID: YoloModelId = YOLO_MODELS[0].id;
+export const DEFAULT_YOLO_MODEL_ID: YoloModelId = 'onnx-community/yolo26n-pose-ONNX';
+
+export const DETECTOR_RUNTIMES = [
+  {
+    id: 'webgpu',
+    label: 'WebGPU',
+    description: 'fp16',
+  },
+  {
+    id: 'wasm',
+    label: 'WASM',
+    description: 'q8',
+  },
+] as const;
+
+export type DetectorRuntimeId = (typeof DETECTOR_RUNTIMES)[number]['id'];
+
+export const DEFAULT_DETECTOR_RUNTIME_ID: DetectorRuntimeId = 'webgpu';
 
 export type PoseKeypoint = {
   label: string;
@@ -34,10 +65,27 @@ export type PoseDetection = {
   keypoints: PoseKeypoint[];
 };
 
+export type PersonDetection = Omit<PoseDetection, 'keypoints'> & {
+  keypoints?: PoseKeypoint[];
+};
+
+export type DetectorTimings = {
+  rawImageMs: number;
+  preprocessMs: number;
+  modelMs: number;
+  postprocessMs: number;
+  totalMs: number;
+};
+
+export type DetectorResult = {
+  detections: PersonDetection[];
+  timings: DetectorTimings;
+};
+
 export type Detector = (
   image: HTMLCanvasElement,
   options: { threshold: number; percentage: false }
-) => Promise<PoseDetection[]>;
+) => Promise<DetectorResult>;
 
 export type LoadProgress = {
   status?: string;
@@ -53,6 +101,7 @@ type DetectorRuntime = 'WebGPU' | 'WASM';
 
 type DetectorLoadOptions = {
   modelId: YoloModelId;
+  runtime: DetectorRuntimeId;
   onStatusChange?: (state: DetectorLoadState) => void;
 };
 
@@ -68,13 +117,20 @@ type NavigatorWithGpu = Navigator & {
   };
 };
 
-type YoloPoseModel = {
+type YoloModelOutput = {
+  logits: {
+    dims: number[];
+    data: ArrayLike<number>;
+  };
+  pred_boxes?: {
+    dims: number[];
+    data: ArrayLike<number>;
+  };
+};
+
+type YoloModel = {
   (inputs: unknown): Promise<{
-    logits: {
-      dims: number[];
-      data: ArrayLike<number>;
-    };
-  }>;
+  } & YoloModelOutput>;
 };
 
 type YoloPoseProcessor = (image: unknown) => Promise<unknown>;
@@ -101,6 +157,78 @@ const KEYPOINT_LABELS = [
 
 function getErrorMessage(cause: unknown) {
   return cause instanceof Error ? cause.message : String(cause);
+}
+
+function getSelectedModel(modelId: YoloModelId) {
+  return YOLO_MODELS.find((model) => model.id === modelId) ?? YOLO_MODELS[0];
+}
+
+function toImageBox(
+  values: [number, number, number, number],
+  image: HTMLCanvasElement,
+  format: 'xyxy' | 'cxcywh'
+): PersonDetection['box'] {
+  const [a, b, c, d] = values;
+
+  if (format === 'xyxy') {
+    return {
+      xmin: a * image.width,
+      ymin: b * image.height,
+      xmax: c * image.width,
+      ymax: d * image.height,
+    };
+  }
+
+  const halfWidth = c / 2;
+  const halfHeight = d / 2;
+  return {
+    xmin: (a - halfWidth) * image.width,
+    ymin: (b - halfHeight) * image.height,
+    xmax: (a + halfWidth) * image.width,
+    ymax: (b + halfHeight) * image.height,
+  };
+}
+
+function decodeYoloDetectionOutput(
+  output: YoloModelOutput,
+  image: HTMLCanvasElement,
+  threshold: number
+) {
+  if (!output.pred_boxes) {
+    throw new Error('Detection model did not return pred_boxes');
+  }
+
+  const [, candidateCount, classCount] = output.logits.dims;
+  const logits = output.logits.data;
+  const boxes = output.pred_boxes.data;
+  const boxFeatureCount = output.pred_boxes.dims[output.pred_boxes.dims.length - 1] ?? 4;
+  const detections: PersonDetection[] = [];
+
+  for (let candidateIndex = 0; candidateIndex < candidateCount; candidateIndex += 1) {
+    const personScore = Number(logits[candidateIndex * classCount]);
+
+    if (personScore < threshold) {
+      continue;
+    }
+
+    const boxOffset = candidateIndex * boxFeatureCount;
+    detections.push({
+      label: 'person',
+      score: personScore,
+      box: toImageBox(
+        [
+          Number(boxes[boxOffset]),
+          Number(boxes[boxOffset + 1]),
+          Number(boxes[boxOffset + 2]),
+          Number(boxes[boxOffset + 3]),
+        ],
+        image,
+        'cxcywh'
+      ),
+    });
+  }
+
+  return detections.sort((a, b) => b.score - a.score);
 }
 
 function decodeYoloPoseOutput(
@@ -134,12 +262,16 @@ function decodeYoloPoseOutput(
     detections.push({
       label: 'person',
       score,
-      box: {
-        xmin: Number(data[offset]) * image.width,
-        ymin: Number(data[offset + 1]) * image.height,
-        xmax: Number(data[offset + 2]) * image.width,
-        ymax: Number(data[offset + 3]) * image.height,
-      },
+      box: toImageBox(
+        [
+          Number(data[offset]),
+          Number(data[offset + 1]),
+          Number(data[offset + 2]),
+          Number(data[offset + 3]),
+        ],
+        image,
+        'xyxy'
+      ),
       keypoints,
     });
   }
@@ -150,6 +282,8 @@ function decodeYoloPoseOutput(
 async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOptions) {
   const { AutoImageProcessor, AutoModelForObjectDetection, RawImage, env } = await import('@huggingface/transformers');
   env.allowLocalModels = false;
+  const dtype = device === 'webgpu' ? 'fp16' : 'q8';
+  const selectedModel = getSelectedModel(options.modelId);
 
   const progress_callback = (progress: LoadProgress) => {
     if (progress.status === 'progress' && typeof progress.progress === 'number') {
@@ -168,15 +302,35 @@ async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOp
     }) as Promise<YoloPoseProcessor>,
     AutoModelForObjectDetection.from_pretrained(options.modelId, {
       device,
+      dtype,
       progress_callback,
-    }) as Promise<YoloPoseModel>,
+    }) as Promise<YoloModel>,
   ]);
 
   const poseDetector: Detector = async (image, detectorOptions) => {
+    const startedAt = performance.now();
     const rawImage = RawImage.fromCanvas(image);
+    const rawImageDoneAt = performance.now();
     const inputs = await processor(rawImage);
+    const preprocessDoneAt = performance.now();
     const output = await model(inputs);
-    return decodeYoloPoseOutput(output.logits, image, detectorOptions.threshold);
+    const modelDoneAt = performance.now();
+    const detections =
+      selectedModel.task === 'pose'
+        ? decodeYoloPoseOutput(output.logits, image, detectorOptions.threshold)
+        : decodeYoloDetectionOutput(output, image, detectorOptions.threshold);
+    const postprocessDoneAt = performance.now();
+
+    return {
+      detections,
+      timings: {
+        rawImageMs: rawImageDoneAt - startedAt,
+        preprocessMs: preprocessDoneAt - rawImageDoneAt,
+        modelMs: modelDoneAt - preprocessDoneAt,
+        postprocessMs: postprocessDoneAt - modelDoneAt,
+        totalMs: postprocessDoneAt - startedAt,
+      },
+    };
   };
 
   return poseDetector;
@@ -202,6 +356,15 @@ async function getWebGpuFallbackReason() {
 }
 
 export async function loadYoloDetector(options: DetectorLoadOptions): Promise<DetectorLoadResult> {
+  if (options.runtime === 'wasm') {
+    options.onStatusChange?.({ message: 'Loading model on WASM' });
+    const detector = await createDetector('wasm', options);
+    return {
+      detector,
+      runtime: 'WASM',
+    };
+  }
+
   const fallbackReason = await getWebGpuFallbackReason();
 
   if (fallbackReason) {

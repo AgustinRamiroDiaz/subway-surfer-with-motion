@@ -101,6 +101,41 @@
   font-variant-numeric: tabular-nums;
 }
 
+.timing-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.timing-panel dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.timing-panel div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.timing-panel dt,
+.timing-panel dd {
+  margin: 0;
+}
+
+.timing-panel dt {
+  color: #aeb9b2;
+}
+
+.timing-panel dd {
+  color: #f2f5f1;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
 .error-message {
   margin: 0;
   padding: 12px 14px;
