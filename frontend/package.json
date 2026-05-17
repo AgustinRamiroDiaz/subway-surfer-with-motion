@@ -1,0 +1,11 @@
+{
+  "name": "@subway-surfer-with-motion/frontend",
+  "private": true,
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
+    "eject": "react-scripts eject"
+  }
+}
