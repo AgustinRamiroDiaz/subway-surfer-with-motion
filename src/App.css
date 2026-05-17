@@ -106,6 +106,7 @@
 }
 
 .game-hud,
+.game-controls,
 .game-stats {
   position: absolute;
   z-index: 4;
@@ -130,6 +131,18 @@
   color: #2fffb2;
   font-size: clamp(1.35rem, 3vw, 2.35rem);
   line-height: 1;
+}
+
+.game-controls {
+  right: 28px;
+  bottom: 28px;
+  display: flex;
+  gap: 10px;
+}
+
+.game-controls button {
+  min-width: 104px;
+  min-height: 42px;
 }
 
 .game-stats {
@@ -465,6 +478,27 @@ button:disabled {
   .stage-heading {
     top: 18px;
     left: 18px;
+  }
+
+  .game-hud {
+    top: 18px;
+    right: 18px;
+  }
+
+  .game-controls {
+    right: 18px;
+    bottom: 18px;
+  }
+
+  .game-controls button {
+    min-width: 82px;
+    padding: 0 12px;
+  }
+
+  .game-stats {
+    left: 18px;
+    bottom: 18px;
+    gap: 16px;
   }
 
   .control-panel {

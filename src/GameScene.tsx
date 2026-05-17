@@ -25,6 +25,8 @@ type GameStats = {
   status: 'Running' | 'Hit';
 };
 
+type GamePhase = 'ready' | 'running' | 'paused';
+
 function createRailMaterial(color: string) {
   return new THREE.MeshStandardMaterial({
     color,
@@ -36,6 +38,8 @@ function createRailMaterial(color: string) {
 export function GameScene({ playerColumn, laneLabel }: GameSceneProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const playerColumnRef = useRef(playerColumn);
+  const gamePhaseRef = useRef<GamePhase>('ready');
+  const [gamePhase, setGamePhase] = useState<GamePhase>('ready');
   const [stats, setStats] = useState<GameStats>({
     dodged: 0,
     hits: 0,
@@ -45,6 +49,10 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps) {
   useEffect(() => {
     playerColumnRef.current = playerColumn;
   }, [playerColumn]);
+
+  useEffect(() => {
+    gamePhaseRef.current = gamePhase;
+  }, [gamePhase]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -58,7 +66,7 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps) {
 
     let animationFrame = 0;
     let lastTime = performance.now();
-    let lastSpawnAt = performance.now();
+    let lastSpawnAt = performance.now() - SPAWN_INTERVAL_MS;
     let statusResetAt = 0;
     const obstacles: Obstacle[] = [];
 
@@ -182,6 +190,13 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps) {
     const animate = (now: number) => {
       const delta = Math.min(0.05, (now - lastTime) / 1000);
       lastTime = now;
+      const isRunning = gamePhaseRef.current === 'running';
+
+      if (!isRunning) {
+        renderer.render(scene, camera);
+        animationFrame = window.requestAnimationFrame(animate);
+        return;
+      }
 
       if (now - lastSpawnAt > SPAWN_INTERVAL_MS) {
         spawnObstacle();
@@ -248,7 +263,6 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps) {
       animationFrame = window.requestAnimationFrame(animate);
     };
 
-    spawnObstacle();
     animationFrame = window.requestAnimationFrame(animate);
 
     return () => {
@@ -280,8 +294,21 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps) {
         <h1>Motion runner</h1>
       </div>
       <div className="game-hud" aria-label="Game status">
-        <span>{stats.status}</span>
+        <span>{gamePhase === 'ready' ? 'Ready' : gamePhase === 'paused' ? 'Paused' : stats.status}</span>
         <strong>{laneLabel}</strong>
+      </div>
+      <div className="game-controls" aria-label="Game controls">
+        <button
+          className="primary-action"
+          type="button"
+          disabled={gamePhase === 'running'}
+          onClick={() => setGamePhase('running')}
+        >
+          Start
+        </button>
+        <button type="button" disabled={gamePhase !== 'running'} onClick={() => setGamePhase('paused')}>
+          Pause
+        </button>
       </div>
       <dl className="game-stats" aria-label="Game stats">
         <div>
