@@ -1,6 +1,6 @@
-onlyBuiltDependencies:
-  - core-js
-  - core-js-pure
-  - onnxruntime-node
-  - protobufjs
-  - sharp
+allowBuilds:
+  core-js: true
+  core-js-pure: true
+  onnxruntime-node: true
+  protobufjs: true
+  sharp: true
