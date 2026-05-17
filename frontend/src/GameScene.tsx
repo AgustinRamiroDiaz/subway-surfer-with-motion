@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import * as THREE from 'three';
 
 const LANE_X = [-2.4, 0, 2.4] as const;
@@ -27,7 +27,7 @@ type GameStats = {
 
 type GamePhase = 'ready' | 'running' | 'paused';
 
-function createRailMaterial(color: string) {
+function createRailMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
     color,
     roughness: 0.58,
@@ -35,7 +35,7 @@ function createRailMaterial(color: string) {
   });
 }
 
-export function GameScene({ playerColumn, laneLabel }: GameSceneProps) {
+export function GameScene({ playerColumn, laneLabel }: GameSceneProps): ReactElement {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const playerColumnRef = useRef(playerColumn);
   const gamePhaseRef = useRef<GamePhase>('ready');
@@ -164,7 +164,7 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps) {
       metalness: 0.08,
     });
 
-    const spawnObstacle = () => {
+    const spawnObstacle = (): void => {
       const lane = Math.floor(Math.random() * LANE_X.length);
       const mesh = new THREE.Mesh(obstacleGeometry, obstacleMaterial.clone());
       mesh.position.set(LANE_X[lane], 0.82, OBSTACLE_SPAWN_Z);
@@ -174,7 +174,7 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps) {
       obstacles.push({ mesh, lane, hit: false });
     };
 
-    const resize = () => {
+    const resize = (): void => {
       const { clientWidth, clientHeight } = mount;
       const width = Math.max(1, clientWidth);
       const height = Math.max(1, clientHeight);
@@ -187,7 +187,7 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps) {
     resizeObserver.observe(mount);
     resize();
 
-    const animate = (now: number) => {
+    const animate = (now: number): void => {
       const delta = Math.min(0.05, (now - lastTime) / 1000);
       lastTime = now;
       const isRunning = gamePhaseRef.current === 'running';

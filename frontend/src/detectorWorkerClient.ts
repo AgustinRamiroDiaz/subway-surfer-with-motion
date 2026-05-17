@@ -50,12 +50,12 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
   const pending = new Map<number, PendingRequest>();
   let requestId = 0;
 
-  const nextRequestId = () => {
+  const nextRequestId = (): number => {
     requestId += 1;
     return requestId;
   };
 
-  const dispose = () => {
+  const dispose = (): void => {
     pending.forEach((request) => request.reject(new Error('Detector worker was disposed')));
     pending.clear();
     worker.postMessage({ type: 'dispose' });

@@ -62,4 +62,12 @@ module.exports = {
     'prefer-const': 'error',
     'react/jsx-no-useless-fragment': 'error',
   },
+  overrides: [
+    {
+      files: ['src/detector.worker.ts'],
+      rules: {
+        'no-restricted-globals': 'off',
+      },
+    },
+  ],
 };

@@ -53,15 +53,15 @@ let detector: Detector | null = null;
 let frameCanvas: OffscreenCanvas | null = null;
 let frameContext: OffscreenCanvasRenderingContext2D | null = null;
 
-function post(message: WorkerOutboundMessage) {
+function post(message: WorkerOutboundMessage): void {
   self.postMessage(message);
 }
 
-function getErrorMessage(cause: unknown) {
+function getErrorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
-self.onmessage = async (event: MessageEvent<WorkerInboundMessage>) => {
+self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void> => {
   const message = event.data;
 
   if (message.type === 'dispose') {
@@ -125,7 +125,7 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>) => {
       requestId: message.requestId,
       result,
     });
-  } catch (cause) {
+  } catch (cause: unknown) {
     if (message.type === 'detect') {
       message.frame.bitmap.close();
     }

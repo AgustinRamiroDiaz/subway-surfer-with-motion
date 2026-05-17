@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactElement } from 'react';
 import {
   DEFAULT_DETECTOR_RUNTIME_ID,
   DEFAULT_YOLO_MODEL_ID,
@@ -45,11 +45,11 @@ const POSE_CONNECTIONS = [
   ['Right Eye', 'Right Ear'],
 ] as const;
 
-function formatPercent(value: number) {
+function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-function clampBox(box: PersonDetection['box'], width: number, height: number) {
+function clampBox(box: PersonDetection['box'], width: number, height: number): PersonDetection['box'] {
   return {
     xmin: Math.max(0, Math.min(width, box.xmin)),
     ymin: Math.max(0, Math.min(height, box.ymin)),
@@ -58,15 +58,15 @@ function clampBox(box: PersonDetection['box'], width: number, height: number) {
   };
 }
 
-function findKeypoint(keypoints: PoseKeypoint[], label: string) {
+function findKeypoint(keypoints: PoseKeypoint[], label: string): PoseKeypoint | undefined {
   return keypoints.find((keypoint) => keypoint.label === label);
 }
 
-function formatMs(value: number) {
+function formatMs(value: number): string {
   return `${Math.round(value)} ms`;
 }
 
-function getPersonColumn(detection: PersonDetection, frameWidth: number) {
+function getPersonColumn(detection: PersonDetection, frameWidth: number): number {
   if (!frameWidth) {
     return 1;
   }
@@ -75,7 +75,7 @@ function getPersonColumn(detection: PersonDetection, frameWidth: number) {
   return Math.max(0, Math.min(2, Math.floor((centerX / frameWidth) * 3)));
 }
 
-function App() {
+function App(): ReactElement {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const overlayRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<HTMLCanvasElement | null>(null);
@@ -220,7 +220,9 @@ function App() {
     }
 
     if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth || !video.videoHeight) {
-      timeoutRef.current = window.setTimeout(runDetection, DETECTION_INTERVAL_MS);
+      timeoutRef.current = window.setTimeout(() => {
+        void runDetection();
+      }, DETECTION_INTERVAL_MS);
       return;
     }
 
@@ -259,7 +261,7 @@ function App() {
         drawMs: drawDoneAt - drawStartedAt,
         loopMs,
       });
-    } catch (cause) {
+    } catch (cause: unknown) {
       detectingRef.current = false;
       setIsDetecting(false);
       setError(cause instanceof Error ? cause.message : 'Detection failed');
@@ -268,7 +270,9 @@ function App() {
     }
 
     if (detectingRef.current) {
-      timeoutRef.current = window.setTimeout(runDetection, DETECTION_INTERVAL_MS);
+      timeoutRef.current = window.setTimeout(() => {
+        void runDetection();
+      }, DETECTION_INTERVAL_MS);
     }
   }, [drawDetections, syncCanvasSize]);
 
@@ -357,7 +361,7 @@ function App() {
       }
       setCameraEnabled(true);
       setStatus('Camera ready');
-    } catch (cause) {
+    } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : 'Camera permission was denied');
       setStatus('Camera blocked');
     }
@@ -380,8 +384,8 @@ function App() {
       detectingRef.current = true;
       setIsDetecting(true);
       setStatus('Scanning');
-      runDetection();
-    } catch (cause) {
+      void runDetection();
+    } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : 'Unable to load detector');
       setStatus('Detector unavailable');
       setIsDetecting(false);

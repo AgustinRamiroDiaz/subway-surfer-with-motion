@@ -1,13 +1,11 @@
 import {
   createFrameDescriptor,
-  type CameraFrame,
   type CameraFrameImage,
   type ModelPrediction,
   type ModelPredictionService,
   type ModelPredictionTimings,
   type PersonDetection,
   type PoseDetection,
-  type PoseKeypoint,
 } from './detectionSchema';
 
 export const YOLO_MODELS = [
@@ -114,8 +112,7 @@ type YoloModelOutput = {
 };
 
 type YoloModel = {
-  (inputs: unknown): Promise<{
-  } & YoloModelOutput>;
+  (inputs: unknown): Promise<YoloModelOutput>;
 };
 
 type YoloPoseProcessor = (image: unknown) => Promise<unknown>;
@@ -140,11 +137,11 @@ const KEYPOINT_LABELS = [
   'Right Ankle',
 ] as const;
 
-function getErrorMessage(cause: unknown) {
+function getErrorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
-function getSelectedModel(modelId: YoloModelId) {
+function getSelectedModel(modelId: YoloModelId): (typeof YOLO_MODELS)[number] {
   return YOLO_MODELS.find((model) => model.id === modelId) ?? YOLO_MODELS[0];
 }
 
@@ -178,7 +175,7 @@ function decodeYoloDetectionOutput(
   output: YoloModelOutput,
   image: CameraFrameImage,
   threshold: number
-) {
+): PersonDetection[] {
   if (!output.pred_boxes) {
     throw new Error('Detection model did not return pred_boxes');
   }
@@ -220,7 +217,7 @@ function decodeYoloPoseOutput(
   logits: { dims: number[]; data: ArrayLike<number> },
   image: CameraFrameImage,
   threshold: number
-) {
+): PoseDetection[] {
   const [, candidateCount, featureCount] = logits.dims;
   const data = logits.data;
   const detections: PoseDetection[] = [];
@@ -264,13 +261,13 @@ function decodeYoloPoseOutput(
   return detections.sort((a, b) => b.score - a.score);
 }
 
-async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOptions) {
+async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOptions): Promise<Detector> {
   const { AutoImageProcessor, AutoModelForObjectDetection, RawImage, env } = await import('@huggingface/transformers');
   env.allowLocalModels = false;
   const dtype = device === 'webgpu' ? 'fp16' : 'q8';
   const selectedModel = getSelectedModel(options.modelId);
 
-  const progress_callback = (progress: LoadProgress) => {
+  const progress_callback = (progress: LoadProgress): void => {
     if (progress.status === 'progress' && typeof progress.progress === 'number') {
       const fileName = progress.file?.split('/').pop() ?? 'model file';
       options.onStatusChange?.({
@@ -324,7 +321,7 @@ async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOp
   return poseDetector;
 }
 
-async function getWebGpuFallbackReason() {
+async function getWebGpuFallbackReason(): Promise<string | null> {
   const nav = navigator as NavigatorWithGpu;
 
   if (!nav.gpu) {
@@ -336,7 +333,7 @@ async function getWebGpuFallbackReason() {
     if (!adapter) {
       return 'no WebGPU adapter was returned for this device/browser';
     }
-  } catch (cause) {
+  } catch (cause: unknown) {
     return `requestAdapter failed: ${getErrorMessage(cause)}`;
   }
 
@@ -372,7 +369,7 @@ export async function loadYoloDetector(options: DetectorLoadOptions): Promise<De
       detector,
       runtime: 'WebGPU',
     };
-  } catch (cause) {
+  } catch (cause: unknown) {
     const reason = `WebGPU pipeline failed: ${getErrorMessage(cause)}`;
     console.warn(reason);
     options.onStatusChange?.({ message: `${reason}; falling back to WASM` });

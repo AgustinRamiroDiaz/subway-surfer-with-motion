@@ -1,28 +1,51 @@
 import { DEFAULT_YOLO_MODEL_ID, YOLO_MODELS, loadYoloDetector } from './aiDetector';
 import { createCameraFrame } from './detectionSchema';
 
-const mockProcessor = jest.fn();
-const mockModel = jest.fn();
-const mockFromCanvas = jest.fn();
-const mockFromPretrainedProcessor = jest.fn();
-const mockFromPretrainedModel = jest.fn();
+type RawImageFixture = {
+  size: [number, number];
+  width: number;
+  height: number;
+};
+
+type MockInputs = {
+  pixel_values: string;
+};
+
+type MockLogits = {
+  dims: [number, number, number];
+  data: number[];
+};
+
+type MockDetectionOutput = {
+  logits: MockLogits;
+  pred_boxes: {
+    dims: [number, number, number];
+    data: [number, number, number, number];
+  };
+};
+
+const mockProcessor = jest.fn<Promise<MockInputs>, [RawImageFixture]>();
+const mockModel = jest.fn<Promise<{ logits: MockLogits } | MockDetectionOutput>, [MockInputs]>();
+const mockFromCanvas = jest.fn<RawImageFixture, [HTMLCanvasElement]>();
+const mockFromPretrainedProcessor = jest.fn<Promise<typeof mockProcessor>, [string, unknown]>();
+const mockFromPretrainedModel = jest.fn<Promise<typeof mockModel>, [string, unknown]>();
 
 jest.mock('@huggingface/transformers', () => ({
   env: {
     allowLocalModels: true,
   },
   RawImage: {
-    fromCanvas: (...args: unknown[]) => mockFromCanvas(...args),
+    fromCanvas: (canvas: HTMLCanvasElement) => mockFromCanvas(canvas),
   },
   AutoImageProcessor: {
-    from_pretrained: (...args: unknown[]) => mockFromPretrainedProcessor(...args),
+    from_pretrained: (modelId: string, options: unknown) => mockFromPretrainedProcessor(modelId, options),
   },
   AutoModelForObjectDetection: {
-    from_pretrained: (...args: unknown[]) => mockFromPretrainedModel(...args),
+    from_pretrained: (modelId: string, options: unknown) => mockFromPretrainedModel(modelId, options),
   },
 }));
 
-function makePoseLogits() {
+function makePoseLogits(): MockLogits {
   const data = new Array(57).fill(0);
   data[0] = 0.1;
   data[1] = 0.2;
@@ -44,8 +67,8 @@ function makePoseLogits() {
   };
 }
 
-function makeDetectionOutput() {
-  const logits = new Array(80).fill(0.02);
+function makeDetectionOutput(): MockDetectionOutput {
+  const logits = Array.from({ length: 80 }, () => 0.02);
   logits[0] = 0.92;
 
   return {
@@ -122,13 +145,11 @@ describe('loadYoloDetector', () => {
       ymax: 432,
     });
     expect(result.detections[0].keypoints).toHaveLength(17);
-    expect(result.timings).toEqual({
-      rawImageMs: expect.any(Number),
-      preprocessMs: expect.any(Number),
-      modelMs: expect.any(Number),
-      postprocessMs: expect.any(Number),
-      totalMs: expect.any(Number),
-    });
+    expect(typeof result.timings.rawImageMs).toBe('number');
+    expect(typeof result.timings.preprocessMs).toBe('number');
+    expect(typeof result.timings.modelMs).toBe('number');
+    expect(typeof result.timings.postprocessMs).toBe('number');
+    expect(typeof result.timings.totalMs).toBe('number');
   });
 
   test('uses fp16 when WebGPU is selected', async () => {

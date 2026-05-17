@@ -39,6 +39,8 @@ pnpm install
 
 ## Development
 
+The frontend app lives in `frontend/`. Root scripts delegate into that folder so the common commands still work from the repository root.
+
 ```bash
 pnpm start
 ```
@@ -49,6 +51,12 @@ Open the local URL printed by Create React App. If the default port is busy, CRA
 
 ```bash
 pnpm test --watchAll=false
+```
+
+## Lint
+
+```bash
+pnpm run lint
 ```
 
 ## Build
@@ -72,7 +80,7 @@ PUBLIC_URL=/subway-surfer-with-motion pnpm run build
 5. The highest-confidence person is mapped to left, center, or right.
 6. The Three.js player sphere moves to that lane while obstacle spheres travel down the rails.
 
-The shared prediction boundary lives in `src/detectionSchema.ts`. Keep camera frame data (`CameraFrame`) separate from model output (`ModelPrediction`) so the browser worker can be replaced by a local backend client without changing React's detection loop.
+The shared prediction boundary lives in `frontend/src/detectionSchema.ts`. Keep camera frame data (`CameraFrame`) separate from model output (`ModelPrediction`) so the browser worker can be replaced by a local backend client without changing React's detection loop.
 
 If camera mirroring is enabled, the preview and detection overlay are flipped visually, and the lane mapping is inverted so movement matches what the user sees.
 
@@ -101,6 +109,6 @@ The workflow runs on pushes to `main` and can also be started manually. It insta
 PUBLIC_URL=/subway-surfer-with-motion pnpm run build
 ```
 
-Then it publishes the `build/` directory through GitHub Pages.
+Then it publishes the `frontend/build/` directory through GitHub Pages.
 
 In the GitHub repository settings, set Pages source to **GitHub Actions**.
