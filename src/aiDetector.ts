@@ -82,8 +82,10 @@ export type DetectorResult = {
   timings: DetectorTimings;
 };
 
+export type DetectorImage = HTMLCanvasElement | OffscreenCanvas;
+
 export type Detector = (
-  image: HTMLCanvasElement,
+  image: DetectorImage,
   options: { threshold: number; percentage: false }
 ) => Promise<DetectorResult>;
 
@@ -99,13 +101,13 @@ export type DetectorLoadState = {
 
 type DetectorRuntime = 'WebGPU' | 'WASM';
 
-type DetectorLoadOptions = {
+export type DetectorLoadOptions = {
   modelId: YoloModelId;
   runtime: DetectorRuntimeId;
   onStatusChange?: (state: DetectorLoadState) => void;
 };
 
-type DetectorLoadResult = {
+export type DetectorLoadResult = {
   detector: Detector;
   runtime: DetectorRuntime;
   fallbackReason?: string;
@@ -165,7 +167,7 @@ function getSelectedModel(modelId: YoloModelId) {
 
 function toImageBox(
   values: [number, number, number, number],
-  image: HTMLCanvasElement,
+  image: DetectorImage,
   format: 'xyxy' | 'cxcywh'
 ): PersonDetection['box'] {
   const [a, b, c, d] = values;
@@ -191,7 +193,7 @@ function toImageBox(
 
 function decodeYoloDetectionOutput(
   output: YoloModelOutput,
-  image: HTMLCanvasElement,
+  image: DetectorImage,
   threshold: number
 ) {
   if (!output.pred_boxes) {
@@ -233,7 +235,7 @@ function decodeYoloDetectionOutput(
 
 function decodeYoloPoseOutput(
   logits: { dims: number[]; data: ArrayLike<number> },
-  image: HTMLCanvasElement,
+  image: DetectorImage,
   threshold: number
 ) {
   const [, candidateCount, featureCount] = logits.dims;

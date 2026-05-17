@@ -4,7 +4,6 @@ import {
   DEFAULT_YOLO_MODEL_ID,
   DETECTOR_RUNTIMES,
   YOLO_MODELS,
-  loadYoloDetector,
   type Detector,
   type DetectorRuntimeId,
   type DetectorTimings,
@@ -12,6 +11,7 @@ import {
   type PoseKeypoint,
   type YoloModelId,
 } from './aiDetector';
+import { loadYoloDetectorWorker } from './detectorWorkerClient';
 import { GameScene } from './GameScene';
 import './App.css';
 
@@ -79,6 +79,7 @@ function App() {
   const overlayRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<HTMLCanvasElement | null>(null);
   const detectorRef = useRef<Detector | null>(null);
+  const disposeDetectorRef = useRef<(() => void) | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const detectingRef = useRef(false);
@@ -272,12 +273,13 @@ function App() {
     setModelStatus('Loading model');
 
     try {
-      const { detector, runtime, fallbackReason } = await loadYoloDetector({
+      const { detector, runtime, fallbackReason, dispose } = await loadYoloDetectorWorker({
         modelId: selectedModelId,
         runtime: selectedRuntimeId,
         onStatusChange: ({ message }) => setModelStatus(message),
       });
       detectorRef.current = detector;
+      disposeDetectorRef.current = dispose;
       setModelStatus(
         fallbackReason
           ? `Model ready on ${runtime}. WebGPU fallback: ${fallbackReason}`
@@ -291,6 +293,8 @@ function App() {
 
   const resetDetector = useCallback(() => {
     stopDetection();
+    disposeDetectorRef.current?.();
+    disposeDetectorRef.current = null;
     detectorRef.current = null;
     setDetections([]);
     setLastInferenceMs(null);
@@ -402,6 +406,7 @@ function App() {
       if (timeoutRef.current !== null) {
         window.clearTimeout(timeoutRef.current);
       }
+      disposeDetectorRef.current?.();
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);

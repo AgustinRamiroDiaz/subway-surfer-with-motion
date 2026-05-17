@@ -1,6 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
+jest.mock('./detectorWorkerClient', () => ({
+  loadYoloDetectorWorker: jest.fn(),
+}));
+
 test('renders the motion game shell', () => {
   render(<App />);
   expect(screen.getByRole('heading', { name: /motion runner/i })).toBeInTheDocument();
