@@ -152,12 +152,33 @@ button:disabled {
   background: #7cffce;
 }
 
+.model-control,
 .threshold-control {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
   color: #dce7df;
   font-weight: 700;
+}
+
+.model-control {
+  grid-template-columns: 1fr;
+}
+
+.model-control select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: #202629;
+  color: #f2f5f1;
+  font: inherit;
+  font-weight: 700;
+  padding: 0 12px;
+}
+
+.model-control select:disabled {
+  opacity: 0.55;
 }
 
 .threshold-control input {

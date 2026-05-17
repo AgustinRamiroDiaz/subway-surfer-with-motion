@@ -1,21 +1,51 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { loadYoloDetector, type Detection, type Detector } from './aiDetector';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import {
+  DEFAULT_YOLO_MODEL_ID,
+  YOLO_MODELS,
+  loadYoloDetector,
+  type Detector,
+  type PoseDetection,
+  type PoseKeypoint,
+  type YoloModelId,
+} from './aiDetector';
 import './App.css';
 
 const DETECTION_INTERVAL_MS = 180;
 const DEFAULT_THRESHOLD = 0.45;
+const POSE_CONNECTIONS = [
+  ['Left Shoulder', 'Right Shoulder'],
+  ['Left Shoulder', 'Left Elbow'],
+  ['Left Elbow', 'Left Wrist'],
+  ['Right Shoulder', 'Right Elbow'],
+  ['Right Elbow', 'Right Wrist'],
+  ['Left Shoulder', 'Left Hip'],
+  ['Right Shoulder', 'Right Hip'],
+  ['Left Hip', 'Right Hip'],
+  ['Left Hip', 'Left Knee'],
+  ['Left Knee', 'Left Ankle'],
+  ['Right Hip', 'Right Knee'],
+  ['Right Knee', 'Right Ankle'],
+  ['Nose', 'Left Eye'],
+  ['Nose', 'Right Eye'],
+  ['Left Eye', 'Left Ear'],
+  ['Right Eye', 'Right Ear'],
+] as const;
 
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
-function clampBox(box: Detection['box'], width: number, height: number) {
+function clampBox(box: PoseDetection['box'], width: number, height: number) {
   return {
     xmin: Math.max(0, Math.min(width, box.xmin)),
     ymin: Math.max(0, Math.min(height, box.ymin)),
     xmax: Math.max(0, Math.min(width, box.xmax)),
     ymax: Math.max(0, Math.min(height, box.ymax)),
   };
+}
+
+function findKeypoint(keypoints: PoseKeypoint[], label: string) {
+  return keypoints.find((keypoint) => keypoint.label === label);
 }
 
 function App() {
@@ -27,13 +57,15 @@ function App() {
   const timeoutRef = useRef<number | null>(null);
   const detectingRef = useRef(false);
   const thresholdRef = useRef(DEFAULT_THRESHOLD);
+  const selectedModelRef = useRef<YoloModelId>(DEFAULT_YOLO_MODEL_ID);
 
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState('Camera idle');
   const [modelStatus, setModelStatus] = useState('Model not loaded');
-  const [detections, setDetections] = useState<Detection[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<YoloModelId>(DEFAULT_YOLO_MODEL_ID);
+  const [detections, setDetections] = useState<PoseDetection[]>([]);
   const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
   const [lastInferenceMs, setLastInferenceMs] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +74,11 @@ function App() {
     thresholdRef.current = threshold;
   }, [threshold]);
 
-  const drawDetections = useCallback((items: Detection[]) => {
+  useEffect(() => {
+    selectedModelRef.current = selectedModelId;
+  }, [selectedModelId]);
+
+  const drawDetections = useCallback((items: PoseDetection[]) => {
     const video = videoRef.current;
     const canvas = overlayRef.current;
     if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
@@ -62,11 +98,11 @@ function App() {
     context.font = `${Math.max(15, Math.round(canvas.width / 48))}px Inter, system-ui, sans-serif`;
     context.textBaseline = 'top';
 
-    items.forEach((item) => {
+    items.forEach((item, index) => {
       const box = clampBox(item.box, canvas.width, canvas.height);
       const width = box.xmax - box.xmin;
       const height = box.ymax - box.ymin;
-      const label = `${item.label} ${formatPercent(item.score)}`;
+      const label = `person ${index + 1} ${formatPercent(item.score)}`;
       const labelWidth = context.measureText(label).width + 16;
       const labelHeight = 28;
       const labelY = box.ymin > labelHeight ? box.ymin - labelHeight : box.ymin;
@@ -80,6 +116,27 @@ function App() {
       context.fillRect(box.xmin, labelY, labelWidth, labelHeight);
       context.fillStyle = '#dfffee';
       context.fillText(label, box.xmin + 8, labelY + 5);
+
+      context.strokeStyle = '#ffcc4d';
+      context.lineWidth = Math.max(2, Math.round(canvas.width / 360));
+      POSE_CONNECTIONS.forEach(([fromLabel, toLabel]) => {
+        const from = findKeypoint(item.keypoints, fromLabel);
+        const to = findKeypoint(item.keypoints, toLabel);
+        if (!from || !to) {
+          return;
+        }
+        context.beginPath();
+        context.moveTo(from.x, from.y);
+        context.lineTo(to.x, to.y);
+        context.stroke();
+      });
+
+      item.keypoints.forEach((keypoint) => {
+        context.beginPath();
+        context.fillStyle = '#ff5f7a';
+        context.arc(keypoint.x, keypoint.y, Math.max(4, Math.round(canvas.width / 180)), 0, Math.PI * 2);
+        context.fill();
+      });
     });
   }, []);
 
@@ -134,7 +191,7 @@ function App() {
       const sorted = [...output].sort((a, b) => b.score - a.score);
       setDetections(sorted);
       setLastInferenceMs(Math.round(performance.now() - startedAt));
-      setStatus(sorted.length ? `${sorted.length} object${sorted.length === 1 ? '' : 's'} detected` : 'Scanning');
+      setStatus(sorted.length ? `${sorted.length} person pose${sorted.length === 1 ? '' : 's'} detected` : 'Scanning');
       drawDetections(sorted);
     } catch (cause) {
       detectingRef.current = false;
@@ -159,6 +216,7 @@ function App() {
 
     try {
       const { detector, runtime, fallbackReason } = await loadYoloDetector({
+        modelId: selectedModelId,
         onStatusChange: ({ message }) => setModelStatus(message),
       });
       detectorRef.current = detector;
@@ -171,7 +229,25 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [selectedModelId]);
+
+  const handleModelChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    const nextModelId = event.target.value as YoloModelId;
+    if (nextModelId === selectedModelRef.current) {
+      return;
+    }
+
+    stopDetection();
+    detectorRef.current = null;
+    selectedModelRef.current = nextModelId;
+    setSelectedModelId(nextModelId);
+    setDetections([]);
+    setLastInferenceMs(null);
+    setModelStatus('Model not loaded');
+
+    const overlay = overlayRef.current;
+    overlay?.getContext('2d')?.clearRect(0, 0, overlay.width, overlay.height);
+  }, [stopDetection]);
 
   const startCamera = useCallback(async () => {
     setError(null);
@@ -253,9 +329,11 @@ function App() {
     };
   }, []);
 
+  const selectedModel = YOLO_MODELS.find((model) => model.id === selectedModelId) ?? YOLO_MODELS[0];
+
   return (
     <main className="app-shell">
-      <section className="workspace" aria-label="Real-time object detection workspace">
+      <section className="workspace" aria-label="Real-time pose estimation workspace">
         <div className="video-stage">
           <video
             ref={videoRef}
@@ -269,9 +347,9 @@ function App() {
 
           {!cameraEnabled && (
             <div className="empty-state">
-              <p className="eyebrow">YOLO26n ONNX</p>
+              <p className="eyebrow">{selectedModel.label} ONNX</p>
               <h1>Live camera detection</h1>
-              <p>Run COCO object detection locally in your browser.</p>
+              <p>Estimate person position and body keypoints locally in your browser.</p>
             </div>
           )}
         </div>
@@ -287,6 +365,17 @@ function App() {
           </div>
 
           {error && <p className="error-message">{error}</p>}
+
+          <label className="model-control">
+            <span>Model</span>
+            <select value={selectedModelId} onChange={handleModelChange} disabled={isLoading}>
+              {YOLO_MODELS.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.label} · {model.description}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <div className="button-row">
             <button type="button" onClick={startCamera} disabled={cameraEnabled || isLoading}>
@@ -319,18 +408,18 @@ function App() {
           </label>
 
           <div className="detection-list" aria-live="polite">
-            <p className="eyebrow">Detections</p>
+            <p className="eyebrow">People</p>
             {detections.length > 0 ? (
               <ul>
                 {detections.slice(0, 8).map((detection, index) => (
                   <li key={`${detection.label}-${index}-${Math.round(detection.score * 1000)}`}>
-                    <span>{detection.label}</span>
-                    <strong>{formatPercent(detection.score)}</strong>
+                    <span>Person {index + 1}</span>
+                    <strong>{detection.keypoints.length} points</strong>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="muted">No objects above threshold.</p>
+              <p className="muted">No people above threshold.</p>
             )}
           </div>
         </aside>
