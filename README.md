@@ -1,70 +1,104 @@
-# Getting Started with Create React App
+# Subway Surfer With Motion
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A browser-based motion-control game prototype. The app uses the user's camera to detect a person, maps their horizontal position into three lanes, and drives a Three.js runner scene where the player dodges incoming obstacle balls.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- Live camera feedback with three lane guides
+- Mirrored camera preview enabled by default
+- YOLO person detection and pose models through Transformers.js
+- Runtime switch between WebGPU and WASM
+- Model switch between nano/small detection and pose variants
+- Worker-based inference so the game/UI thread stays responsive
+- Three.js rail scene with lane movement, obstacle spawning, hit count, and dodge count
+- GitHub Pages deployment workflow
 
-### `npm start`
+## Tech Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- React + TypeScript
+- Create React App
+- pnpm
+- Three.js
+- `@huggingface/transformers`
+- Web Workers
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Requirements
 
-### `npm test`
+- Node.js 24
+- pnpm 11
+- A browser with camera access
+- WebGPU-capable browser/GPU for the fastest runtime, otherwise the app falls back to WASM
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Camera access requires a secure context. Localhost is fine for development; hosted deployments should use HTTPS.
 
-### `npm run build`
+## Install
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+pnpm install
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Development
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+pnpm start
+```
 
-### `npm run eject`
+Open the local URL printed by Create React App. If the default port is busy, CRA will offer another port.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Test
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```bash
+pnpm test --watchAll=false
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Build
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```bash
+pnpm run build
+```
 
-## Learn More
+For the GitHub Pages path used by this repository:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```bash
+PUBLIC_URL=/subway-surfer-with-motion pnpm run build
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## How It Works
 
-### Code Splitting
+1. The main thread captures the current camera frame.
+2. The frame is transferred to a Web Worker as an `ImageBitmap`.
+3. The worker runs Transformers.js preprocessing and YOLO inference.
+4. The decoded person detections are sent back to React.
+5. The highest-confidence person is mapped to left, center, or right.
+6. The Three.js player sphere moves to that lane while obstacle spheres travel down the rails.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+If camera mirroring is enabled, the preview and detection overlay are flipped visually, and the lane mapping is inverted so movement matches what the user sees.
 
-### Analyzing the Bundle Size
+## Models
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+The UI currently supports:
 
-### Making a Progressive Web App
+- `onnx-community/yolo26n-ONNX`
+- `onnx-community/yolo26s-ONNX`
+- `onnx-community/yolo26n-pose-ONNX`
+- `onnx-community/yolo26s-pose-ONNX`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+Detection models produce person boxes only. Pose models produce person boxes plus body keypoints.
 
-### Advanced Configuration
+## Deployment
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+GitHub Pages deployment is configured in:
 
-### Deployment
+```text
+.github/workflows/deploy-github-pages.yml
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+The workflow runs on pushes to `main` and can also be started manually. It installs with pnpm, runs tests, builds with:
 
-### `npm run build` fails to minify
+```bash
+PUBLIC_URL=/subway-surfer-with-motion pnpm run build
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Then it publishes the `build/` directory through GitHub Pages.
+
+In the GitHub repository settings, set Pages source to **GitHub Actions**.
