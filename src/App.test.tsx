@@ -1,8 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders learn react link', () => {
+test('renders the motion game shell', () => {
   render(<App />);
-  expect(screen.getByRole('heading', { name: /live camera detection/i })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /motion runner/i })).toBeInTheDocument();
+  expect(screen.getByLabelText(/main game/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/camera feedback/i)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /start camera/i })).toBeInTheDocument();
 });

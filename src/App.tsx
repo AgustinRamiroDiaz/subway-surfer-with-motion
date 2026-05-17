@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
 import {
   DEFAULT_DETECTOR_RUNTIME_ID,
   DEFAULT_YOLO_MODEL_ID,
@@ -16,6 +16,7 @@ import './App.css';
 
 const DETECTION_INTERVAL_MS = 180;
 const DEFAULT_THRESHOLD = 0.45;
+const LANES = ['Left', 'Center', 'Right'] as const;
 type FrameTimings = DetectorTimings & {
   captureMs: number;
   drawMs: number;
@@ -62,6 +63,15 @@ function formatMs(value: number) {
   return `${Math.round(value)} ms`;
 }
 
+function getPersonColumn(detection: PersonDetection, frameWidth: number) {
+  if (!frameWidth) {
+    return 1;
+  }
+
+  const centerX = (detection.box.xmin + detection.box.xmax) / 2;
+  return Math.max(0, Math.min(2, Math.floor((centerX / frameWidth) * 3)));
+}
+
 function App() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const overlayRef = useRef<HTMLCanvasElement | null>(null);
@@ -85,6 +95,7 @@ function App() {
   const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
   const [lastInferenceMs, setLastInferenceMs] = useState<number | null>(null);
   const [frameTimings, setFrameTimings] = useState<FrameTimings | null>(null);
+  const [playerColumn, setPlayerColumn] = useState(1);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -202,29 +213,31 @@ function App() {
       return;
     }
 
+    const loopStartedAt = performance.now();
     syncCanvasSize();
     frameContext.drawImage(video, 0, 0, frame.width, frame.height);
     const captureDoneAt = performance.now();
 
-    const startedAt = performance.now();
     try {
       const result = await detector(frame, {
         threshold: thresholdRef.current,
         percentage: false,
       });
-      const detectorDoneAt = performance.now();
       const sorted = [...result.detections].sort((a, b) => b.score - a.score);
       setDetections(sorted);
+      if (sorted[0]) {
+        setPlayerColumn(getPersonColumn(sorted[0], frame.width));
+      }
       setStatus(sorted.length ? `${sorted.length} person${sorted.length === 1 ? '' : 's'} detected` : 'Scanning');
       const drawStartedAt = performance.now();
       drawDetections(sorted);
       const drawDoneAt = performance.now();
-      const loopMs = drawDoneAt - startedAt;
+      const loopMs = drawDoneAt - loopStartedAt;
 
       setLastInferenceMs(Math.round(result.timings.totalMs));
       setFrameTimings({
         ...result.timings,
-        captureMs: captureDoneAt - startedAt,
+        captureMs: captureDoneAt - loopStartedAt,
         drawMs: drawDoneAt - drawStartedAt,
         loopMs,
       });
@@ -273,6 +286,7 @@ function App() {
     setDetections([]);
     setLastInferenceMs(null);
     setFrameTimings(null);
+    setPlayerColumn(1);
     setModelStatus('Model not loaded');
 
     const overlay = overlayRef.current;
@@ -369,6 +383,7 @@ function App() {
     setDetections([]);
     setLastInferenceMs(null);
     setFrameTimings(null);
+    setPlayerColumn(1);
     setStatus('Camera idle');
   }, [stopDetection]);
 
@@ -383,28 +398,61 @@ function App() {
   }, []);
 
   const selectedModel = YOLO_MODELS.find((model) => model.id === selectedModelId) ?? YOLO_MODELS[0];
+  const playerLane = LANES[playerColumn];
 
   return (
     <main className="app-shell">
-      <section className="workspace" aria-label="Real-time person detection workspace">
-        <div className="video-stage">
-          <video
-            ref={videoRef}
-            className="camera-video"
-            muted
-            playsInline
-            onLoadedMetadata={syncCanvasSize}
-          />
-          <canvas ref={overlayRef} className="detection-overlay" aria-hidden="true" />
-          <canvas ref={frameRef} className="frame-buffer" aria-hidden="true" />
-
-          {!cameraEnabled && (
-            <div className="empty-state">
-              <p className="eyebrow">{selectedModel.label} ONNX</p>
-              <h1>Live camera detection</h1>
-              <p>Scan for people locally in your browser, with optional body keypoints.</p>
+      <section className="workspace" aria-label="Motion game workspace">
+        <div className="play-split">
+          <section className="game-stage" aria-label="Main game">
+            <div className="stage-heading">
+              <p className="eyebrow">Main game</p>
+              <h1>Motion runner</h1>
             </div>
-          )}
+            <div className="game-lanes" aria-hidden="true">
+              {LANES.map((lane) => (
+                <div key={lane} className="game-lane" />
+              ))}
+            </div>
+            <div
+              className="player-token"
+              style={{ '--player-column': playerColumn } as CSSProperties}
+              aria-label={`Player in ${playerLane.toLowerCase()} lane`}
+            />
+            <div className="lane-readout">
+              <span>Lane</span>
+              <strong>{playerLane}</strong>
+            </div>
+          </section>
+
+          <section className="video-stage" aria-label="Camera feedback">
+            <div className="stage-heading camera-heading">
+              <p className="eyebrow">Camera feedback</p>
+              <h2>{selectedModel.label}</h2>
+            </div>
+            <video
+              ref={videoRef}
+              className="camera-video"
+              muted
+              playsInline
+              onLoadedMetadata={syncCanvasSize}
+            />
+            <div className="camera-lane-guides" aria-hidden="true">
+              {LANES.map((lane) => (
+                <div key={lane} className="camera-lane" />
+              ))}
+            </div>
+            <canvas ref={overlayRef} className="detection-overlay" aria-hidden="true" />
+            <canvas ref={frameRef} className="frame-buffer" aria-hidden="true" />
+
+            {!cameraEnabled && (
+              <div className="empty-state">
+                <p className="eyebrow">{selectedModel.label} ONNX</p>
+                <h2>Start the camera</h2>
+                <p>Stand in one of the three columns to move the player.</p>
+              </div>
+            )}
+          </section>
         </div>
 
         <aside className="control-panel" aria-label="Detection controls">
