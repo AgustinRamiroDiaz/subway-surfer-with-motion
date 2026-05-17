@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import {
   DEFAULT_DETECTOR_RUNTIME_ID,
   DEFAULT_YOLO_MODEL_ID,
@@ -12,6 +12,7 @@ import {
   type PoseKeypoint,
   type YoloModelId,
 } from './aiDetector';
+import { GameScene } from './GameScene';
 import './App.css';
 
 const DETECTION_INTERVAL_MS = 180;
@@ -405,24 +406,7 @@ function App() {
       <section className="workspace" aria-label="Motion game workspace">
         <div className="play-split">
           <section className="game-stage" aria-label="Main game">
-            <div className="stage-heading">
-              <p className="eyebrow">Main game</p>
-              <h1>Motion runner</h1>
-            </div>
-            <div className="game-lanes" aria-hidden="true">
-              {LANES.map((lane) => (
-                <div key={lane} className="game-lane" />
-              ))}
-            </div>
-            <div
-              className="player-token"
-              style={{ '--player-column': playerColumn } as CSSProperties}
-              aria-label={`Player in ${playerLane.toLowerCase()} lane`}
-            />
-            <div className="lane-readout">
-              <span>Lane</span>
-              <strong>{playerLane}</strong>
-            </div>
+            <GameScene playerColumn={playerColumn} laneLabel={playerLane} />
           </section>
 
           <section className="video-stage" aria-label="Camera feedback">
