@@ -4,6 +4,7 @@ import {
   type DetectorLoadResult,
   type DetectorResult,
 } from './aiDetector';
+import { createFrameDescriptor, type TransferredCameraFrame } from './detectionSchema';
 
 type PendingRequest =
   | {
@@ -61,9 +62,14 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
     worker.terminate();
   };
 
-  const detector: Detector = async (image, detectorOptions) => {
+  const detector: Detector = async (cameraFrame, detectorOptions) => {
     const id = nextRequestId();
-    const bitmap = await createImageBitmap(image);
+    const bitmap = await createImageBitmap(cameraFrame.image);
+    const frame: TransferredCameraFrame = {
+      type: 'camera-frame',
+      ...createFrameDescriptor(cameraFrame),
+      bitmap,
+    };
 
     return new Promise<DetectorResult>((resolve, reject) => {
       pending.set(id, {
@@ -76,7 +82,7 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
         {
           type: 'detect',
           requestId: id,
-          bitmap,
+          frame,
           threshold: detectorOptions.threshold,
         },
         [bitmap]

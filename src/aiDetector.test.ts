@@ -1,4 +1,5 @@
 import { DEFAULT_YOLO_MODEL_ID, YOLO_MODELS, loadYoloDetector } from './aiDetector';
+import { createCameraFrame } from './detectionSchema';
 
 const mockProcessor = jest.fn();
 const mockModel = jest.fn();
@@ -94,7 +95,8 @@ describe('loadYoloDetector', () => {
       modelId: DEFAULT_YOLO_MODEL_ID,
       runtime: 'wasm',
     });
-    const result = await detector(canvas, { threshold: 0.5, percentage: false });
+    const frame = createCameraFrame(canvas, 'test-frame-1', 100);
+    const result = await detector(frame, { threshold: 0.5, percentage: false });
 
     expect(runtime).toBe('WASM');
     expect(mockFromPretrainedModel).toHaveBeenCalledWith(
@@ -107,6 +109,12 @@ describe('loadYoloDetector', () => {
     expect(mockFromCanvas).toHaveBeenCalledWith(canvas);
     expect(mockProcessor).toHaveBeenCalledWith(expect.objectContaining({ size: [480, 640] }));
     expect(result.detections).toHaveLength(1);
+    expect(result.frame).toEqual({
+      frameId: 'test-frame-1',
+      capturedAtMs: 100,
+      width: 640,
+      height: 480,
+    });
     expect(result.detections[0].box).toEqual({
       xmin: 64,
       ymin: 96,
@@ -161,7 +169,10 @@ describe('loadYoloDetector', () => {
       modelId: detectionModelId,
       runtime: 'wasm',
     });
-    const result = await detector(canvas, { threshold: 0.5, percentage: false });
+    const result = await detector(createCameraFrame(canvas, 'test-frame-2', 200), {
+      threshold: 0.5,
+      percentage: false,
+    });
 
     expect(result.detections).toHaveLength(1);
     expect(result.detections[0].label).toBe('person');

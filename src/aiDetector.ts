@@ -1,3 +1,15 @@
+import {
+  createFrameDescriptor,
+  type CameraFrame,
+  type CameraFrameImage,
+  type ModelPrediction,
+  type ModelPredictionService,
+  type ModelPredictionTimings,
+  type PersonDetection,
+  type PoseDetection,
+  type PoseKeypoint,
+} from './detectionSchema';
+
 export const YOLO_MODELS = [
   {
     id: 'onnx-community/yolo26n-ONNX',
@@ -46,48 +58,19 @@ export type DetectorRuntimeId = (typeof DETECTOR_RUNTIMES)[number]['id'];
 
 export const DEFAULT_DETECTOR_RUNTIME_ID: DetectorRuntimeId = 'webgpu';
 
-export type PoseKeypoint = {
-  label: string;
-  x: number;
-  y: number;
-  score: number;
-};
+export type {
+  CameraFrame,
+  ModelPrediction,
+  ModelPredictionService,
+  ModelPredictionTimings,
+  PersonDetection,
+  PoseKeypoint,
+} from './detectionSchema';
 
-export type PoseDetection = {
-  label: 'person';
-  score: number;
-  box: {
-    xmin: number;
-    ymin: number;
-    xmax: number;
-    ymax: number;
-  };
-  keypoints: PoseKeypoint[];
-};
-
-export type PersonDetection = Omit<PoseDetection, 'keypoints'> & {
-  keypoints?: PoseKeypoint[];
-};
-
-export type DetectorTimings = {
-  rawImageMs: number;
-  preprocessMs: number;
-  modelMs: number;
-  postprocessMs: number;
-  totalMs: number;
-};
-
-export type DetectorResult = {
-  detections: PersonDetection[];
-  timings: DetectorTimings;
-};
-
-export type DetectorImage = HTMLCanvasElement | OffscreenCanvas;
-
-export type Detector = (
-  image: DetectorImage,
-  options: { threshold: number; percentage: false }
-) => Promise<DetectorResult>;
+export type DetectorImage = CameraFrameImage;
+export type DetectorTimings = ModelPredictionTimings;
+export type DetectorResult = ModelPrediction;
+export type Detector = ModelPredictionService;
 
 export type LoadProgress = {
   status?: string;
@@ -167,7 +150,7 @@ function getSelectedModel(modelId: YoloModelId) {
 
 function toImageBox(
   values: [number, number, number, number],
-  image: DetectorImage,
+  image: CameraFrameImage,
   format: 'xyxy' | 'cxcywh'
 ): PersonDetection['box'] {
   const [a, b, c, d] = values;
@@ -193,7 +176,7 @@ function toImageBox(
 
 function decodeYoloDetectionOutput(
   output: YoloModelOutput,
-  image: DetectorImage,
+  image: CameraFrameImage,
   threshold: number
 ) {
   if (!output.pred_boxes) {
@@ -235,7 +218,7 @@ function decodeYoloDetectionOutput(
 
 function decodeYoloPoseOutput(
   logits: { dims: number[]; data: ArrayLike<number> },
-  image: DetectorImage,
+  image: CameraFrameImage,
   threshold: number
 ) {
   const [, candidateCount, featureCount] = logits.dims;
@@ -309,7 +292,8 @@ async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOp
     }) as Promise<YoloModel>,
   ]);
 
-  const poseDetector: Detector = async (image, detectorOptions) => {
+  const poseDetector: Detector = async (frame, detectorOptions) => {
+    const image = frame.image;
     const startedAt = performance.now();
     const rawImage = RawImage.fromCanvas(image);
     const rawImageDoneAt = performance.now();
@@ -324,6 +308,8 @@ async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOp
     const postprocessDoneAt = performance.now();
 
     return {
+      type: 'model-prediction',
+      frame: createFrameDescriptor(frame),
       detections,
       timings: {
         rawImageMs: rawImageDoneAt - startedAt,

@@ -66,11 +66,13 @@ PUBLIC_URL=/subway-surfer-with-motion pnpm run build
 ## How It Works
 
 1. The main thread captures the current camera frame.
-2. The frame is transferred to a Web Worker as an `ImageBitmap`.
-3. The worker runs Transformers.js preprocessing and YOLO inference.
-4. The decoded person detections are sent back to React.
+2. React wraps the canvas in a typed `CameraFrame` with frame id, capture time, width, and height.
+3. The active `ModelPredictionService` implementation receives that frame and returns a `ModelPrediction`.
+4. The current browser worker implementation transfers the frame image as an `ImageBitmap`, runs Transformers.js preprocessing and YOLO inference, then returns decoded person detections tied to the original frame metadata.
 5. The highest-confidence person is mapped to left, center, or right.
 6. The Three.js player sphere moves to that lane while obstacle spheres travel down the rails.
+
+The shared prediction boundary lives in `src/detectionSchema.ts`. Keep camera frame data (`CameraFrame`) separate from model output (`ModelPrediction`) so the browser worker can be replaced by a local backend client without changing React's detection loop.
 
 If camera mirroring is enabled, the preview and detection overlay are flipped visually, and the lane mapping is inverted so movement matches what the user sees.
 

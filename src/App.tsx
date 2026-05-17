@@ -11,6 +11,7 @@ import {
   type PoseKeypoint,
   type YoloModelId,
 } from './aiDetector';
+import { createCameraFrame } from './detectionSchema';
 import { loadYoloDetectorWorker } from './detectorWorkerClient';
 import { GameScene } from './GameScene';
 import './App.css';
@@ -87,6 +88,7 @@ function App() {
   const cameraMirroredRef = useRef(DEFAULT_CAMERA_MIRRORED);
   const selectedModelRef = useRef<YoloModelId>(DEFAULT_YOLO_MODEL_ID);
   const selectedRuntimeRef = useRef<DetectorRuntimeId>(DEFAULT_DETECTOR_RUNTIME_ID);
+  const frameSequenceRef = useRef(0);
 
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
@@ -226,9 +228,15 @@ function App() {
     syncCanvasSize();
     frameContext.drawImage(video, 0, 0, frame.width, frame.height);
     const captureDoneAt = performance.now();
+    frameSequenceRef.current += 1;
+    const cameraFrame = createCameraFrame(
+      frame,
+      `camera-frame-${frameSequenceRef.current}`,
+      loopStartedAt
+    );
 
     try {
-      const result = await detector(frame, {
+      const result = await detector(cameraFrame, {
         threshold: thresholdRef.current,
         percentage: false,
       });

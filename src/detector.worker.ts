@@ -4,6 +4,7 @@ import {
   type DetectorLoadOptions,
   type DetectorResult,
 } from './aiDetector';
+import { createCameraFrame, type TransferredCameraFrame } from './detectionSchema';
 
 type WorkerLoadMessage = {
   type: 'load';
@@ -15,7 +16,7 @@ type WorkerLoadMessage = {
 type WorkerDetectMessage = {
   type: 'detect';
   requestId: number;
-  bitmap: ImageBitmap;
+  frame: TransferredCameraFrame;
   threshold: number;
 };
 
@@ -96,7 +97,7 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>) => {
       throw new Error('Detector worker received a frame before the model was loaded');
     }
 
-    const { bitmap } = message;
+    const { bitmap } = message.frame;
     if (!frameCanvas || frameCanvas.width !== bitmap.width || frameCanvas.height !== bitmap.height) {
       frameCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
       frameContext = frameCanvas.getContext('2d') as OffscreenCanvasRenderingContext2D | null;
@@ -109,7 +110,12 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>) => {
     frameContext.drawImage(bitmap, 0, 0);
     bitmap.close();
 
-    const result = await detector(frameCanvas, {
+    const cameraFrame = createCameraFrame(
+      frameCanvas,
+      message.frame.frameId,
+      message.frame.capturedAtMs
+    );
+    const result = await detector(cameraFrame, {
       threshold: message.threshold,
       percentage: false,
     });
@@ -121,7 +127,7 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>) => {
     });
   } catch (cause) {
     if (message.type === 'detect') {
-      message.bitmap.close();
+      message.frame.bitmap.close();
     }
 
     post({
