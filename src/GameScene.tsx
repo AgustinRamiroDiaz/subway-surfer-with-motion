@@ -6,7 +6,7 @@ const PLAYER_Z = 2.6;
 const OBSTACLE_SPAWN_Z = -18;
 const OBSTACLE_DESPAWN_Z = 5.2;
 const OBSTACLE_SPEED = 7.2;
-const SPAWN_INTERVAL_MS = 820;
+const SPAWN_INTERVAL_MS = 2000;
 
 type GameSceneProps = {
   playerColumn: number;

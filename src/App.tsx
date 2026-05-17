@@ -17,6 +17,7 @@ import './App.css';
 
 const DETECTION_INTERVAL_MS = 180;
 const DEFAULT_THRESHOLD = 0.45;
+const DEFAULT_CAMERA_MIRRORED = true;
 const LANES = ['Left', 'Center', 'Right'] as const;
 type FrameTimings = DetectorTimings & {
   captureMs: number;
@@ -82,6 +83,7 @@ function App() {
   const timeoutRef = useRef<number | null>(null);
   const detectingRef = useRef(false);
   const thresholdRef = useRef(DEFAULT_THRESHOLD);
+  const cameraMirroredRef = useRef(DEFAULT_CAMERA_MIRRORED);
   const selectedModelRef = useRef<YoloModelId>(DEFAULT_YOLO_MODEL_ID);
   const selectedRuntimeRef = useRef<DetectorRuntimeId>(DEFAULT_DETECTOR_RUNTIME_ID);
 
@@ -94,6 +96,7 @@ function App() {
   const [selectedRuntimeId, setSelectedRuntimeId] = useState<DetectorRuntimeId>(DEFAULT_DETECTOR_RUNTIME_ID);
   const [detections, setDetections] = useState<PersonDetection[]>([]);
   const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
+  const [cameraMirrored, setCameraMirrored] = useState(DEFAULT_CAMERA_MIRRORED);
   const [lastInferenceMs, setLastInferenceMs] = useState<number | null>(null);
   const [frameTimings, setFrameTimings] = useState<FrameTimings | null>(null);
   const [playerColumn, setPlayerColumn] = useState(1);
@@ -102,6 +105,10 @@ function App() {
   useEffect(() => {
     thresholdRef.current = threshold;
   }, [threshold]);
+
+  useEffect(() => {
+    cameraMirroredRef.current = cameraMirrored;
+  }, [cameraMirrored]);
 
   useEffect(() => {
     selectedModelRef.current = selectedModelId;
@@ -227,7 +234,8 @@ function App() {
       const sorted = [...result.detections].sort((a, b) => b.score - a.score);
       setDetections(sorted);
       if (sorted[0]) {
-        setPlayerColumn(getPersonColumn(sorted[0], frame.width));
+        const detectedColumn = getPersonColumn(sorted[0], frame.width);
+        setPlayerColumn(cameraMirroredRef.current ? 2 - detectedColumn : detectedColumn);
       }
       setStatus(sorted.length ? `${sorted.length} person${sorted.length === 1 ? '' : 's'} detected` : 'Scanning');
       const drawStartedAt = performance.now();
@@ -416,7 +424,7 @@ function App() {
             </div>
             <video
               ref={videoRef}
-              className="camera-video"
+              className={`camera-video${cameraMirrored ? ' mirrored-media' : ''}`}
               muted
               playsInline
               onLoadedMetadata={syncCanvasSize}
@@ -426,7 +434,11 @@ function App() {
                 <div key={lane} className="camera-lane" />
               ))}
             </div>
-            <canvas ref={overlayRef} className="detection-overlay" aria-hidden="true" />
+            <canvas
+              ref={overlayRef}
+              className={`detection-overlay${cameraMirrored ? ' mirrored-media' : ''}`}
+              aria-hidden="true"
+            />
             <canvas ref={frameRef} className="frame-buffer" aria-hidden="true" />
 
             {!cameraEnabled && (
@@ -507,6 +519,15 @@ function App() {
                 </option>
               ))}
             </select>
+          </label>
+
+          <label className="toggle-control">
+            <span>Mirror camera</span>
+            <input
+              type="checkbox"
+              checked={cameraMirrored}
+              onChange={(event) => setCameraMirrored(event.target.checked)}
+            />
           </label>
 
           <div className="button-row">
