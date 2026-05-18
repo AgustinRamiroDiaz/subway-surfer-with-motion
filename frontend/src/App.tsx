@@ -1,14 +1,23 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactElement } from 'react';
 import {
+  DEFAULT_DETECTOR_BACKEND_ID,
   DEFAULT_DETECTOR_RUNTIME_ID,
   DEFAULT_DETECTOR_QUANTIZATION_ID,
+  DEFAULT_MEDIAPIPE_DELEGATE_ID,
+  DEFAULT_MEDIAPIPE_MODEL_ID,
   DEFAULT_YOLO_MODEL_ID,
+  DETECTOR_BACKENDS,
   DETECTOR_RUNTIMES,
+  MEDIAPIPE_DELEGATES,
+  MEDIAPIPE_MODELS,
   YOLO_MODELS,
   type Detector,
+  type DetectorBackendId,
   type DetectorQuantizationId,
   type DetectorRuntimeId,
   type DetectorTimings,
+  type MediaPipeDelegateId,
+  type MediaPipeModelId,
   type PersonDetection,
   type PoseKeypoint,
   type YoloModelId,
@@ -91,9 +100,12 @@ function App(): ReactElement {
   const detectingRef = useRef(false);
   const thresholdRef = useRef(DEFAULT_THRESHOLD);
   const cameraMirroredRef = useRef(DEFAULT_CAMERA_MIRRORED);
+  const selectedBackendRef = useRef<DetectorBackendId>(DEFAULT_DETECTOR_BACKEND_ID);
   const selectedModelRef = useRef<YoloModelId>(DEFAULT_YOLO_MODEL_ID);
   const selectedRuntimeRef = useRef<DetectorRuntimeId>(DEFAULT_DETECTOR_RUNTIME_ID);
   const selectedQuantizationRef = useRef<DetectorQuantizationId>(DEFAULT_DETECTOR_QUANTIZATION_ID);
+  const selectedMediaPipeModelRef = useRef<MediaPipeModelId>(DEFAULT_MEDIAPIPE_MODEL_ID);
+  const selectedMediaPipeDelegateRef = useRef<MediaPipeDelegateId>(DEFAULT_MEDIAPIPE_DELEGATE_ID);
   const frameSequenceRef = useRef(0);
 
   const [cameraEnabled, setCameraEnabled] = useState(false);
@@ -101,10 +113,17 @@ function App(): ReactElement {
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState('Camera idle');
   const [modelStatus, setModelStatus] = useState('Model not loaded');
+  const [selectedBackendId, setSelectedBackendId] = useState<DetectorBackendId>(DEFAULT_DETECTOR_BACKEND_ID);
   const [selectedModelId, setSelectedModelId] = useState<YoloModelId>(DEFAULT_YOLO_MODEL_ID);
   const [selectedRuntimeId, setSelectedRuntimeId] = useState<DetectorRuntimeId>(DEFAULT_DETECTOR_RUNTIME_ID);
   const [selectedQuantizationId, setSelectedQuantizationId] = useState<DetectorQuantizationId>(
     DEFAULT_DETECTOR_QUANTIZATION_ID
+  );
+  const [selectedMediaPipeModelId, setSelectedMediaPipeModelId] = useState<MediaPipeModelId>(
+    DEFAULT_MEDIAPIPE_MODEL_ID
+  );
+  const [selectedMediaPipeDelegateId, setSelectedMediaPipeDelegateId] = useState<MediaPipeDelegateId>(
+    DEFAULT_MEDIAPIPE_DELEGATE_ID
   );
   const [detections, setDetections] = useState<PersonDetection[]>([]);
   const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
@@ -123,6 +142,10 @@ function App(): ReactElement {
   }, [cameraMirrored]);
 
   useEffect(() => {
+    selectedBackendRef.current = selectedBackendId;
+  }, [selectedBackendId]);
+
+  useEffect(() => {
     selectedModelRef.current = selectedModelId;
   }, [selectedModelId]);
 
@@ -133,6 +156,14 @@ function App(): ReactElement {
   useEffect(() => {
     selectedQuantizationRef.current = selectedQuantizationId;
   }, [selectedQuantizationId]);
+
+  useEffect(() => {
+    selectedMediaPipeModelRef.current = selectedMediaPipeModelId;
+  }, [selectedMediaPipeModelId]);
+
+  useEffect(() => {
+    selectedMediaPipeDelegateRef.current = selectedMediaPipeDelegateId;
+  }, [selectedMediaPipeDelegateId]);
 
   const drawDetections = useCallback((items: PersonDetection[]) => {
     const video = videoRef.current;
@@ -299,23 +330,31 @@ function App(): ReactElement {
 
     try {
       const { detector, runtime, fallbackReason, dispose } = await loadYoloDetectorWorker({
+        backend: selectedBackendId,
         modelId: selectedModelId,
         runtime: selectedRuntimeId,
         quantization: selectedQuantizationId,
+        mediaPipeModelId: selectedMediaPipeModelId,
+        mediaPipeDelegate: selectedMediaPipeDelegateId,
         onStatusChange: ({ message }) => setModelStatus(message),
       });
       detectorRef.current = detector;
       disposeDetectorRef.current = dispose;
-      setModelStatus(
-        fallbackReason
-          ? `Model ready on ${runtime} ${selectedQuantizationId.toUpperCase()}. WebGPU fallback: ${fallbackReason}`
-          : `Model ready on ${runtime} ${selectedQuantizationId.toUpperCase()}`
-      );
+      const runtimeLabel =
+        selectedBackendId === 'mediapipe' ? runtime : `${runtime} ${selectedQuantizationId.toUpperCase()}`;
+      setModelStatus(fallbackReason ? `Model ready on ${runtimeLabel}. WebGPU fallback: ${fallbackReason}` : `Model ready on ${runtimeLabel}`);
       return detectorRef.current;
     } finally {
       setIsLoading(false);
     }
-  }, [selectedModelId, selectedQuantizationId, selectedRuntimeId]);
+  }, [
+    selectedBackendId,
+    selectedMediaPipeDelegateId,
+    selectedMediaPipeModelId,
+    selectedModelId,
+    selectedQuantizationId,
+    selectedRuntimeId,
+  ]);
 
   const resetDetector = useCallback(() => {
     stopDetection();
@@ -331,6 +370,17 @@ function App(): ReactElement {
     const overlay = overlayRef.current;
     overlay?.getContext('2d')?.clearRect(0, 0, overlay.width, overlay.height);
   }, [stopDetection]);
+
+  const handleBackendChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    const nextBackendId = event.target.value as DetectorBackendId;
+    if (nextBackendId === selectedBackendRef.current) {
+      return;
+    }
+
+    selectedBackendRef.current = nextBackendId;
+    setSelectedBackendId(nextBackendId);
+    resetDetector();
+  }, [resetDetector]);
 
   const handleModelChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
     const nextModelId = event.target.value as YoloModelId;
@@ -350,6 +400,28 @@ function App(): ReactElement {
     selectedQuantizationRef.current = nextQuantizationId;
     setSelectedModelId(nextModelId);
     setSelectedQuantizationId(nextQuantizationId);
+    resetDetector();
+  }, [resetDetector]);
+
+  const handleMediaPipeModelChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    const nextModelId = event.target.value as MediaPipeModelId;
+    if (nextModelId === selectedMediaPipeModelRef.current) {
+      return;
+    }
+
+    selectedMediaPipeModelRef.current = nextModelId;
+    setSelectedMediaPipeModelId(nextModelId);
+    resetDetector();
+  }, [resetDetector]);
+
+  const handleMediaPipeDelegateChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    const nextDelegateId = event.target.value as MediaPipeDelegateId;
+    if (nextDelegateId === selectedMediaPipeDelegateRef.current) {
+      return;
+    }
+
+    selectedMediaPipeDelegateRef.current = nextDelegateId;
+    setSelectedMediaPipeDelegateId(nextDelegateId);
     resetDetector();
   }, [resetDetector]);
 
@@ -462,6 +534,12 @@ function App(): ReactElement {
   }, []);
 
   const selectedModel = YOLO_MODELS.find((model) => model.id === selectedModelId) ?? YOLO_MODELS[0];
+  const selectedMediaPipeModel =
+    MEDIAPIPE_MODELS.find((model) => model.id === selectedMediaPipeModelId) ?? MEDIAPIPE_MODELS[0];
+  const selectedTrackerLabel =
+    selectedBackendId === 'mediapipe'
+      ? `MediaPipe ${selectedMediaPipeModel.label}`
+      : selectedModel.label;
   const availableQuantizations = getAvailableQuantizations(selectedModelId);
   const playerLane = LANES[playerColumn];
 
@@ -476,7 +554,7 @@ function App(): ReactElement {
           <section className="video-stage sidebar-camera" aria-label="Camera feedback">
             <div className="sidebar-camera-label">
               <p className="eyebrow">Camera feedback</p>
-              <strong>{selectedModel.label}</strong>
+              <strong>{selectedTrackerLabel}</strong>
             </div>
             <video
               ref={videoRef}
@@ -552,40 +630,83 @@ function App(): ReactElement {
           {error && <p className="error-message">{error}</p>}
 
           <label className="model-control">
-            <span>Model</span>
-            <select value={selectedModelId} onChange={handleModelChange} disabled={isLoading}>
-              {YOLO_MODELS.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.label} · {model.description}
+            <span>Tracker</span>
+            <select value={selectedBackendId} onChange={handleBackendChange} disabled={isLoading}>
+              {DETECTOR_BACKENDS.map((backend) => (
+                <option key={backend.id} value={backend.id}>
+                  {backend.label} · {backend.description}
                 </option>
               ))}
             </select>
           </label>
 
-          <label className="model-control">
-            <span>Runtime</span>
-            <select value={selectedRuntimeId} onChange={handleRuntimeChange} disabled={isLoading}>
-              {DETECTOR_RUNTIMES.map((runtime) => (
-                <option key={runtime.id} value={runtime.id}>
-                  {runtime.label} · {runtime.description}
-                </option>
-              ))}
-            </select>
-          </label>
+          {selectedBackendId === 'yolo' ? (
+            <>
+              <label className="model-control">
+                <span>Model</span>
+                <select value={selectedModelId} onChange={handleModelChange} disabled={isLoading}>
+                  {YOLO_MODELS.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label} · {model.description}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-          <label className="model-control">
-            <span>Quantization</span>
-            <select value={selectedQuantizationId} onChange={handleQuantizationChange} disabled={isLoading}>
-              {availableQuantizations.map((quantization) => {
-                const option = getQuantizationOption(quantization.dtype);
-                return (
-                  <option key={quantization.dtype} value={quantization.dtype}>
-                    {option.label} · {option.description} · {quantization.sizeMb} MB
-                  </option>
-                );
-              })}
-            </select>
-          </label>
+              <label className="model-control">
+                <span>Runtime</span>
+                <select value={selectedRuntimeId} onChange={handleRuntimeChange} disabled={isLoading}>
+                  {DETECTOR_RUNTIMES.map((runtime) => (
+                    <option key={runtime.id} value={runtime.id}>
+                      {runtime.label} · {runtime.description}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="model-control">
+                <span>Quantization</span>
+                <select value={selectedQuantizationId} onChange={handleQuantizationChange} disabled={isLoading}>
+                  {availableQuantizations.map((quantization) => {
+                    const option = getQuantizationOption(quantization.dtype);
+                    return (
+                      <option key={quantization.dtype} value={quantization.dtype}>
+                        {option.label} · {option.description} · {quantization.sizeMb} MB
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+            </>
+          ) : (
+            <>
+              <label className="model-control">
+                <span>Model</span>
+                <select value={selectedMediaPipeModelId} onChange={handleMediaPipeModelChange} disabled={isLoading}>
+                  {MEDIAPIPE_MODELS.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label} · {model.description}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="model-control">
+                <span>Delegate</span>
+                <select
+                  value={selectedMediaPipeDelegateId}
+                  onChange={handleMediaPipeDelegateChange}
+                  disabled={isLoading}
+                >
+                  {MEDIAPIPE_DELEGATES.map((delegate) => (
+                    <option key={delegate.id} value={delegate.id}>
+                      {delegate.label} · {delegate.description}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
 
           <label className="toggle-control">
             <span>Mirror camera</span>

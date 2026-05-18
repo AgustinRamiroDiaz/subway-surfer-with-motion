@@ -1,7 +1,9 @@
 import {
+  loadMediaPipePoseDetector,
   loadYoloDetector,
   type Detector,
   type DetectorLoadOptions,
+  type DetectorLoadResult,
   type DetectorResult,
 } from './aiDetector';
 import { createCameraFrame, type TransferredCameraFrame } from './detectionSchema';
@@ -9,9 +11,12 @@ import { createCameraFrame, type TransferredCameraFrame } from './detectionSchem
 type WorkerLoadMessage = {
   type: 'load';
   requestId: number;
+  backend: DetectorLoadOptions['backend'];
   modelId: DetectorLoadOptions['modelId'];
   runtime: DetectorLoadOptions['runtime'];
   quantization: DetectorLoadOptions['quantization'];
+  mediaPipeModelId: DetectorLoadOptions['mediaPipeModelId'];
+  mediaPipeDelegate: DetectorLoadOptions['mediaPipeDelegate'];
 };
 
 type WorkerDetectMessage = {
@@ -36,7 +41,7 @@ type WorkerOutboundMessage =
   | {
       type: 'loaded';
       requestId: number;
-      runtime: 'WebGPU' | 'WASM';
+      runtime: DetectorLoadResult['runtime'];
       fallbackReason?: string;
     }
   | {
@@ -51,6 +56,7 @@ type WorkerOutboundMessage =
     };
 
 let detector: Detector | null = null;
+let disposeDetector: (() => void) | null = null;
 let frameCanvas: OffscreenCanvas | null = null;
 let frameContext: OffscreenCanvasRenderingContext2D | null = null;
 
@@ -66,16 +72,20 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
   const message = event.data;
 
   if (message.type === 'dispose') {
+    disposeDetector?.();
     self.close();
     return;
   }
 
   try {
     if (message.type === 'load') {
-      const result = await loadYoloDetector({
+      const loadOptions: DetectorLoadOptions = {
+        backend: message.backend,
         modelId: message.modelId,
         runtime: message.runtime,
         quantization: message.quantization,
+        mediaPipeModelId: message.mediaPipeModelId,
+        mediaPipeDelegate: message.mediaPipeDelegate,
         onStatusChange: ({ message: statusMessage }) => {
           post({
             type: 'status',
@@ -83,9 +93,15 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
             message: statusMessage,
           });
         },
-      });
+      };
+      const result: DetectorLoadResult =
+        message.backend === 'mediapipe'
+          ? await loadMediaPipePoseDetector(loadOptions)
+          : await loadYoloDetector(loadOptions);
 
+      disposeDetector?.();
       detector = result.detector;
+      disposeDetector = result.dispose ?? null;
       post({
         type: 'loaded',
         requestId: message.requestId,

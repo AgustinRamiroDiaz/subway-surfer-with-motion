@@ -27,7 +27,7 @@ type WorkerMessage =
   | {
       type: 'loaded';
       requestId: number;
-      runtime: 'WebGPU' | 'WASM';
+      runtime: DetectorLoadResult['runtime'];
       fallbackReason?: string;
     }
   | {
@@ -59,7 +59,6 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
     pending.forEach((request) => request.reject(new Error('Detector worker was disposed')));
     pending.clear();
     worker.postMessage({ type: 'dispose' });
-    worker.terminate();
   };
 
   const detector: Detector = async (cameraFrame, detectorOptions) => {
@@ -148,9 +147,12 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
     worker.postMessage({
       type: 'load',
       requestId: id,
+      backend: options.backend,
       modelId: options.modelId,
       runtime: options.runtime,
       quantization: options.quantization,
+      mediaPipeModelId: options.mediaPipeModelId,
+      mediaPipeDelegate: options.mediaPipeDelegate,
     });
   });
 }

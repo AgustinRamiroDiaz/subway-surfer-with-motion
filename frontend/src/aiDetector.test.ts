@@ -1,4 +1,12 @@
-import { DEFAULT_YOLO_MODEL_ID, YOLO_MODELS, loadYoloDetector } from './aiDetector';
+import {
+  DEFAULT_MEDIAPIPE_DELEGATE_ID,
+  DEFAULT_MEDIAPIPE_MODEL_ID,
+  DEFAULT_YOLO_MODEL_ID,
+  MEDIAPIPE_MODELS,
+  YOLO_MODELS,
+  loadMediaPipePoseDetector,
+  loadYoloDetector,
+} from './aiDetector';
 import { createCameraFrame } from './detectionSchema';
 
 type RawImageFixture = {
@@ -29,6 +37,11 @@ const mockModel = jest.fn<Promise<{ logits: MockLogits } | MockDetectionOutput>,
 const mockFromCanvas = jest.fn<RawImageFixture, [HTMLCanvasElement]>();
 const mockFromPretrainedProcessor = jest.fn<Promise<typeof mockProcessor>, [string, unknown]>();
 const mockFromPretrainedModel = jest.fn<Promise<typeof mockModel>, [string, unknown]>();
+const mockForVisionTasks = jest.fn<Promise<string>, [string]>();
+const mockDetectForVideo = jest.fn();
+const mockSetOptions = jest.fn<Promise<void>, [unknown]>();
+const mockClose = jest.fn<void, []>();
+const mockCreateFromOptions = jest.fn<Promise<unknown>, [unknown, unknown]>();
 
 jest.mock('@huggingface/transformers', () => ({
   env: {
@@ -42,6 +55,15 @@ jest.mock('@huggingface/transformers', () => ({
   },
   AutoModelForObjectDetection: {
     from_pretrained: (modelId: string, options: unknown) => mockFromPretrainedModel(modelId, options),
+  },
+}));
+
+jest.mock('@mediapipe/tasks-vision', () => ({
+  FilesetResolver: {
+    forVisionTasks: (path: string) => mockForVisionTasks(path),
+  },
+  PoseLandmarker: {
+    createFromOptions: (vision: unknown, options: unknown) => mockCreateFromOptions(vision, options),
   },
 }));
 
@@ -83,6 +105,25 @@ function makeDetectionOutput(): MockDetectionOutput {
   };
 }
 
+function makeMediaPipeLandmarks(visibility: number): Array<{ x: number; y: number; visibility: number }> {
+  const landmarks = Array.from({ length: 33 }, () => ({
+    x: 0,
+    y: 0,
+    visibility,
+  }));
+  const mappedIndices = [0, 2, 5, 7, 8, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+
+  mappedIndices.forEach((landmarkIndex, keypointIndex) => {
+    landmarks[landmarkIndex] = {
+      x: 0.2 + keypointIndex * 0.0375,
+      y: 0.3 + keypointIndex * 0.0375,
+      visibility,
+    };
+  });
+
+  return landmarks;
+}
+
 describe('loadYoloDetector', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -115,9 +156,12 @@ describe('loadYoloDetector', () => {
     canvas.height = 480;
 
     const { detector, runtime } = await loadYoloDetector({
+      backend: 'yolo',
       modelId: DEFAULT_YOLO_MODEL_ID,
       runtime: 'wasm',
       quantization: 'uint8',
+      mediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
+      mediaPipeDelegate: DEFAULT_MEDIAPIPE_DELEGATE_ID,
     });
     const frame = createCameraFrame(canvas, 'test-frame-1', 100);
     const result = await detector(frame, { threshold: 0.5, percentage: false });
@@ -162,9 +206,12 @@ describe('loadYoloDetector', () => {
     });
 
     await loadYoloDetector({
+      backend: 'yolo',
       modelId: DEFAULT_YOLO_MODEL_ID,
       runtime: 'webgpu',
       quantization: 'fp16',
+      mediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
+      mediaPipeDelegate: DEFAULT_MEDIAPIPE_DELEGATE_ID,
     });
 
     expect(mockFromPretrainedModel).toHaveBeenCalledWith(
@@ -189,9 +236,12 @@ describe('loadYoloDetector', () => {
     canvas.height = 480;
 
     const { detector } = await loadYoloDetector({
+      backend: 'yolo',
       modelId: detectionModelId,
       runtime: 'wasm',
       quantization: 'uint8',
+      mediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
+      mediaPipeDelegate: DEFAULT_MEDIAPIPE_DELEGATE_ID,
     });
     const result = await detector(createCameraFrame(canvas, 'test-frame-2', 200), {
       threshold: 0.5,
@@ -206,5 +256,120 @@ describe('loadYoloDetector', () => {
     expect(result.detections[0].box.ymin).toBeCloseTo(144);
     expect(result.detections[0].box.xmax).toBeCloseTo(448);
     expect(result.detections[0].box.ymax).toBeCloseTo(384);
+  });
+});
+
+describe('loadMediaPipePoseDetector', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockForVisionTasks.mockResolvedValue('mock-vision');
+    mockDetectForVideo.mockReturnValue({
+      landmarks: [makeMediaPipeLandmarks(0.9)],
+    });
+    mockSetOptions.mockResolvedValue(undefined);
+    mockCreateFromOptions.mockResolvedValue({
+      detectForVideo: mockDetectForVideo,
+      setOptions: mockSetOptions,
+      close: mockClose,
+    });
+  });
+
+  test('loads the selected MediaPipe model with the selected delegate', async () => {
+    await loadMediaPipePoseDetector({
+      backend: 'mediapipe',
+      modelId: DEFAULT_YOLO_MODEL_ID,
+      runtime: 'wasm',
+      quantization: 'uint8',
+      mediaPipeModelId: 'full',
+      mediaPipeDelegate: 'CPU',
+    });
+
+    expect(mockForVisionTasks).toHaveBeenCalledWith(
+      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm'
+    );
+    expect(mockCreateFromOptions).toHaveBeenCalledWith(
+      'mock-vision',
+      expect.objectContaining({
+        baseOptions: {
+          modelAssetPath: MEDIAPIPE_MODELS.find((model) => model.id === 'full')?.modelAssetPath,
+          delegate: 'CPU',
+        },
+        minPoseDetectionConfidence: 0.5,
+        minPosePresenceConfidence: 0.5,
+        minTrackingConfidence: 0.5,
+        numPoses: 1,
+        outputSegmentationMasks: false,
+        runningMode: 'VIDEO',
+      })
+    );
+  });
+
+  test('converts MediaPipe landmarks to app pose detections', async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+
+    const { detector, runtime, dispose } = await loadMediaPipePoseDetector({
+      backend: 'mediapipe',
+      modelId: DEFAULT_YOLO_MODEL_ID,
+      runtime: 'wasm',
+      quantization: 'uint8',
+      mediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
+      mediaPipeDelegate: 'GPU',
+    });
+    const result = await detector(createCameraFrame(canvas, 'mediapipe-frame-1', 1234), {
+      threshold: 0.45,
+      percentage: false,
+    });
+
+    expect(runtime).toBe('MediaPipe GPU');
+    expect(mockSetOptions).toHaveBeenCalledWith({
+      minPoseDetectionConfidence: 0.45,
+      minPosePresenceConfidence: 0.45,
+      minTrackingConfidence: 0.45,
+    });
+    expect(mockDetectForVideo).toHaveBeenCalledWith(canvas, 1234);
+    expect(result.detections).toHaveLength(1);
+    expect(result.detections[0].score).toBeCloseTo(0.9);
+    expect(result.detections[0].keypoints).toHaveLength(17);
+    expect(result.detections[0].keypoints?.[0]).toEqual({
+      label: 'Nose',
+      x: 128,
+      y: 144,
+      score: 0.9,
+    });
+    expect(result.detections[0].box.xmin).toBeCloseTo(81.92);
+    expect(result.detections[0].box.ymin).toBeCloseTo(97.92);
+    expect(result.detections[0].box.xmax).toBeCloseTo(558.08);
+    expect(result.detections[0].box.ymax).toBeCloseTo(478.08);
+
+    dispose?.();
+    expect(mockClose).toHaveBeenCalled();
+  });
+
+  test('filters MediaPipe poses below the confidence threshold', async () => {
+    mockDetectForVideo.mockReturnValue({
+      landmarks: [makeMediaPipeLandmarks(0.2)],
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+
+    const { detector } = await loadMediaPipePoseDetector({
+      backend: 'mediapipe',
+      modelId: DEFAULT_YOLO_MODEL_ID,
+      runtime: 'wasm',
+      quantization: 'uint8',
+      mediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
+      mediaPipeDelegate: DEFAULT_MEDIAPIPE_DELEGATE_ID,
+    });
+    const result = await detector(createCameraFrame(canvas, 'mediapipe-frame-2', 2000), {
+      threshold: 0.5,
+      percentage: false,
+    });
+
+    expect(result.detections).toHaveLength(0);
   });
 });

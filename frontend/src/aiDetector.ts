@@ -53,6 +53,23 @@ export type QuantizedModelFile = {
   sizeMb: number;
 };
 
+export const DETECTOR_BACKENDS = [
+  {
+    id: 'yolo',
+    label: 'YOLO',
+    description: 'Object and pose detection',
+  },
+  {
+    id: 'mediapipe',
+    label: 'MediaPipe',
+    description: 'Pose landmark tracking',
+  },
+] as const;
+
+export type DetectorBackendId = (typeof DETECTOR_BACKENDS)[number]['id'];
+
+export const DEFAULT_DETECTOR_BACKEND_ID: DetectorBackendId = 'yolo';
+
 const NANO_DETECTION_QUANTIZATIONS = [
   { dtype: 'fp16', sizeMb: 4.98 },
   { dtype: 'uint8', sizeMb: 2.85 },
@@ -148,6 +165,52 @@ export type DetectorRuntimeId = (typeof DETECTOR_RUNTIMES)[number]['id'];
 
 export const DEFAULT_DETECTOR_RUNTIME_ID: DetectorRuntimeId = 'webgpu';
 
+export const MEDIAPIPE_MODELS = [
+  {
+    id: 'lite',
+    label: 'Lite',
+    description: 'Fastest pose tracking',
+    modelAssetPath:
+      'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+  },
+  {
+    id: 'full',
+    label: 'Full',
+    description: 'Balanced pose tracking',
+    modelAssetPath:
+      'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
+  },
+  {
+    id: 'heavy',
+    label: 'Heavy',
+    description: 'Highest accuracy',
+    modelAssetPath:
+      'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task',
+  },
+] as const;
+
+export type MediaPipeModelId = (typeof MEDIAPIPE_MODELS)[number]['id'];
+
+export const DEFAULT_MEDIAPIPE_MODEL_ID: MediaPipeModelId = 'lite';
+
+export const MEDIAPIPE_DELEGATES = [
+  {
+    id: 'GPU',
+    label: 'GPU',
+    description: 'Accelerated delegate',
+  },
+  {
+    id: 'CPU',
+    label: 'CPU',
+    description: 'Compatibility delegate',
+  },
+] as const;
+
+export type MediaPipeDelegateId = (typeof MEDIAPIPE_DELEGATES)[number]['id'];
+
+export const DEFAULT_MEDIAPIPE_DELEGATE_ID: MediaPipeDelegateId = 'GPU';
+const MEDIAPIPE_WASM_BASE_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
+
 export type {
   CameraFrame,
   ModelPrediction,
@@ -173,18 +236,23 @@ export type DetectorLoadState = {
 };
 
 type DetectorRuntime = 'WebGPU' | 'WASM';
+type MediaPipeRuntime = 'MediaPipe GPU' | 'MediaPipe CPU';
 
 export type DetectorLoadOptions = {
+  backend: DetectorBackendId;
   modelId: YoloModelId;
   runtime: DetectorRuntimeId;
   quantization: DetectorQuantizationId;
+  mediaPipeModelId: MediaPipeModelId;
+  mediaPipeDelegate: MediaPipeDelegateId;
   onStatusChange?: (state: DetectorLoadState) => void;
 };
 
 export type DetectorLoadResult = {
   detector: Detector;
-  runtime: DetectorRuntime;
+  runtime: DetectorRuntime | MediaPipeRuntime;
   fallbackReason?: string;
+  dispose?: () => void;
 };
 
 type NavigatorWithGpu = Navigator & {
@@ -209,6 +277,28 @@ type YoloModel = {
 };
 
 type YoloPoseProcessor = (image: unknown) => Promise<unknown>;
+
+type MediaPipeLandmark = {
+  x: number;
+  y: number;
+  z?: number;
+  visibility?: number;
+  presence?: number;
+};
+
+type MediaPipePoseResult = {
+  landmarks?: MediaPipeLandmark[][];
+};
+
+type MediaPipePoseLandmarker = {
+  detectForVideo: (image: CameraFrameImage, timestampMs: number) => MediaPipePoseResult;
+  setOptions?: (options: {
+    minPoseDetectionConfidence?: number;
+    minPosePresenceConfidence?: number;
+    minTrackingConfidence?: number;
+  }) => Promise<void>;
+  close?: () => void;
+};
 
 const KEYPOINT_LABELS = [
   'Nose',
@@ -236,6 +326,10 @@ function getErrorMessage(cause: unknown): string {
 
 function getSelectedModel(modelId: YoloModelId): (typeof YOLO_MODELS)[number] {
   return YOLO_MODELS.find((model) => model.id === modelId) ?? YOLO_MODELS[0];
+}
+
+function getSelectedMediaPipeModel(modelId: MediaPipeModelId): (typeof MEDIAPIPE_MODELS)[number] {
+  return MEDIAPIPE_MODELS.find((model) => model.id === modelId) ?? MEDIAPIPE_MODELS[0];
 }
 
 export function getDefaultQuantizationForRuntime(runtime: DetectorRuntimeId): DetectorQuantizationId {
@@ -366,6 +460,104 @@ function decodeYoloPoseOutput(
   return detections.sort((a, b) => b.score - a.score);
 }
 
+const MEDIAPIPE_KEYPOINT_INDICES = [
+  0,
+  2,
+  5,
+  7,
+  8,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  23,
+  24,
+  25,
+  26,
+  27,
+  28,
+] as const;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getMediaPipeLandmarkScore(landmark: MediaPipeLandmark | undefined): number {
+  if (!landmark) {
+    return 0;
+  }
+
+  if (typeof landmark.visibility === 'number') {
+    return landmark.visibility;
+  }
+
+  if (typeof landmark.presence === 'number') {
+    return landmark.presence;
+  }
+
+  return 1;
+}
+
+function boxFromMediaPipeKeypoints(
+  keypoints: PoseDetection['keypoints'],
+  image: CameraFrameImage
+): PoseDetection['box'] {
+  const visibleKeypoints = keypoints.filter((keypoint) => keypoint.score > 0);
+  const sourceKeypoints = visibleKeypoints.length ? visibleKeypoints : keypoints;
+  const xs = sourceKeypoints.map((keypoint) => keypoint.x);
+  const ys = sourceKeypoints.map((keypoint) => keypoint.y);
+  const xmin = Math.min(...xs);
+  const ymin = Math.min(...ys);
+  const xmax = Math.max(...xs);
+  const ymax = Math.max(...ys);
+  const padding = Math.max(8, Math.max(xmax - xmin, ymax - ymin) * 0.12);
+
+  return {
+    xmin: clamp(xmin - padding, 0, image.width),
+    ymin: clamp(ymin - padding, 0, image.height),
+    xmax: clamp(xmax + padding, 0, image.width),
+    ymax: clamp(ymax + padding, 0, image.height),
+  };
+}
+
+function decodeMediaPipePoseResult(
+  result: MediaPipePoseResult,
+  image: CameraFrameImage,
+  threshold: number
+): PoseDetection[] {
+  const landmarksByPose = result.landmarks ?? [];
+  const detections: PoseDetection[] = [];
+
+  landmarksByPose.forEach((landmarks) => {
+    const keypoints = KEYPOINT_LABELS.map((label, keypointIndex) => {
+      const landmark = landmarks[MEDIAPIPE_KEYPOINT_INDICES[keypointIndex]];
+      const score = getMediaPipeLandmarkScore(landmark);
+      return {
+        label,
+        x: clamp((landmark?.x ?? 0) * image.width, 0, image.width),
+        y: clamp((landmark?.y ?? 0) * image.height, 0, image.height),
+        score,
+      };
+    });
+    const score = keypoints.reduce((sum, keypoint) => sum + keypoint.score, 0) / keypoints.length;
+
+    if (score < threshold) {
+      return;
+    }
+
+    detections.push({
+      label: 'person',
+      score,
+      box: boxFromMediaPipeKeypoints(keypoints, image),
+      keypoints,
+    });
+  });
+
+  return detections.sort((a, b) => b.score - a.score);
+}
+
 async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOptions): Promise<Detector> {
   const { AutoImageProcessor, AutoModelForObjectDetection, RawImage, env } = await import('@huggingface/transformers');
   env.allowLocalModels = false;
@@ -424,6 +616,71 @@ async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOp
   };
 
   return poseDetector;
+}
+
+export async function loadMediaPipePoseDetector(options: DetectorLoadOptions): Promise<DetectorLoadResult> {
+  const { FilesetResolver, PoseLandmarker } = await import('@mediapipe/tasks-vision');
+  const selectedModel = getSelectedMediaPipeModel(options.mediaPipeModelId);
+  const startedAt = performance.now();
+
+  options.onStatusChange?.({ message: 'Loading MediaPipe runtime' });
+  const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_BASE_URL);
+
+  options.onStatusChange?.({ message: `Loading MediaPipe ${selectedModel.label}` });
+  const poseLandmarker = (await PoseLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: selectedModel.modelAssetPath,
+      delegate: options.mediaPipeDelegate,
+    },
+    runningMode: 'VIDEO',
+    numPoses: 1,
+    minPoseDetectionConfidence: 0.5,
+    minPosePresenceConfidence: 0.5,
+    minTrackingConfidence: 0.5,
+    outputSegmentationMasks: false,
+  })) as MediaPipePoseLandmarker;
+  const loadDoneAt = performance.now();
+
+  options.onStatusChange?.({
+    message: `Loaded MediaPipe ${selectedModel.label} in ${Math.round(loadDoneAt - startedAt)} ms`,
+  });
+
+  let appliedThreshold = 0.5;
+  const detector: Detector = async (frame, detectorOptions) => {
+    const startedAt = performance.now();
+    if (detectorOptions.threshold !== appliedThreshold) {
+      await poseLandmarker.setOptions?.({
+        minPoseDetectionConfidence: detectorOptions.threshold,
+        minPosePresenceConfidence: detectorOptions.threshold,
+        minTrackingConfidence: detectorOptions.threshold,
+      });
+      appliedThreshold = detectorOptions.threshold;
+    }
+    const preprocessDoneAt = performance.now();
+    const result = poseLandmarker.detectForVideo(frame.image, frame.capturedAtMs);
+    const modelDoneAt = performance.now();
+    const detections = decodeMediaPipePoseResult(result, frame.image, detectorOptions.threshold);
+    const postprocessDoneAt = performance.now();
+
+    return {
+      type: 'model-prediction',
+      frame: createFrameDescriptor(frame),
+      detections,
+      timings: {
+        rawImageMs: 0,
+        preprocessMs: preprocessDoneAt - startedAt,
+        modelMs: modelDoneAt - preprocessDoneAt,
+        postprocessMs: postprocessDoneAt - modelDoneAt,
+        totalMs: postprocessDoneAt - startedAt,
+      },
+    };
+  };
+
+  return {
+    detector,
+    runtime: options.mediaPipeDelegate === 'GPU' ? 'MediaPipe GPU' : 'MediaPipe CPU',
+    dispose: () => poseLandmarker.close?.(),
+  };
 }
 
 async function getWebGpuFallbackReason(): Promise<string | null> {
