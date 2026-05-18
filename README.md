@@ -16,7 +16,7 @@ A browser-based motion-control game prototype. The app uses the user's camera to
 ## Tech Stack
 
 - React + TypeScript
-- Create React App
+- Vite
 - pnpm
 - Three.js
 - `@huggingface/transformers`
@@ -45,7 +45,7 @@ The frontend app lives in `frontend/`. Root scripts delegate into that folder so
 pnpm start
 ```
 
-Open the local URL printed by Create React App. If the default port is busy, CRA will offer another port.
+Open the local URL printed by Vite. If the default port is busy, Vite will offer another port.
 
 ## Test
 
@@ -68,7 +68,7 @@ pnpm run build
 For the GitHub Pages path used by this repository:
 
 ```bash
-PUBLIC_URL=/subway-surfer-with-motion pnpm run build
+PUBLIC_URL=/subway-surfer-with-motion/ pnpm run build
 ```
 
 ## How It Works
@@ -106,9 +106,9 @@ GitHub Pages deployment is configured in:
 The workflow runs on pushes to `main` and can also be started manually. It installs with pnpm, runs tests, builds with:
 
 ```bash
-PUBLIC_URL=/subway-surfer-with-motion pnpm run build
+PUBLIC_URL=/subway-surfer-with-motion/ pnpm run build
 ```
 
-Then it publishes the `frontend/build/` directory through GitHub Pages.
+Then it publishes the `frontend/dist/` directory through GitHub Pages.
 
 In the GitHub repository settings, set Pages source to **GitHub Actions**.

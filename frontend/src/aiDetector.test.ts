@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   DEFAULT_MEDIAPIPE_DELEGATE_ID,
   DEFAULT_MEDIAPIPE_MODEL_ID,
@@ -32,18 +33,18 @@ type MockDetectionOutput = {
   };
 };
 
-const mockProcessor = jest.fn<Promise<MockInputs>, [RawImageFixture]>();
-const mockModel = jest.fn<Promise<{ logits: MockLogits } | MockDetectionOutput>, [MockInputs]>();
-const mockFromCanvas = jest.fn<RawImageFixture, [HTMLCanvasElement]>();
-const mockFromPretrainedProcessor = jest.fn<Promise<typeof mockProcessor>, [string, unknown]>();
-const mockFromPretrainedModel = jest.fn<Promise<typeof mockModel>, [string, unknown]>();
-const mockForVisionTasks = jest.fn<Promise<string>, [string]>();
-const mockDetectForVideo = jest.fn();
-const mockSetOptions = jest.fn<Promise<void>, [unknown]>();
-const mockClose = jest.fn<void, []>();
-const mockCreateFromOptions = jest.fn<Promise<unknown>, [unknown, unknown]>();
+const mockProcessor = vi.fn<(image: RawImageFixture) => Promise<MockInputs>>();
+const mockModel = vi.fn<(inputs: MockInputs) => Promise<{ logits: MockLogits } | MockDetectionOutput>>();
+const mockFromCanvas = vi.fn<(canvas: HTMLCanvasElement) => RawImageFixture>();
+const mockFromPretrainedProcessor = vi.fn<(modelId: string, options: unknown) => Promise<typeof mockProcessor>>();
+const mockFromPretrainedModel = vi.fn<(modelId: string, options: unknown) => Promise<typeof mockModel>>();
+const mockForVisionTasks = vi.fn<(path: string, useModule?: boolean) => Promise<string>>();
+const mockDetectForVideo = vi.fn();
+const mockSetOptions = vi.fn<(options: unknown) => Promise<void>>();
+const mockClose = vi.fn<() => void>();
+const mockCreateFromOptions = vi.fn<(vision: unknown, options: unknown) => Promise<unknown>>();
 
-jest.mock('@huggingface/transformers', () => ({
+vi.mock('@huggingface/transformers', () => ({
   env: {
     allowLocalModels: true,
   },
@@ -58,9 +59,9 @@ jest.mock('@huggingface/transformers', () => ({
   },
 }));
 
-jest.mock('@mediapipe/tasks-vision', () => ({
+vi.mock('@mediapipe/tasks-vision', () => ({
   FilesetResolver: {
-    forVisionTasks: (path: string) => mockForVisionTasks(path),
+    forVisionTasks: (path: string, useModule?: boolean) => mockForVisionTasks(path, useModule),
   },
   PoseLandmarker: {
     createFromOptions: (vision: unknown, options: unknown) => mockCreateFromOptions(vision, options),
@@ -126,7 +127,7 @@ function makeMediaPipeLandmarks(visibility: number): Array<{ x: number; y: numbe
 
 describe('loadYoloDetector', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockFromCanvas.mockReturnValue({
       size: [480, 640],
@@ -201,7 +202,7 @@ describe('loadYoloDetector', () => {
     Object.defineProperty(navigator, 'gpu', {
       configurable: true,
       value: {
-        requestAdapter: jest.fn().mockResolvedValue({}),
+        requestAdapter: vi.fn().mockResolvedValue({}),
       },
     });
 
@@ -261,7 +262,7 @@ describe('loadYoloDetector', () => {
 
 describe('loadMediaPipePoseDetector', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockForVisionTasks.mockResolvedValue('mock-vision');
     mockDetectForVideo.mockReturnValue({
@@ -286,7 +287,8 @@ describe('loadMediaPipePoseDetector', () => {
     });
 
     expect(mockForVisionTasks).toHaveBeenCalledWith(
-      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm'
+      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm',
+      true
     );
     expect(mockCreateFromOptions).toHaveBeenCalledWith(
       'mock-vision',

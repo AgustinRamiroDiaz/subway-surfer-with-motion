@@ -118,7 +118,7 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
     const { bitmap } = message.frame;
     if (!frameCanvas || frameCanvas.width !== bitmap.width || frameCanvas.height !== bitmap.height) {
       frameCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-      frameContext = frameCanvas.getContext('2d') as OffscreenCanvasRenderingContext2D | null;
+      frameContext = frameCanvas.getContext('2d');
     }
 
     if (!frameContext || !frameCanvas) {

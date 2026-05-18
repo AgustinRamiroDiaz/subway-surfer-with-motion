@@ -1,16 +1,17 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, expect, test, vi, type MockInstance } from 'vitest';
 import App from './App';
 
-jest.mock('./detectorWorkerClient', () => ({
-  loadYoloDetectorWorker: jest.fn(),
+vi.mock('./detectorWorkerClient', () => ({
+  loadYoloDetectorWorker: vi.fn(),
 }));
 
 const APP_PREFERENCES_STORAGE_KEY = 'motion-runner:detection-preferences:v1';
-let getContextSpy: jest.SpyInstance;
+let getContextSpy: MockInstance;
 
 beforeEach(() => {
-  getContextSpy = jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
-    clearRect: jest.fn(),
+  getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+    clearRect: vi.fn(),
   } as unknown as CanvasRenderingContext2D);
 });
 
@@ -24,14 +25,16 @@ test('renders the motion game shell', () => {
   expect(screen.getByRole('heading', { name: /motion runner/i })).toBeInTheDocument();
   expect(screen.getByLabelText(/main game/i)).toBeInTheDocument();
   expect(screen.getByLabelText(/camera feedback/i)).toBeInTheDocument();
-  expect(within(screen.getByLabelText(/game controls/i)).getByRole('button', { name: /start/i })).toBeEnabled();
+  expect(within(screen.getByLabelText(/game controls/i)).getByRole('button', { name: /enable camera/i })).toBeEnabled();
   expect(within(screen.getByLabelText(/game controls/i)).getByRole('button', { name: /pause/i })).toBeDisabled();
   expect(screen.getByRole('checkbox', { name: /mirror camera/i })).toBeChecked();
-  expect(screen.getByRole('button', { name: /start camera/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /stop camera/i })).toBeDisabled();
 });
 
 test('defaults to MediaPipe Lite on GPU', () => {
   render(<App />);
+
+  fireEvent.click(screen.getByText(/advanced tracking/i));
 
   expect(screen.getByLabelText(/tracker/i)).toHaveValue('mediapipe');
   expect(screen.getByLabelText(/^model$/i)).toHaveValue('lite');
@@ -41,6 +44,7 @@ test('defaults to MediaPipe Lite on GPU', () => {
 test('remembers detector decisions across remounts', () => {
   const { unmount } = render(<App />);
 
+  fireEvent.click(screen.getByText(/advanced tracking/i));
   fireEvent.change(screen.getByLabelText(/tracker/i), { target: { value: 'yolo' } });
   fireEvent.change(screen.getByLabelText(/^model$/i), {
     target: { value: 'onnx-community/yolo26s-pose-ONNX' },
@@ -51,6 +55,7 @@ test('remembers detector decisions across remounts', () => {
 
   unmount();
   render(<App />);
+  fireEvent.click(screen.getByText(/advanced tracking/i));
 
   expect(screen.getByLabelText(/tracker/i)).toHaveValue('yolo');
   expect(screen.getByLabelText(/^model$/i)).toHaveValue('onnx-community/yolo26s-pose-ONNX');

@@ -10,7 +10,6 @@
     "start": "pnpm --filter @subway-surfer-with-motion/frontend start",
     "build": "pnpm --filter @subway-surfer-with-motion/frontend build",
     "test": "pnpm --filter @subway-surfer-with-motion/frontend test",
-    "lint": "pnpm --filter @subway-surfer-with-motion/frontend lint",
-    "eject": "pnpm --filter @subway-surfer-with-motion/frontend eject"
+    "lint": "pnpm --filter @subway-surfer-with-motion/frontend lint"
   }
 }

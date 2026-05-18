@@ -624,7 +624,7 @@ export async function loadMediaPipePoseDetector(options: DetectorLoadOptions): P
   const startedAt = performance.now();
 
   options.onStatusChange?.({ message: 'Loading MediaPipe runtime' });
-  const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_BASE_URL);
+  const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_BASE_URL, true);
 
   options.onStatusChange?.({ message: `Loading MediaPipe ${selectedModel.label}` });
   const poseLandmarker = (await PoseLandmarker.createFromOptions(vision, {

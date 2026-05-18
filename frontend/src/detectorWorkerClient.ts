@@ -6,6 +6,8 @@ import {
 } from './aiDetector';
 import { createFrameDescriptor, type TransferredCameraFrame } from './detectionSchema';
 
+const DETECTOR_LOAD_TIMEOUT_MS = 120_000;
+
 type PendingRequest =
   | {
       type: 'load';
@@ -46,7 +48,9 @@ export type WorkerDetectorLoadResult = DetectorLoadResult & {
 };
 
 export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Promise<WorkerDetectorLoadResult> {
-  const worker = new Worker(new URL('./detector.worker.ts', import.meta.url));
+  const worker = new Worker(new URL('./detector.worker.ts', import.meta.url), {
+    type: 'module',
+  });
   const pending = new Map<number, PendingRequest>();
   let requestId = 0;
 
@@ -59,6 +63,7 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
     pending.forEach((request) => request.reject(new Error('Detector worker was disposed')));
     pending.clear();
     worker.postMessage({ type: 'dispose' });
+    worker.terminate();
   };
 
   const detector: Detector = async (cameraFrame, detectorOptions) => {
@@ -126,22 +131,40 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
     request.reject(new Error(`Unexpected worker response: ${message.type}`));
   };
 
-  worker.onerror = (event) => {
-    pending.forEach((request) => request.reject(new Error(event.message)));
+  const rejectPending = (message: string): void => {
+    pending.forEach((request) => request.reject(new Error(message)));
     pending.clear();
+  };
+
+  worker.onerror = (event) => {
+    rejectPending(event.message || 'Detector worker failed to start');
+  };
+
+  worker.onmessageerror = () => {
+    rejectPending('Detector worker returned an unreadable message');
   };
 
   return new Promise<WorkerDetectorLoadResult>((resolve, reject) => {
     const id = nextRequestId();
+    const timeoutId = window.setTimeout(() => {
+      pending.delete(id);
+      reject(new Error('Detector model load timed out'));
+      worker.terminate();
+    }, DETECTOR_LOAD_TIMEOUT_MS);
+
     pending.set(id, {
       type: 'load',
       resolve: (result) => {
+        window.clearTimeout(timeoutId);
         resolve({
           ...result,
           dispose,
         });
       },
-      reject,
+      reject: (reason) => {
+        window.clearTimeout(timeoutId);
+        reject(reason);
+      },
     });
 
     worker.postMessage({
