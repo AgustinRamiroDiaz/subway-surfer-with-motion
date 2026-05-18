@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactElement } from 'react';
 import {
   DEFAULT_DETECTOR_RUNTIME_ID,
+  DEFAULT_DETECTOR_QUANTIZATION_ID,
   DEFAULT_YOLO_MODEL_ID,
   DETECTOR_RUNTIMES,
   YOLO_MODELS,
   type Detector,
+  type DetectorQuantizationId,
   type DetectorRuntimeId,
   type DetectorTimings,
   type PersonDetection,
   type PoseKeypoint,
   type YoloModelId,
+  getAvailableQuantizations,
+  getDefaultQuantizationForRuntime,
+  getQuantizationOption,
 } from './aiDetector';
 import { createCameraFrame } from './detectionSchema';
 import { loadYoloDetectorWorker } from './detectorWorkerClient';
@@ -88,6 +93,7 @@ function App(): ReactElement {
   const cameraMirroredRef = useRef(DEFAULT_CAMERA_MIRRORED);
   const selectedModelRef = useRef<YoloModelId>(DEFAULT_YOLO_MODEL_ID);
   const selectedRuntimeRef = useRef<DetectorRuntimeId>(DEFAULT_DETECTOR_RUNTIME_ID);
+  const selectedQuantizationRef = useRef<DetectorQuantizationId>(DEFAULT_DETECTOR_QUANTIZATION_ID);
   const frameSequenceRef = useRef(0);
 
   const [cameraEnabled, setCameraEnabled] = useState(false);
@@ -97,6 +103,9 @@ function App(): ReactElement {
   const [modelStatus, setModelStatus] = useState('Model not loaded');
   const [selectedModelId, setSelectedModelId] = useState<YoloModelId>(DEFAULT_YOLO_MODEL_ID);
   const [selectedRuntimeId, setSelectedRuntimeId] = useState<DetectorRuntimeId>(DEFAULT_DETECTOR_RUNTIME_ID);
+  const [selectedQuantizationId, setSelectedQuantizationId] = useState<DetectorQuantizationId>(
+    DEFAULT_DETECTOR_QUANTIZATION_ID
+  );
   const [detections, setDetections] = useState<PersonDetection[]>([]);
   const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
   const [cameraMirrored, setCameraMirrored] = useState(DEFAULT_CAMERA_MIRRORED);
@@ -120,6 +129,10 @@ function App(): ReactElement {
   useEffect(() => {
     selectedRuntimeRef.current = selectedRuntimeId;
   }, [selectedRuntimeId]);
+
+  useEffect(() => {
+    selectedQuantizationRef.current = selectedQuantizationId;
+  }, [selectedQuantizationId]);
 
   const drawDetections = useCallback((items: PersonDetection[]) => {
     const video = videoRef.current;
@@ -288,20 +301,21 @@ function App(): ReactElement {
       const { detector, runtime, fallbackReason, dispose } = await loadYoloDetectorWorker({
         modelId: selectedModelId,
         runtime: selectedRuntimeId,
+        quantization: selectedQuantizationId,
         onStatusChange: ({ message }) => setModelStatus(message),
       });
       detectorRef.current = detector;
       disposeDetectorRef.current = dispose;
       setModelStatus(
         fallbackReason
-          ? `Model ready on ${runtime}. WebGPU fallback: ${fallbackReason}`
-          : `Model ready on ${runtime}`
+          ? `Model ready on ${runtime} ${selectedQuantizationId.toUpperCase()}. WebGPU fallback: ${fallbackReason}`
+          : `Model ready on ${runtime} ${selectedQuantizationId.toUpperCase()}`
       );
       return detectorRef.current;
     } finally {
       setIsLoading(false);
     }
-  }, [selectedModelId, selectedRuntimeId]);
+  }, [selectedModelId, selectedQuantizationId, selectedRuntimeId]);
 
   const resetDetector = useCallback(() => {
     stopDetection();
@@ -324,8 +338,18 @@ function App(): ReactElement {
       return;
     }
 
+    const nextQuantizations = getAvailableQuantizations(nextModelId);
+    const hasCurrentQuantization = nextQuantizations.some(
+      (quantization) => quantization.dtype === selectedQuantizationRef.current
+    );
+    const nextQuantizationId = hasCurrentQuantization
+      ? selectedQuantizationRef.current
+      : getDefaultQuantizationForRuntime(selectedRuntimeRef.current);
+
     selectedModelRef.current = nextModelId;
+    selectedQuantizationRef.current = nextQuantizationId;
     setSelectedModelId(nextModelId);
+    setSelectedQuantizationId(nextQuantizationId);
     resetDetector();
   }, [resetDetector]);
 
@@ -335,8 +359,22 @@ function App(): ReactElement {
       return;
     }
 
+    const nextQuantizationId = getDefaultQuantizationForRuntime(nextRuntimeId);
     selectedRuntimeRef.current = nextRuntimeId;
+    selectedQuantizationRef.current = nextQuantizationId;
     setSelectedRuntimeId(nextRuntimeId);
+    setSelectedQuantizationId(nextQuantizationId);
+    resetDetector();
+  }, [resetDetector]);
+
+  const handleQuantizationChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    const nextQuantizationId = event.target.value as DetectorQuantizationId;
+    if (nextQuantizationId === selectedQuantizationRef.current) {
+      return;
+    }
+
+    selectedQuantizationRef.current = nextQuantizationId;
+    setSelectedQuantizationId(nextQuantizationId);
     resetDetector();
   }, [resetDetector]);
 
@@ -348,8 +386,8 @@ function App(): ReactElement {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 640, max: 640 },
+          height: { ideal: 480, max: 480 },
         },
         audio: false,
       });
@@ -424,6 +462,7 @@ function App(): ReactElement {
   }, []);
 
   const selectedModel = YOLO_MODELS.find((model) => model.id === selectedModelId) ?? YOLO_MODELS[0];
+  const availableQuantizations = getAvailableQuantizations(selectedModelId);
   const playerLane = LANES[playerColumn];
 
   return (
@@ -531,6 +570,20 @@ function App(): ReactElement {
                   {runtime.label} · {runtime.description}
                 </option>
               ))}
+            </select>
+          </label>
+
+          <label className="model-control">
+            <span>Quantization</span>
+            <select value={selectedQuantizationId} onChange={handleQuantizationChange} disabled={isLoading}>
+              {availableQuantizations.map((quantization) => {
+                const option = getQuantizationOption(quantization.dtype);
+                return (
+                  <option key={quantization.dtype} value={quantization.dtype}>
+                    {option.label} · {option.description} · {quantization.sizeMb} MB
+                  </option>
+                );
+              })}
             </select>
           </label>
 

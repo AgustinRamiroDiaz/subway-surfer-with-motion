@@ -11,6 +11,7 @@ type WorkerLoadMessage = {
   requestId: number;
   modelId: DetectorLoadOptions['modelId'];
   runtime: DetectorLoadOptions['runtime'];
+  quantization: DetectorLoadOptions['quantization'];
 };
 
 type WorkerDetectMessage = {
@@ -74,6 +75,7 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
       const result = await loadYoloDetector({
         modelId: message.modelId,
         runtime: message.runtime,
+        quantization: message.quantization,
         onStatusChange: ({ message: statusMessage }) => {
           post({
             type: 'status',

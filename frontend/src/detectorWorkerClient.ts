@@ -150,6 +150,7 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
       requestId: id,
       modelId: options.modelId,
       runtime: options.runtime,
+      quantization: options.quantization,
     });
   });
 }

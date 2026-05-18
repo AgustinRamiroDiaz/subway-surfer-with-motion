@@ -117,6 +117,7 @@ describe('loadYoloDetector', () => {
     const { detector, runtime } = await loadYoloDetector({
       modelId: DEFAULT_YOLO_MODEL_ID,
       runtime: 'wasm',
+      quantization: 'uint8',
     });
     const frame = createCameraFrame(canvas, 'test-frame-1', 100);
     const result = await detector(frame, { threshold: 0.5, percentage: false });
@@ -126,7 +127,7 @@ describe('loadYoloDetector', () => {
       DEFAULT_YOLO_MODEL_ID,
       expect.objectContaining({
         device: 'wasm',
-        dtype: 'q8',
+        dtype: 'uint8',
       })
     );
     expect(mockFromCanvas).toHaveBeenCalledWith(canvas);
@@ -163,6 +164,7 @@ describe('loadYoloDetector', () => {
     await loadYoloDetector({
       modelId: DEFAULT_YOLO_MODEL_ID,
       runtime: 'webgpu',
+      quantization: 'fp16',
     });
 
     expect(mockFromPretrainedModel).toHaveBeenCalledWith(
@@ -189,6 +191,7 @@ describe('loadYoloDetector', () => {
     const { detector } = await loadYoloDetector({
       modelId: detectionModelId,
       runtime: 'wasm',
+      quantization: 'uint8',
     });
     const result = await detector(createCameraFrame(canvas, 'test-frame-2', 200), {
       threshold: 0.5,
