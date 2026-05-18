@@ -180,8 +180,12 @@ function getPersonPosition(detection: PersonDetection, frameWidth: number): numb
     return DEFAULT_PLAYER_POSITION;
   }
 
-  const centerX = (detection.box.xmin + detection.box.xmax) / 2;
-  return Math.max(0, Math.min(1, centerX / frameWidth));
+  const nose = detection.keypoints?.find((keypoint) => keypoint.label === 'Nose');
+  const referenceX = nose && Number.isFinite(nose.x)
+    ? nose.x
+    : (detection.box.xmin + detection.box.xmax) / 2;
+
+  return Math.max(0, Math.min(1, referenceX / frameWidth));
 }
 
 function App(): ReactElement {
