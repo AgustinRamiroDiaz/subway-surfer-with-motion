@@ -69,28 +69,40 @@
   font-size: 0.78rem;
 }
 
-.camera-lane-guides {
+.camera-position-guides {
   position: absolute;
   inset: 0;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
   pointer-events: none;
-}
-
-.camera-lane {
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.camera-lane:first-child {
-  border-left: 0;
-}
-
-.camera-lane-guides {
   z-index: 2;
+  background:
+    linear-gradient(90deg, rgba(47, 255, 178, 0.08), transparent 18%, transparent 82%, rgba(47, 255, 178, 0.08)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.07) 0,
+      rgba(255, 255, 255, 0.07) 1px,
+      transparent 1px,
+      transparent 12.5%
+    );
 }
 
-.camera-lane {
-  background: rgba(47, 255, 178, 0.035);
+.camera-center-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.camera-position-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #2fffb2;
+  box-shadow: 0 0 14px rgba(47, 255, 178, 0.72);
+  transform: translateX(-50%);
+  transition: left 160ms ease;
 }
 
 .game-scene {

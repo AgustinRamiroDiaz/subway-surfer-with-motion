@@ -1,21 +1,25 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import * as THREE from 'three';
 
-const LANE_X = [-2.4, 0, 2.4] as const;
+const TRACK_MIN_X = -3.15;
+const TRACK_MAX_X = 3.15;
+const TRACK_WIDTH = TRACK_MAX_X - TRACK_MIN_X;
 const PLAYER_Z = 2.6;
 const OBSTACLE_SPAWN_Z = -18;
 const OBSTACLE_DESPAWN_Z = 5.2;
 const OBSTACLE_SPEED = 7.2;
 const SPAWN_INTERVAL_MS = 2000;
+const COLLISION_RADIUS_X = 0.92;
+const COLLISION_RADIUS_Z = 0.78;
 
 type GameSceneProps = {
-  playerColumn: number;
-  laneLabel: string;
+  playerPosition: number;
+  positionLabel: string;
 };
 
 type Obstacle = {
-  mesh: THREE.Mesh;
-  lane: number;
+  mesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>;
+  x: number;
   hit: boolean;
 };
 
@@ -35,9 +39,13 @@ function createRailMaterial(color: string): THREE.MeshStandardMaterial {
   });
 }
 
-export function GameScene({ playerColumn, laneLabel }: GameSceneProps): ReactElement {
+function positionToWorldX(position: number): number {
+  return THREE.MathUtils.lerp(TRACK_MIN_X, TRACK_MAX_X, THREE.MathUtils.clamp(position, 0, 1));
+}
+
+export function GameScene({ playerPosition, positionLabel }: GameSceneProps): ReactElement {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const playerColumnRef = useRef(playerColumn);
+  const playerPositionRef = useRef(playerPosition);
   const gamePhaseRef = useRef<GamePhase>('ready');
   const [gamePhase, setGamePhase] = useState<GamePhase>('ready');
   const [stats, setStats] = useState<GameStats>({
@@ -47,8 +55,8 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps): ReactEle
   });
 
   useEffect(() => {
-    playerColumnRef.current = playerColumn;
-  }, [playerColumn]);
+    playerPositionRef.current = playerPosition;
+  }, [playerPosition]);
 
   useEffect(() => {
     gamePhaseRef.current = gamePhase;
@@ -97,7 +105,7 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps): ReactEle
     keyLight.shadow.mapSize.set(1024, 1024);
     scene.add(keyLight);
 
-    const floorGeometry = new THREE.PlaneGeometry(9, 44);
+    const floorGeometry = new THREE.PlaneGeometry(9.2, 44);
     const floorMaterial = new THREE.MeshStandardMaterial({
       color: '#171d20',
       roughness: 0.82,
@@ -116,28 +124,25 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps): ReactEle
       roughness: 0.74,
     });
 
-    LANE_X.forEach((x) => {
-      const railGeometry = new THREE.BoxGeometry(0.16, 0.1, 42);
-      const leftRail = new THREE.Mesh(railGeometry, railMaterial);
-      leftRail.position.set(x - 0.48, 0.05, -7);
-      leftRail.castShadow = true;
-      leftRail.receiveShadow = true;
-      scene.add(leftRail);
-
-      const rightRail = leftRail.clone();
-      rightRail.position.x = x + 0.48;
-      scene.add(rightRail);
+    const sideRailGeometry = new THREE.BoxGeometry(0.18, 0.14, 42);
+    [TRACK_MIN_X - 0.54, TRACK_MAX_X + 0.54].forEach((x) => {
+      const rail = new THREE.Mesh(sideRailGeometry, railMaterial);
+      rail.position.set(x, 0.08, -7);
+      rail.castShadow = true;
+      rail.receiveShadow = true;
+      scene.add(rail);
     });
 
-    [-1.2, 1.2].forEach((x) => {
-      const divider = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 42), dividerMaterial);
+    const guideGeometry = new THREE.BoxGeometry(0.035, 0.04, 42);
+    [-2.1, -1.05, 0, 1.05, 2.1].forEach((x) => {
+      const divider = new THREE.Mesh(guideGeometry, dividerMaterial);
       divider.position.set(x, 0.08, -7);
       divider.receiveShadow = true;
       scene.add(divider);
     });
 
     for (let z = -26; z < 6; z += 1.45) {
-      const sleeper = new THREE.Mesh(new THREE.BoxGeometry(7.3, 0.08, 0.14), sleeperMaterial);
+      const sleeper = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.08, 0.14), sleeperMaterial);
       sleeper.position.set(0, 0.11, z);
       sleeper.receiveShadow = true;
       scene.add(sleeper);
@@ -152,7 +157,7 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps): ReactEle
         metalness: 0.12,
       })
     );
-    player.position.set(LANE_X[playerColumnRef.current], 0.62, PLAYER_Z);
+    player.position.set(positionToWorldX(playerPositionRef.current), 0.62, PLAYER_Z);
     player.castShadow = true;
     scene.add(player);
 
@@ -165,13 +170,13 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps): ReactEle
     });
 
     const spawnObstacle = (): void => {
-      const lane = Math.floor(Math.random() * LANE_X.length);
+      const x = TRACK_MIN_X + Math.random() * TRACK_WIDTH;
       const mesh = new THREE.Mesh(obstacleGeometry, obstacleMaterial.clone());
-      mesh.position.set(LANE_X[lane], 0.82, OBSTACLE_SPAWN_Z);
+      mesh.position.set(x, 0.82, OBSTACLE_SPAWN_Z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       scene.add(mesh);
-      obstacles.push({ mesh, lane, hit: false });
+      obstacles.push({ mesh, x, hit: false });
     };
 
     const resize = (): void => {
@@ -203,7 +208,7 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps): ReactEle
         lastSpawnAt = now;
       }
 
-      const targetX = LANE_X[playerColumnRef.current];
+      const targetX = positionToWorldX(playerPositionRef.current);
       player.position.x = THREE.MathUtils.lerp(player.position.x, targetX, 0.22);
       player.rotation.y += delta * 2;
 
@@ -215,16 +220,14 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps): ReactEle
 
         const isCollision =
           !obstacle.hit &&
-          obstacle.lane === playerColumnRef.current &&
-          Math.abs(obstacle.mesh.position.z - PLAYER_Z) < 0.78;
+          Math.abs(obstacle.x - player.position.x) < COLLISION_RADIUS_X &&
+          Math.abs(obstacle.mesh.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
 
         if (isCollision) {
           obstacle.hit = true;
-          obstacle.mesh.material = new THREE.MeshStandardMaterial({
-            color: '#ffd166',
-            emissive: '#6b3e00',
-            roughness: 0.34,
-          });
+          obstacle.mesh.material.color.set('#ffd166');
+          obstacle.mesh.material.emissive.set('#6b3e00');
+          obstacle.mesh.material.roughness = 0.34;
           statusResetAt = now + 650;
           setStats((current) => ({
             dodged: current.dodged,
@@ -235,11 +238,7 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps): ReactEle
 
         if (obstacle.mesh.position.z > OBSTACLE_DESPAWN_Z) {
           scene.remove(obstacle.mesh);
-          if (Array.isArray(obstacle.mesh.material)) {
-            obstacle.mesh.material.forEach((material) => material.dispose());
-          } else {
-            obstacle.mesh.material.dispose();
-          }
+          obstacle.mesh.material.dispose();
           obstacles.splice(index, 1);
           if (!obstacle.hit) {
             setStats((current) => ({
@@ -270,13 +269,11 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps): ReactEle
       resizeObserver.disconnect();
       obstacles.forEach((obstacle) => {
         scene.remove(obstacle.mesh);
-        if (Array.isArray(obstacle.mesh.material)) {
-          obstacle.mesh.material.forEach((material) => material.dispose());
-        } else {
-          obstacle.mesh.material.dispose();
-        }
+        obstacle.mesh.material.dispose();
       });
       obstacleGeometry.dispose();
+      sideRailGeometry.dispose();
+      guideGeometry.dispose();
       floorGeometry.dispose();
       floorMaterial.dispose();
       railMaterial.dispose();
@@ -295,7 +292,7 @@ export function GameScene({ playerColumn, laneLabel }: GameSceneProps): ReactEle
       </div>
       <div className="game-hud" aria-label="Game status">
         <span>{gamePhase === 'ready' ? 'Ready' : gamePhase === 'paused' ? 'Paused' : stats.status}</span>
-        <strong>{laneLabel}</strong>
+        <strong>{positionLabel}</strong>
       </div>
       <div className="game-controls" aria-label="Game controls">
         <button

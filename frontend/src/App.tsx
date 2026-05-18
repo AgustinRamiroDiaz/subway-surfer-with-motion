@@ -34,7 +34,7 @@ const DETECTION_INTERVAL_MS = 180;
 const DEFAULT_THRESHOLD = 0.45;
 const DEFAULT_CAMERA_MIRRORED = true;
 const APP_PREFERENCES_STORAGE_KEY = 'motion-runner:detection-preferences:v1';
-const LANES = ['Left', 'Center', 'Right'] as const;
+const DEFAULT_PLAYER_POSITION = 0.5;
 type FrameTimings = DetectorTimings & {
   captureMs: number;
   drawMs: number;
@@ -92,6 +92,10 @@ function findKeypoint(keypoints: PoseKeypoint[], label: string): PoseKeypoint | 
 
 function formatMs(value: number): string {
   return `${Math.round(value)} ms`;
+}
+
+function formatPosition(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }
 
 function isOptionId<T extends string>(value: unknown, options: ReadonlyArray<{ id: T }>): value is T {
@@ -171,13 +175,13 @@ function writeStoredAppPreferences(preferences: AppPreferences): void {
   }
 }
 
-function getPersonColumn(detection: PersonDetection, frameWidth: number): number {
+function getPersonPosition(detection: PersonDetection, frameWidth: number): number {
   if (!frameWidth) {
-    return 1;
+    return DEFAULT_PLAYER_POSITION;
   }
 
   const centerX = (detection.box.xmin + detection.box.xmax) / 2;
-  return Math.max(0, Math.min(2, Math.floor((centerX / frameWidth) * 3)));
+  return Math.max(0, Math.min(1, centerX / frameWidth));
 }
 
 function App(): ReactElement {
@@ -222,7 +226,7 @@ function App(): ReactElement {
   const [cameraMirrored, setCameraMirrored] = useState(initialPreferences.cameraMirrored);
   const [lastInferenceMs, setLastInferenceMs] = useState<number | null>(null);
   const [frameTimings, setFrameTimings] = useState<FrameTimings | null>(null);
-  const [playerColumn, setPlayerColumn] = useState(1);
+  const [playerPosition, setPlayerPosition] = useState(DEFAULT_PLAYER_POSITION);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -403,8 +407,8 @@ function App(): ReactElement {
       const sorted = [...result.detections].sort((a, b) => b.score - a.score);
       setDetections(sorted);
       if (sorted[0]) {
-        const detectedColumn = getPersonColumn(sorted[0], frame.width);
-        setPlayerColumn(cameraMirroredRef.current ? 2 - detectedColumn : detectedColumn);
+        const detectedPosition = getPersonPosition(sorted[0], frame.width);
+        setPlayerPosition(cameraMirroredRef.current ? 1 - detectedPosition : detectedPosition);
       }
       setStatus(sorted.length ? `${sorted.length} person${sorted.length === 1 ? '' : 's'} detected` : 'Scanning');
       const drawStartedAt = performance.now();
@@ -478,7 +482,7 @@ function App(): ReactElement {
     setDetections([]);
     setLastInferenceMs(null);
     setFrameTimings(null);
-    setPlayerColumn(1);
+    setPlayerPosition(DEFAULT_PLAYER_POSITION);
     setModelStatus('Model not loaded');
 
     const overlay = overlayRef.current;
@@ -632,7 +636,7 @@ function App(): ReactElement {
     setDetections([]);
     setLastInferenceMs(null);
     setFrameTimings(null);
-    setPlayerColumn(1);
+    setPlayerPosition(DEFAULT_PLAYER_POSITION);
     setStatus('Camera idle');
   }, [stopDetection]);
 
@@ -655,13 +659,13 @@ function App(): ReactElement {
       ? `MediaPipe ${selectedMediaPipeModel.label}`
       : selectedModel.label;
   const availableQuantizations = getAvailableQuantizations(selectedModelId);
-  const playerLane = LANES[playerColumn];
+  const playerPositionLabel = formatPosition(playerPosition);
 
   return (
     <main className="app-shell">
       <section className="workspace" aria-label="Motion game workspace">
         <section className="game-stage" aria-label="Main game">
-          <GameScene playerColumn={playerColumn} laneLabel={playerLane} />
+          <GameScene playerPosition={playerPosition} positionLabel={playerPositionLabel} />
         </section>
 
         <aside className="control-panel" aria-label="Detection controls">
@@ -677,10 +681,9 @@ function App(): ReactElement {
               playsInline
               onLoadedMetadata={syncCanvasSize}
             />
-            <div className="camera-lane-guides" aria-hidden="true">
-              {LANES.map((lane) => (
-                <div key={lane} className="camera-lane" />
-              ))}
+            <div className="camera-position-guides" aria-hidden="true">
+              <div className="camera-center-line" />
+              <div className="camera-position-marker" style={{ left: `${playerPosition * 100}%` }} />
             </div>
             <canvas
               ref={overlayRef}
