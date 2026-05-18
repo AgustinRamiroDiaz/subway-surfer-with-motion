@@ -33,12 +33,26 @@ import './App.css';
 const DETECTION_INTERVAL_MS = 180;
 const DEFAULT_THRESHOLD = 0.45;
 const DEFAULT_CAMERA_MIRRORED = true;
+const APP_PREFERENCES_STORAGE_KEY = 'motion-runner:detection-preferences:v1';
 const LANES = ['Left', 'Center', 'Right'] as const;
 type FrameTimings = DetectorTimings & {
   captureMs: number;
   drawMs: number;
   loopMs: number;
 };
+
+type AppPreferences = {
+  selectedBackendId: DetectorBackendId;
+  selectedModelId: YoloModelId;
+  selectedRuntimeId: DetectorRuntimeId;
+  selectedQuantizationId: DetectorQuantizationId;
+  selectedMediaPipeModelId: MediaPipeModelId;
+  selectedMediaPipeDelegateId: MediaPipeDelegateId;
+  threshold: number;
+  cameraMirrored: boolean;
+};
+
+type StoredAppPreferences = Partial<AppPreferences>;
 
 const POSE_CONNECTIONS = [
   ['Left Shoulder', 'Right Shoulder'],
@@ -80,6 +94,83 @@ function formatMs(value: number): string {
   return `${Math.round(value)} ms`;
 }
 
+function isOptionId<T extends string>(value: unknown, options: ReadonlyArray<{ id: T }>): value is T {
+  return typeof value === 'string' && options.some((option) => option.id === value);
+}
+
+function isQuantizationId(value: unknown): value is DetectorQuantizationId {
+  return typeof value === 'string' && getQuantizationOption(value as DetectorQuantizationId).id === value;
+}
+
+function readStoredAppPreferences(): AppPreferences {
+  const defaults: AppPreferences = {
+    selectedBackendId: DEFAULT_DETECTOR_BACKEND_ID,
+    selectedModelId: DEFAULT_YOLO_MODEL_ID,
+    selectedRuntimeId: DEFAULT_DETECTOR_RUNTIME_ID,
+    selectedQuantizationId: DEFAULT_DETECTOR_QUANTIZATION_ID,
+    selectedMediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
+    selectedMediaPipeDelegateId: DEFAULT_MEDIAPIPE_DELEGATE_ID,
+    threshold: DEFAULT_THRESHOLD,
+    cameraMirrored: DEFAULT_CAMERA_MIRRORED,
+  };
+
+  if (typeof window === 'undefined') {
+    return defaults;
+  }
+
+  try {
+    const rawPreferences = window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY);
+    if (!rawPreferences) {
+      return defaults;
+    }
+
+    const stored = JSON.parse(rawPreferences) as StoredAppPreferences;
+    const selectedModelId = isOptionId(stored.selectedModelId, YOLO_MODELS)
+      ? stored.selectedModelId
+      : defaults.selectedModelId;
+    const selectedRuntimeId = isOptionId(stored.selectedRuntimeId, DETECTOR_RUNTIMES)
+      ? stored.selectedRuntimeId
+      : defaults.selectedRuntimeId;
+    const availableQuantizations = getAvailableQuantizations(selectedModelId);
+    const selectedQuantizationId =
+      isQuantizationId(stored.selectedQuantizationId) &&
+      availableQuantizations.some((quantization) => quantization.dtype === stored.selectedQuantizationId)
+        ? stored.selectedQuantizationId
+        : getDefaultQuantizationForRuntime(selectedRuntimeId);
+
+    return {
+      selectedBackendId: isOptionId(stored.selectedBackendId, DETECTOR_BACKENDS)
+        ? stored.selectedBackendId
+        : defaults.selectedBackendId,
+      selectedModelId,
+      selectedRuntimeId,
+      selectedQuantizationId,
+      selectedMediaPipeModelId: isOptionId(stored.selectedMediaPipeModelId, MEDIAPIPE_MODELS)
+        ? stored.selectedMediaPipeModelId
+        : defaults.selectedMediaPipeModelId,
+      selectedMediaPipeDelegateId: isOptionId(stored.selectedMediaPipeDelegateId, MEDIAPIPE_DELEGATES)
+        ? stored.selectedMediaPipeDelegateId
+        : defaults.selectedMediaPipeDelegateId,
+      threshold:
+        typeof stored.threshold === 'number' && Number.isFinite(stored.threshold)
+          ? Math.min(0.9, Math.max(0.1, stored.threshold))
+          : defaults.threshold,
+      cameraMirrored:
+        typeof stored.cameraMirrored === 'boolean' ? stored.cameraMirrored : defaults.cameraMirrored,
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+function writeStoredAppPreferences(preferences: AppPreferences): void {
+  try {
+    window.localStorage.setItem(APP_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+  } catch {
+    // Preferences are helpful, not required for the detector to run.
+  }
+}
+
 function getPersonColumn(detection: PersonDetection, frameWidth: number): number {
   if (!frameWidth) {
     return 1;
@@ -90,6 +181,7 @@ function getPersonColumn(detection: PersonDetection, frameWidth: number): number
 }
 
 function App(): ReactElement {
+  const [initialPreferences] = useState(readStoredAppPreferences);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const overlayRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<HTMLCanvasElement | null>(null);
@@ -98,14 +190,14 @@ function App(): ReactElement {
   const streamRef = useRef<MediaStream | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const detectingRef = useRef(false);
-  const thresholdRef = useRef(DEFAULT_THRESHOLD);
-  const cameraMirroredRef = useRef(DEFAULT_CAMERA_MIRRORED);
-  const selectedBackendRef = useRef<DetectorBackendId>(DEFAULT_DETECTOR_BACKEND_ID);
-  const selectedModelRef = useRef<YoloModelId>(DEFAULT_YOLO_MODEL_ID);
-  const selectedRuntimeRef = useRef<DetectorRuntimeId>(DEFAULT_DETECTOR_RUNTIME_ID);
-  const selectedQuantizationRef = useRef<DetectorQuantizationId>(DEFAULT_DETECTOR_QUANTIZATION_ID);
-  const selectedMediaPipeModelRef = useRef<MediaPipeModelId>(DEFAULT_MEDIAPIPE_MODEL_ID);
-  const selectedMediaPipeDelegateRef = useRef<MediaPipeDelegateId>(DEFAULT_MEDIAPIPE_DELEGATE_ID);
+  const thresholdRef = useRef(initialPreferences.threshold);
+  const cameraMirroredRef = useRef(initialPreferences.cameraMirrored);
+  const selectedBackendRef = useRef<DetectorBackendId>(initialPreferences.selectedBackendId);
+  const selectedModelRef = useRef<YoloModelId>(initialPreferences.selectedModelId);
+  const selectedRuntimeRef = useRef<DetectorRuntimeId>(initialPreferences.selectedRuntimeId);
+  const selectedQuantizationRef = useRef<DetectorQuantizationId>(initialPreferences.selectedQuantizationId);
+  const selectedMediaPipeModelRef = useRef<MediaPipeModelId>(initialPreferences.selectedMediaPipeModelId);
+  const selectedMediaPipeDelegateRef = useRef<MediaPipeDelegateId>(initialPreferences.selectedMediaPipeDelegateId);
   const frameSequenceRef = useRef(0);
 
   const [cameraEnabled, setCameraEnabled] = useState(false);
@@ -113,21 +205,21 @@ function App(): ReactElement {
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState('Camera idle');
   const [modelStatus, setModelStatus] = useState('Model not loaded');
-  const [selectedBackendId, setSelectedBackendId] = useState<DetectorBackendId>(DEFAULT_DETECTOR_BACKEND_ID);
-  const [selectedModelId, setSelectedModelId] = useState<YoloModelId>(DEFAULT_YOLO_MODEL_ID);
-  const [selectedRuntimeId, setSelectedRuntimeId] = useState<DetectorRuntimeId>(DEFAULT_DETECTOR_RUNTIME_ID);
+  const [selectedBackendId, setSelectedBackendId] = useState<DetectorBackendId>(initialPreferences.selectedBackendId);
+  const [selectedModelId, setSelectedModelId] = useState<YoloModelId>(initialPreferences.selectedModelId);
+  const [selectedRuntimeId, setSelectedRuntimeId] = useState<DetectorRuntimeId>(initialPreferences.selectedRuntimeId);
   const [selectedQuantizationId, setSelectedQuantizationId] = useState<DetectorQuantizationId>(
-    DEFAULT_DETECTOR_QUANTIZATION_ID
+    initialPreferences.selectedQuantizationId
   );
   const [selectedMediaPipeModelId, setSelectedMediaPipeModelId] = useState<MediaPipeModelId>(
-    DEFAULT_MEDIAPIPE_MODEL_ID
+    initialPreferences.selectedMediaPipeModelId
   );
   const [selectedMediaPipeDelegateId, setSelectedMediaPipeDelegateId] = useState<MediaPipeDelegateId>(
-    DEFAULT_MEDIAPIPE_DELEGATE_ID
+    initialPreferences.selectedMediaPipeDelegateId
   );
   const [detections, setDetections] = useState<PersonDetection[]>([]);
-  const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
-  const [cameraMirrored, setCameraMirrored] = useState(DEFAULT_CAMERA_MIRRORED);
+  const [threshold, setThreshold] = useState(initialPreferences.threshold);
+  const [cameraMirrored, setCameraMirrored] = useState(initialPreferences.cameraMirrored);
   const [lastInferenceMs, setLastInferenceMs] = useState<number | null>(null);
   const [frameTimings, setFrameTimings] = useState<FrameTimings | null>(null);
   const [playerColumn, setPlayerColumn] = useState(1);
@@ -164,6 +256,28 @@ function App(): ReactElement {
   useEffect(() => {
     selectedMediaPipeDelegateRef.current = selectedMediaPipeDelegateId;
   }, [selectedMediaPipeDelegateId]);
+
+  useEffect(() => {
+    writeStoredAppPreferences({
+      selectedBackendId,
+      selectedModelId,
+      selectedRuntimeId,
+      selectedQuantizationId,
+      selectedMediaPipeModelId,
+      selectedMediaPipeDelegateId,
+      threshold,
+      cameraMirrored,
+    });
+  }, [
+    cameraMirrored,
+    selectedBackendId,
+    selectedMediaPipeDelegateId,
+    selectedMediaPipeModelId,
+    selectedModelId,
+    selectedQuantizationId,
+    selectedRuntimeId,
+    threshold,
+  ]);
 
   const drawDetections = useCallback((items: PersonDetection[]) => {
     const video = videoRef.current;

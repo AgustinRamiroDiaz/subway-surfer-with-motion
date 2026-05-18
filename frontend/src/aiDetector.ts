@@ -68,7 +68,7 @@ export const DETECTOR_BACKENDS = [
 
 export type DetectorBackendId = (typeof DETECTOR_BACKENDS)[number]['id'];
 
-export const DEFAULT_DETECTOR_BACKEND_ID: DetectorBackendId = 'yolo';
+export const DEFAULT_DETECTOR_BACKEND_ID: DetectorBackendId = 'mediapipe';
 
 const NANO_DETECTION_QUANTIZATIONS = [
   { dtype: 'fp16', sizeMb: 4.98 },
