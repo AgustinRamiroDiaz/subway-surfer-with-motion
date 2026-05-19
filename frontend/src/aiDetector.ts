@@ -64,6 +64,11 @@ export const DETECTOR_BACKENDS = [
     label: 'MediaPipe',
     description: 'Pose landmark tracking',
   },
+  {
+    id: 'python-websocket',
+    label: 'Python WebSocket',
+    description: 'Remote YOLO pose tracking',
+  },
 ] as const;
 
 export type DetectorBackendId = (typeof DETECTOR_BACKENDS)[number]['id'];
@@ -237,6 +242,7 @@ export type DetectorLoadState = {
 
 type DetectorRuntime = 'WebGPU' | 'WASM';
 type MediaPipeRuntime = 'MediaPipe GPU' | 'MediaPipe CPU';
+type PythonWebSocketRuntime = 'Python WebSocket';
 
 export type DetectorLoadOptions = {
   backend: DetectorBackendId;
@@ -250,7 +256,7 @@ export type DetectorLoadOptions = {
 
 export type DetectorLoadResult = {
   detector: Detector;
-  runtime: DetectorRuntime | MediaPipeRuntime;
+  runtime: DetectorRuntime | MediaPipeRuntime | PythonWebSocketRuntime;
   fallbackReason?: string;
   dispose?: () => void;
 };

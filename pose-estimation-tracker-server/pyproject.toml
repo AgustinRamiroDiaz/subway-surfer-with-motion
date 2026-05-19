@@ -1,0 +1,24 @@
+[project]
+name = "pose-estimation-tracker-server"
+version = "0.1.0"
+description = "WebSocket pose tracker for the Subway Surfer motion UI"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.2.0",
+    "opencv-python-headless>=4.13.0.92",
+    "ultralytics>=8.4.51",
+    "websockets>=15.0.1",
+]
+
+[project.scripts]
+pose-tracker-server = "pose_estimation_tracker_server.server:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.7,<0.12.0"]
+build-backend = "uv_build"

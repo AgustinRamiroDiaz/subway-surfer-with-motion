@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { Detector, DetectorTimings, PersonDetection } from './aiDetector';
 import { createCameraFrame } from './detectionSchema';
-import { loadYoloDetectorWorker } from './detectorWorkerClient';
+import { loadDetectorClient } from './detectorClient';
 import type { AppPreferences } from './appPreferences';
 import { DEFAULT_PLAYER_POSITIONS, drawDetections, getPlayerPositions } from './poseOverlay';
 import { useLatest } from './useLatest';
@@ -163,7 +163,7 @@ export function useMotionDetector({
     setModelStatus('Loading model');
 
     try {
-      const { detector, runtime, fallbackReason, dispose } = await loadYoloDetectorWorker({
+      const { detector, runtime, fallbackReason, dispose } = await loadDetectorClient({
         backend: activePreferences.selectedBackendId,
         modelId: activePreferences.selectedModelId,
         runtime: activePreferences.selectedRuntimeId,
@@ -173,10 +173,12 @@ export function useMotionDetector({
         onStatusChange: ({ message }) => setModelStatus(message),
       });
       detectorRef.current = detector;
-      disposeDetectorRef.current = dispose;
+      disposeDetectorRef.current = dispose ?? null;
       const runtimeLabel =
         activePreferences.selectedBackendId === 'mediapipe'
           ? runtime
+          : activePreferences.selectedBackendId === 'python-websocket'
+            ? runtime
           : `${runtime} ${activePreferences.selectedQuantizationId.toUpperCase()}`;
       setModelStatus(
         fallbackReason ? `Model ready on ${runtimeLabel}. WebGPU fallback: ${fallbackReason}` : `Model ready on ${runtimeLabel}`

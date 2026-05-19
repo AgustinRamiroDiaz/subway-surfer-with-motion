@@ -44,6 +44,10 @@ function App(): ReactElement {
   }, [preferences]);
 
   const selectedTrackerLabel = useMemo(() => {
+    if (preferences.selectedBackendId === 'python-websocket') {
+      return 'Python WebSocket';
+    }
+
     if (preferences.selectedBackendId === 'mediapipe') {
       const model =
         MEDIAPIPE_MODELS.find((item) => item.id === preferences.selectedMediaPipeModelId) ?? MEDIAPIPE_MODELS[0];

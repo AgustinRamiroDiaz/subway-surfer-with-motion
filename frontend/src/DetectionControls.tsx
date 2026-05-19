@@ -62,6 +62,7 @@ export function DetectionControls({
 }: DetectionControlsProps): ReactElement {
   const availableQuantizations = getAvailableQuantizations(preferences.selectedModelId);
   const isYolo = preferences.selectedBackendId === 'yolo';
+  const isPythonWebSocket = preferences.selectedBackendId === 'python-websocket';
 
   return (
     <>
@@ -116,7 +117,9 @@ export function DetectionControls({
           </select>
         </label>
 
-        {isYolo ? (
+        {isPythonWebSocket ? (
+          <p className="model-status">Server URL: {import.meta.env.VITE_POSE_TRACKER_WS_URL ?? 'ws://127.0.0.1:8765'}</p>
+        ) : isYolo ? (
           <>
             <label className="model-control">
               <span>Model</span>
