@@ -25,6 +25,7 @@ export type PoseKeypoint = {
 };
 
 export type PoseDetection = {
+  id?: number;
   label: 'person';
   score: number;
   box: {
@@ -37,6 +38,7 @@ export type PoseDetection = {
 };
 
 export type PersonDetection = Omit<PoseDetection, 'keypoints'> & {
+  id?: number;
   keypoints?: PoseKeypoint[];
 };
 

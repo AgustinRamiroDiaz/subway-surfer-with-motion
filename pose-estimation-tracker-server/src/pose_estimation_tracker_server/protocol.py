@@ -115,6 +115,7 @@ def extract_detections(result: Any, width: int, height: int, threshold: float, m
 
     xyxy = _as_list(getattr(boxes, "xyxy", None))
     box_scores = _as_list(getattr(boxes, "conf", None))
+    box_ids = _as_list(getattr(boxes, "id", None))
     keypoint_xy = _as_list(getattr(keypoints, "xy", None))
     keypoint_scores = _as_list(getattr(keypoints, "conf", None))
 
@@ -159,14 +160,16 @@ def extract_detections(result: Any, width: int, height: int, threshold: float, m
         else:
             box = _box_from_keypoints(keypoint_items, width, height)
 
-        detections.append(
-            {
-                "label": "person",
-                "score": score,
-                "box": box,
-                "keypoints": keypoint_items,
-            }
-        )
+        detection: dict[str, Any] = {
+            "label": "person",
+            "score": score,
+            "box": box,
+            "keypoints": keypoint_items,
+        }
+        if index < len(box_ids):
+            detection["id"] = int(box_ids[index])
+
+        detections.append(detection)
 
     return sorted(detections, key=lambda item: item["score"], reverse=True)[:max_poses]
 

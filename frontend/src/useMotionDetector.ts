@@ -3,7 +3,7 @@ import type { Detector, DetectorTimings, PersonDetection } from './aiDetector';
 import { createCameraFrame } from './detectionSchema';
 import { loadDetectorClient } from './detectorClient';
 import type { AppPreferences } from './appPreferences';
-import { DEFAULT_PLAYER_POSITIONS, drawDetections, getPlayerPositions } from './poseOverlay';
+import { DEFAULT_PLAYER_POSITIONS, drawDetections, getPlayerPositions, getPersonPosition } from './poseOverlay';
 import { useLatest } from './useLatest';
 
 const DETECTION_INTERVAL_MS = 180;
@@ -70,12 +70,16 @@ export function useMotionDetector({
   const [frameTimings, setFrameTimings] = useState<FrameTimings | null>(null);
   const [playerPositions, setPlayerPositions] = useState<number[]>([...DEFAULT_PLAYER_POSITIONS]);
   const [error, setError] = useState<string | null>(null);
+  const playerTrackIdsRef = useRef<(number | null)[]>(new Array(DEFAULT_PLAYER_POSITIONS.length).fill(null));
+  const trackIdLastSeenRef = useRef<Map<number, number>>(new Map());
 
   const clearDetectionState = useCallback(() => {
     setDetections([]);
     setLastInferenceMs(null);
     setFrameTimings(null);
     setPlayerPositions([...DEFAULT_PLAYER_POSITIONS]);
+    playerTrackIdsRef.current.fill(null);
+    trackIdLastSeenRef.current.clear();
     clearOverlay();
   }, [clearOverlay]);
 
@@ -121,7 +125,82 @@ export function useMotionDetector({
       });
       const sorted = [...result.detections].sort((a, b) => b.score - a.score);
       setDetections(sorted);
-      setPlayerPositions(getPlayerPositions(sorted, frame.width, activePreferences.cameraMirrored));
+
+      const hasTrackingIds = sorted.some((d) => d.id !== undefined);
+      let finalPositions: number[];
+
+      if (hasTrackingIds) {
+        const now = performance.now();
+        const TRACK_TIMEOUT_MS = 2000;
+
+        // Update last seen for current detections
+        sorted.forEach((d) => {
+          if (d.id !== undefined) {
+            trackIdLastSeenRef.current.set(d.id, now);
+          }
+        });
+
+        // Clean up expired tracks
+        trackIdLastSeenRef.current.forEach((lastSeen, id) => {
+          if (now - lastSeen > TRACK_TIMEOUT_MS) {
+            trackIdLastSeenRef.current.delete(id);
+            const index = playerTrackIdsRef.current.indexOf(id);
+            if (index !== -1) {
+              playerTrackIdsRef.current[index] = null;
+            }
+          }
+        });
+
+        const nextPositions = [...playerPositions];
+        const assigned = new Set<PersonDetection>();
+
+        // 1. Maintain existing tracked players
+        playerTrackIdsRef.current.forEach((trackedId, index) => {
+          if (trackedId === null) {
+            return;
+          }
+          const match = sorted.find((d) => d.id === trackedId);
+          if (match) {
+            const pos = getPersonPosition(match, frame.width);
+            nextPositions[index] = activePreferences.cameraMirrored ? 1 - pos : pos;
+            assigned.add(match);
+          }
+        });
+
+        // 2. Assign remaining detections to empty slots based on X position
+        const unassignedDetections = sorted
+          .filter((d) => !assigned.has(d))
+          .sort((a, b) => {
+            const posA = getPersonPosition(a, frame.width);
+            const posB = getPersonPosition(b, frame.width);
+            // Sort left-to-right (respecting mirror setting)
+            return activePreferences.cameraMirrored ? posB - posA : posA - posB;
+          });
+
+        const emptySlots = playerTrackIdsRef.current
+          .map((id, index) => (id === null ? index : -1))
+          .filter((index) => index !== -1);
+
+        unassignedDetections.forEach((d, i) => {
+          if (i < emptySlots.length) {
+            const emptySlot = emptySlots[i];
+            if (emptySlot !== undefined) {
+              if (d.id !== undefined) {
+                playerTrackIdsRef.current[emptySlot] = d.id;
+              }
+              const pos = getPersonPosition(d, frame.width);
+              nextPositions[emptySlot] = activePreferences.cameraMirrored ? 1 - pos : pos;
+              assigned.add(d);
+            }
+          }
+        });
+
+        finalPositions = nextPositions;
+      } else {
+        finalPositions = getPlayerPositions(sorted, frame.width, activePreferences.cameraMirrored);
+      }
+
+      setPlayerPositions(finalPositions);
       setStatus(sorted.length ? `${sorted.length} person${sorted.length === 1 ? '' : 's'} detected` : 'Scanning');
 
       const drawStartedAt = performance.now();

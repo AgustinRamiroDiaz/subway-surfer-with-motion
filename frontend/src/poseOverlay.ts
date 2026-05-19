@@ -90,7 +90,8 @@ export function drawDetections(
     const box = clampBox(item.box, canvas.width, canvas.height);
     const width = box.xmax - box.xmin;
     const height = box.ymax - box.ymin;
-    const label = `person ${index + 1} ${formatPercent(item.score)}`;
+    const idLabel = item.id !== undefined ? `[ID ${item.id}] ` : '';
+    const label = `${idLabel}person ${index + 1} ${formatPercent(item.score)}`;
     const labelWidth = context.measureText(label).width + 16;
     const labelHeight = 28;
     const labelY = box.ymin > labelHeight ? box.ymin - labelHeight : box.ymin;
