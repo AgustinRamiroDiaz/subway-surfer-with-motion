@@ -18,7 +18,6 @@ type GameSceneProps = {
   canStart: boolean;
   phase: GamePhase;
   playerPositions: number[];
-  positionLabels: string[];
   startLabel: string;
   onPause: () => void;
   onStart: () => void;
@@ -213,7 +212,6 @@ export function GameScene({
   canStart,
   phase,
   playerPositions,
-  positionLabels,
   startLabel,
   onPause,
   onStart,
@@ -363,13 +361,6 @@ export function GameScene({
       </div>
       <div className="game-hud" aria-label="Game status">
         <span>{phase === 'ready' ? 'Ready' : phase === 'paused' ? 'Paused' : stats.statusLabel}</span>
-        <div className="player-position-list">
-          {positionLabels.map((positionLabel, index) => (
-            <strong className={`player-${index + 1}`} key={`player-position-${index + 1}`}>
-              P{index + 1} {positionLabel}
-            </strong>
-          ))}
-        </div>
       </div>
       <div className="game-controls" aria-label="Game controls">
         <button

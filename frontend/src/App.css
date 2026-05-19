@@ -160,18 +160,6 @@
   text-transform: uppercase;
 }
 
-.game-hud strong {
-  color: var(--accent);
-  font-size: clamp(1.35rem, 3vw, 2.35rem);
-  line-height: 1;
-}
-
-.player-position-list {
-  display: grid;
-  gap: 4px;
-}
-
-.game-hud strong.player-2,
 .game-stats dd.player-2 {
   color: #66a3ff;
 }

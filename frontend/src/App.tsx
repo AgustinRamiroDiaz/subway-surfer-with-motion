@@ -19,7 +19,6 @@ import {
 import { CameraFeedbackPanel } from './CameraFeedbackPanel';
 import { DetectionControls } from './DetectionControls';
 import { GameScene, type GamePhase } from './GameScene';
-import { formatPosition } from './formatters';
 import { useCameraStream } from './useCameraStream';
 import { useMotionDetector } from './useMotionDetector';
 import './App.css';
@@ -151,7 +150,6 @@ function App(): ReactElement {
             canStart={!detector.isLoading}
             phase={gamePhase}
             playerPositions={detector.playerPositions}
-            positionLabels={detector.playerPositions.map(formatPosition)}
             startLabel={detector.isLoading ? 'Loading model' : startLabel}
             onPause={handlePauseRun}
             onStart={handleStartRun}
