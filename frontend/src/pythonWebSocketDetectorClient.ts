@@ -68,16 +68,6 @@ async function imageToBlob(image: CameraFrameImage): Promise<Blob> {
   throw new Error('Unsupported camera frame image type');
 }
 
-async function blobToBase64(blob: Blob): Promise<string> {
-  const buffer = await blob.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return window.btoa(binary);
-}
-
 export async function loadPythonWebSocketDetector(
   options: DetectorLoadOptions
 ): Promise<PythonWebSocketDetectorLoadResult> {
@@ -85,6 +75,7 @@ export async function loadPythonWebSocketDetector(
   options.onStatusChange?.({ message: `Connecting to ${url}` });
 
   const socket = new WebSocket(url);
+  socket.binaryType = 'arraybuffer';
   const pending = new Map<number, PendingDetection>();
   let requestId = 0;
   let disposed = false;
@@ -121,10 +112,13 @@ export async function loadPythonWebSocketDetector(
     };
   });
 
-  socket.onmessage = (event: MessageEvent<string>) => {
+  socket.onmessage = (event: MessageEvent<string | ArrayBuffer>) => {
     let message: PythonTrackerMessage;
     try {
-      message = JSON.parse(event.data) as PythonTrackerMessage;
+      const data = typeof event.data === 'string' 
+        ? event.data 
+        : new TextDecoder().decode(event.data);
+      message = JSON.parse(data) as PythonTrackerMessage;
     } catch {
       rejectPending(new Error('Python pose tracker returned invalid JSON'));
       return;
@@ -174,7 +168,7 @@ export async function loadPythonWebSocketDetector(
     requestId += 1;
     const id = requestId;
     const blob = await imageToBlob(cameraFrame.image);
-    const data = await blobToBase64(blob);
+    const arrayBuffer = await blob.arrayBuffer();
 
     return new Promise<DetectorResult>((resolve, reject) => {
       const timeoutId = window.setTimeout(() => {
@@ -188,18 +182,20 @@ export async function loadPythonWebSocketDetector(
         timeoutId,
       });
 
-      socket.send(
-        JSON.stringify({
-          type: 'detect',
-          requestId: id,
-          frame: createFrameDescriptor(cameraFrame),
-          threshold: detectorOptions.threshold,
-          image: {
-            mime: blob.type || 'image/jpeg',
-            data,
-          },
-        })
-      );
+      const metadata = JSON.stringify({
+        requestId: id,
+        frame: createFrameDescriptor(cameraFrame),
+        threshold: detectorOptions.threshold,
+      });
+      const metadataBytes = new TextEncoder().encode(metadata);
+      
+      const packet = new Uint8Array(4 + metadataBytes.length + arrayBuffer.byteLength);
+      const view = new DataView(packet.buffer);
+      view.setUint32(0, metadataBytes.length, true);
+      packet.set(metadataBytes, 4);
+      packet.set(new Uint8Array(arrayBuffer), 4 + metadataBytes.length);
+
+      socket.send(packet);
     });
   };
 

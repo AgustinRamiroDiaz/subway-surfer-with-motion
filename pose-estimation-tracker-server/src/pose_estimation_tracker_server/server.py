@@ -6,10 +6,17 @@ import json
 import threading
 from typing import Any
 
+import numpy as np
 import websockets
 from ultralytics import YOLO
 
-from pose_estimation_tracker_server.protocol import DetectionTimings, decode_base64_image, make_prediction, monotonic_ms
+from pose_estimation_tracker_server.protocol import (
+    DetectionTimings,
+    decode_base64_image,
+    decode_image_bytes,
+    make_prediction,
+    monotonic_ms,
+)
 
 
 class YoloPoseTracker:
@@ -21,11 +28,14 @@ class YoloPoseTracker:
         self.max_poses = max_poses
         self._lock = threading.Lock()
 
-    def detect(self, frame: dict[str, Any], image_data: str, threshold: float) -> dict[str, Any]:
-        started_at = monotonic_ms()
-        image = decode_base64_image(image_data)
-        decoded_at = monotonic_ms()
-
+    def detect_core(
+        self,
+        frame: dict[str, Any],
+        image: np.ndarray,
+        threshold: float,
+        started_at: float,
+        decoded_at: float,
+    ) -> dict[str, Any]:
         with self._lock:
             result = self.model.track(
                 image,
@@ -45,6 +55,12 @@ class YoloPoseTracker:
         )
         height, width = image.shape[:2]
         return make_prediction(frame, result, width, height, threshold, timings, self.max_poses)
+
+    def detect(self, frame: dict[str, Any], image_data: str, threshold: float) -> dict[str, Any]:
+        started_at = monotonic_ms()
+        image = decode_base64_image(image_data)
+        decoded_at = monotonic_ms()
+        return self.detect_core(frame, image, threshold, started_at, decoded_at)
 
 
 def parse_args() -> argparse.Namespace:
@@ -107,15 +123,65 @@ async def handle_message(message: str, tracker: YoloPoseTracker) -> str:
     )
 
 
+async def handle_binary_message(message: bytes, tracker: YoloPoseTracker) -> str:
+    started_at = monotonic_ms()
+    if len(message) < 4:
+        return error_response("Binary message too short")
+
+    metadata_len = int.from_bytes(message[:4], "little")
+    if len(message) < 4 + metadata_len:
+        return error_response("Binary message metadata truncated")
+
+    try:
+        metadata_json = message[4 : 4 + metadata_len].decode("utf-8")
+        payload = json.loads(metadata_json)
+    except Exception as exc:
+        return error_response(f"Failed to parse binary metadata: {exc}")
+
+    request_id = payload.get("requestId")
+    frame = payload.get("frame")
+    threshold = payload.get("threshold", tracker.conf)
+
+    if not isinstance(request_id, int):
+        return error_response("requestId must be a number")
+    if not isinstance(frame, dict):
+        return error_response("frame must be an object", request_id)
+
+    image_bytes = message[4 + metadata_len :]
+    try:
+        image = decode_image_bytes(image_bytes)
+    except Exception as exc:
+        return error_response(str(exc), request_id)
+
+    decoded_at = monotonic_ms()
+
+    try:
+        result = await asyncio.to_thread(
+            tracker.detect_core, frame, image, float(threshold), started_at, decoded_at
+        )
+    except Exception as exc:
+        return error_response(str(exc), request_id)
+
+    return json.dumps(
+        {
+            "type": "result",
+            "requestId": request_id,
+            "result": result,
+        }
+    )
+
+
 async def serve(args: argparse.Namespace) -> None:
     tracker = YoloPoseTracker(args.model, args.conf, args.imgsz, args.tracker, args.max_poses)
 
     async def handler(websocket: websockets.ServerConnection) -> None:
         async for message in websocket:
-            if not isinstance(message, str):
-                await websocket.send(error_response("Only text JSON messages are supported"))
-                continue
-            await websocket.send(await handle_message(message, tracker))
+            if isinstance(message, bytes):
+                await websocket.send(await handle_binary_message(message, tracker))
+            elif isinstance(message, str):
+                await websocket.send(await handle_message(message, tracker))
+            else:
+                await websocket.send(error_response("Unsupported message type"))
 
     async with websockets.serve(handler, args.host, args.port):
         print(f"Pose tracker WebSocket server listening on ws://{args.host}:{args.port}")

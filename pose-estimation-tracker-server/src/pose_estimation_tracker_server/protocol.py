@@ -54,6 +54,14 @@ def monotonic_ms() -> float:
     return time.perf_counter() * 1000
 
 
+def decode_image_bytes(data: bytes) -> np.ndarray:
+    encoded = np.frombuffer(data, dtype=np.uint8)
+    image = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError("image data could not be decoded as an image")
+    return image
+
+
 def decode_base64_image(data: str) -> np.ndarray:
     try:
         raw = base64.b64decode(data, validate=True)
