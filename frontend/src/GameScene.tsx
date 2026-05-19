@@ -11,12 +11,14 @@ const OBSTACLE_SPEED = 7.2;
 const SPAWN_INTERVAL_MS = 2000;
 const COLLISION_RADIUS_X = 0.92;
 const COLLISION_RADIUS_Z = 0.78;
+const PLAYER_COLORS = ['#2fffb2', '#66a3ff'] as const;
+const PLAYER_EMISSIVE_COLORS = ['#0b5a3f', '#153766'] as const;
 
 type GameSceneProps = {
   canStart: boolean;
   phase: GamePhase;
-  playerPosition: number;
-  positionLabel: string;
+  playerPositions: number[];
+  positionLabels: string[];
   startLabel: string;
   onPause: () => void;
   onStart: () => void;
@@ -25,13 +27,14 @@ type GameSceneProps = {
 type Obstacle = {
   mesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>;
   x: number;
-  hit: boolean;
+  hitBy: boolean[];
 };
 
 type GameStats = {
   dodged: number;
-  hits: number;
+  hits: number[];
   status: 'Running' | 'Hit';
+  statusLabel: string;
 };
 
 export type GamePhase = 'ready' | 'running' | 'paused';
@@ -40,7 +43,7 @@ type TrackWorld = {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGLRenderer;
-  player: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>;
+  players: Array<THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>>;
   dispose: () => void;
 };
 
@@ -62,7 +65,7 @@ function positionToWorldX(position: number): number {
   return THREE.MathUtils.lerp(TRACK_MIN_X, TRACK_MAX_X, THREE.MathUtils.clamp(position, 0, 1));
 }
 
-function createTrackWorld(mount: HTMLDivElement, initialPlayerPosition: number): TrackWorld {
+function createTrackWorld(mount: HTMLDivElement, initialPlayerPositions: number[]): TrackWorld {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#101416');
   scene.fog = new THREE.Fog('#101416', 10, 30);
@@ -134,24 +137,27 @@ function createTrackWorld(mount: HTMLDivElement, initialPlayerPosition: number):
     scene.add(sleeper);
   }
 
-  const player = new THREE.Mesh(
-    new THREE.SphereGeometry(0.48, 32, 32),
-    new THREE.MeshStandardMaterial({
-      color: '#2fffb2',
-      emissive: '#0b5a3f',
-      roughness: 0.38,
-      metalness: 0.12,
-    })
-  );
-  player.position.set(positionToWorldX(initialPlayerPosition), 0.62, PLAYER_Z);
-  player.castShadow = true;
-  scene.add(player);
+  const players = initialPlayerPositions.map((initialPlayerPosition, index) => {
+    const player = new THREE.Mesh(
+      new THREE.SphereGeometry(0.48, 32, 32),
+      new THREE.MeshStandardMaterial({
+        color: PLAYER_COLORS[index % PLAYER_COLORS.length],
+        emissive: PLAYER_EMISSIVE_COLORS[index % PLAYER_EMISSIVE_COLORS.length],
+        roughness: 0.38,
+        metalness: 0.12,
+      })
+    );
+    player.position.set(positionToWorldX(initialPlayerPosition), 0.62, PLAYER_Z);
+    player.castShadow = true;
+    scene.add(player);
+    return player;
+  });
 
   return {
     scene,
     camera,
     renderer,
-    player,
+    players,
     dispose: () => {
       floorGeometry.dispose();
       floorMaterial.dispose();
@@ -161,8 +167,10 @@ function createTrackWorld(mount: HTMLDivElement, initialPlayerPosition: number):
       sleeperMaterial.dispose();
       sideRailGeometry.dispose();
       guideGeometry.dispose();
-      player.geometry.dispose();
-      player.material.dispose();
+      players.forEach((player) => {
+        player.geometry.dispose();
+        player.material.dispose();
+      });
       renderer.dispose();
       renderer.domElement.remove();
     },
@@ -188,7 +196,7 @@ function createObstacleSystem(scene: THREE.Scene): ObstacleSystem {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       scene.add(mesh);
-      obstacles.push({ mesh, x, hit: false });
+      obstacles.push({ mesh, x, hitBy: [] });
     },
     dispose: () => {
       obstacles.forEach((obstacle) => {
@@ -204,24 +212,25 @@ function createObstacleSystem(scene: THREE.Scene): ObstacleSystem {
 export function GameScene({
   canStart,
   phase,
-  playerPosition,
-  positionLabel,
+  playerPositions,
+  positionLabels,
   startLabel,
   onPause,
   onStart,
 }: GameSceneProps): ReactElement {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const playerPositionRef = useRef(playerPosition);
+  const playerPositionsRef = useRef(playerPositions);
   const gamePhaseRef = useRef<GamePhase>(phase);
   const [stats, setStats] = useState<GameStats>({
     dodged: 0,
-    hits: 0,
+    hits: playerPositions.map(() => 0),
     status: 'Running',
+    statusLabel: 'Running',
   });
 
   useEffect(() => {
-    playerPositionRef.current = playerPosition;
-  }, [playerPosition]);
+    playerPositionsRef.current = playerPositions;
+  }, [playerPositions]);
 
   useEffect(() => {
     gamePhaseRef.current = phase;
@@ -241,7 +250,7 @@ export function GameScene({
     let lastTime = performance.now();
     let lastSpawnAt = performance.now() - SPAWN_INTERVAL_MS;
     let statusResetAt = 0;
-    const world = createTrackWorld(mount, playerPositionRef.current);
+    const world = createTrackWorld(mount, playerPositionsRef.current);
     const obstacleSystem = createObstacleSystem(world.scene);
 
     const resize = (): void => {
@@ -273,9 +282,11 @@ export function GameScene({
         lastSpawnAt = now;
       }
 
-      const targetX = positionToWorldX(playerPositionRef.current);
-      world.player.position.x = THREE.MathUtils.lerp(world.player.position.x, targetX, 0.22);
-      world.player.rotation.y += delta * 2;
+      world.players.forEach((player, index) => {
+        const targetX = positionToWorldX(playerPositionsRef.current[index] ?? playerPositionsRef.current[0] ?? 0.5);
+        player.position.x = THREE.MathUtils.lerp(player.position.x, targetX, 0.22);
+        player.rotation.y += delta * (2 + index * 0.35);
+      });
 
       for (let index = obstacleSystem.obstacles.length - 1; index >= 0; index -= 1) {
         const obstacle = obstacleSystem.obstacles[index];
@@ -283,33 +294,39 @@ export function GameScene({
         obstacle.mesh.rotation.x += delta * 2.8;
         obstacle.mesh.rotation.z += delta * 1.5;
 
-        const isCollision =
-          !obstacle.hit &&
-          Math.abs(obstacle.x - world.player.position.x) < COLLISION_RADIUS_X &&
-          Math.abs(obstacle.mesh.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
+        world.players.forEach((player, playerIndex) => {
+          const isCollision =
+            !obstacle.hitBy[playerIndex] &&
+            Math.abs(obstacle.x - player.position.x) < COLLISION_RADIUS_X &&
+            Math.abs(obstacle.mesh.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
 
-        if (isCollision) {
-          obstacle.hit = true;
+          if (!isCollision) {
+            return;
+          }
+
+          obstacle.hitBy[playerIndex] = true;
           obstacle.mesh.material.color.set('#ffd166');
           obstacle.mesh.material.emissive.set('#6b3e00');
           obstacle.mesh.material.roughness = 0.34;
           statusResetAt = now + 650;
           setStats((current) => ({
             dodged: current.dodged,
-            hits: current.hits + 1,
+            hits: current.hits.map((hits, index) => index === playerIndex ? hits + 1 : hits),
             status: 'Hit',
+            statusLabel: `P${playerIndex + 1} hit`,
           }));
-        }
+        });
 
         if (obstacle.mesh.position.z > OBSTACLE_DESPAWN_Z) {
           world.scene.remove(obstacle.mesh);
           obstacle.mesh.material.dispose();
           obstacleSystem.obstacles.splice(index, 1);
-          if (!obstacle.hit) {
+          if (!obstacle.hitBy.some(Boolean)) {
             setStats((current) => ({
               dodged: current.dodged + 1,
               hits: current.hits,
               status: current.status,
+              statusLabel: current.statusLabel,
             }));
           }
         }
@@ -320,6 +337,7 @@ export function GameScene({
         setStats((current) => ({
           ...current,
           status: 'Running',
+          statusLabel: 'Running',
         }));
       }
 
@@ -344,8 +362,14 @@ export function GameScene({
         <h1>Motion runner</h1>
       </div>
       <div className="game-hud" aria-label="Game status">
-        <span>{phase === 'ready' ? 'Ready' : phase === 'paused' ? 'Paused' : stats.status}</span>
-        <strong>{positionLabel}</strong>
+        <span>{phase === 'ready' ? 'Ready' : phase === 'paused' ? 'Paused' : stats.statusLabel}</span>
+        <div className="player-position-list">
+          {positionLabels.map((positionLabel, index) => (
+            <strong className={`player-${index + 1}`} key={`player-position-${index + 1}`}>
+              P{index + 1} {positionLabel}
+            </strong>
+          ))}
+        </div>
       </div>
       <div className="game-controls" aria-label="Game controls">
         <button
@@ -367,8 +391,14 @@ export function GameScene({
         </div>
         <div>
           <dt>Hits</dt>
-          <dd>{stats.hits}</dd>
+          <dd>{stats.hits.reduce((total, hits) => total + hits, 0)}</dd>
         </div>
+        {stats.hits.map((hits, index) => (
+          <div key={`player-hits-${index + 1}`}>
+            <dt>P{index + 1} hits</dt>
+            <dd className={`player-${index + 1}`}>{hits}</dd>
+          </div>
+        ))}
       </dl>
     </div>
   );

@@ -300,7 +300,7 @@ describe('loadMediaPipePoseDetector', () => {
         minPoseDetectionConfidence: 0.5,
         minPosePresenceConfidence: 0.5,
         minTrackingConfidence: 0.5,
-        numPoses: 1,
+        numPoses: 2,
         outputSegmentationMasks: false,
         runningMode: 'VIDEO',
       })
@@ -348,6 +348,33 @@ describe('loadMediaPipePoseDetector', () => {
 
     dispose?.();
     expect(mockClose).toHaveBeenCalled();
+  });
+
+  test('converts multiple MediaPipe poses to app pose detections', async () => {
+    mockDetectForVideo.mockReturnValue({
+      landmarks: [makeMediaPipeLandmarks(0.9), makeMediaPipeLandmarks(0.8)],
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+
+    const { detector } = await loadMediaPipePoseDetector({
+      backend: 'mediapipe',
+      modelId: DEFAULT_YOLO_MODEL_ID,
+      runtime: 'wasm',
+      quantization: 'uint8',
+      mediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
+      mediaPipeDelegate: DEFAULT_MEDIAPIPE_DELEGATE_ID,
+    });
+    const result = await detector(createCameraFrame(canvas, 'mediapipe-frame-2', 2000), {
+      threshold: 0.5,
+      percentage: false,
+    });
+
+    expect(result.detections).toHaveLength(2);
+    expect(result.detections[0].score).toBeCloseTo(0.9);
+    expect(result.detections[1].score).toBeCloseTo(0.8);
   });
 
   test('filters MediaPipe poses below the confidence threshold', async () => {

@@ -121,6 +121,11 @@
   transition: left 160ms ease;
 }
 
+.camera-position-marker.player-2 {
+  background: #66a3ff;
+  box-shadow: 0 0 14px rgba(102, 163, 255, 0.72);
+}
+
 .game-scene {
   position: absolute;
   inset: 0;
@@ -161,6 +166,16 @@
   line-height: 1;
 }
 
+.player-position-list {
+  display: grid;
+  gap: 4px;
+}
+
+.game-hud strong.player-2,
+.game-stats dd.player-2 {
+  color: #66a3ff;
+}
+
 .game-controls {
   right: 28px;
   bottom: 28px;
@@ -176,8 +191,9 @@
 .game-stats {
   left: 28px;
   bottom: 28px;
-  display: flex;
-  gap: 24px;
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 16px 24px;
   margin: 0;
 }
 

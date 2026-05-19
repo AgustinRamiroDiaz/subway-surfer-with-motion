@@ -3,7 +3,7 @@ import type { ReactElement, RefObject } from 'react';
 type CameraFeedbackPanelProps = {
   cameraEnabled: boolean;
   cameraMirrored: boolean;
-  playerPosition: number;
+  playerPositions: number[];
   selectedTrackerLabel: string;
   videoRef: RefObject<HTMLVideoElement | null>;
   overlayRef: RefObject<HTMLCanvasElement | null>;
@@ -14,7 +14,7 @@ type CameraFeedbackPanelProps = {
 export function CameraFeedbackPanel({
   cameraEnabled,
   cameraMirrored,
-  playerPosition,
+  playerPositions,
   selectedTrackerLabel,
   videoRef,
   overlayRef,
@@ -36,7 +36,13 @@ export function CameraFeedbackPanel({
       />
       <div className="camera-position-guides" aria-hidden="true">
         <div className="camera-center-line" />
-        <div className="camera-position-marker" style={{ left: `${playerPosition * 100}%` }} />
+        {playerPositions.map((playerPosition, index) => (
+          <div
+            className={`camera-position-marker player-${index + 1}`}
+            key={`player-marker-${index + 1}`}
+            style={{ left: `${playerPosition * 100}%` }}
+          />
+        ))}
       </div>
       <canvas
         ref={overlayRef}

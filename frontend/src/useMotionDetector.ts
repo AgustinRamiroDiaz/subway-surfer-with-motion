@@ -3,7 +3,7 @@ import type { Detector, DetectorTimings, PersonDetection } from './aiDetector';
 import { createCameraFrame } from './detectionSchema';
 import { loadYoloDetectorWorker } from './detectorWorkerClient';
 import type { AppPreferences } from './appPreferences';
-import { DEFAULT_PLAYER_POSITION, drawDetections, getPersonPosition } from './poseOverlay';
+import { DEFAULT_PLAYER_POSITIONS, drawDetections, getPlayerPositions } from './poseOverlay';
 import { useLatest } from './useLatest';
 
 const DETECTION_INTERVAL_MS = 180;
@@ -34,7 +34,7 @@ type MotionDetectorControls = {
   detections: PersonDetection[];
   lastInferenceMs: number | null;
   frameTimings: FrameTimings | null;
-  playerPosition: number;
+  playerPositions: number[];
   error: string | null;
   clearDetectionState: () => void;
   resetDetector: () => void;
@@ -68,14 +68,14 @@ export function useMotionDetector({
   const [detections, setDetections] = useState<PersonDetection[]>([]);
   const [lastInferenceMs, setLastInferenceMs] = useState<number | null>(null);
   const [frameTimings, setFrameTimings] = useState<FrameTimings | null>(null);
-  const [playerPosition, setPlayerPosition] = useState(DEFAULT_PLAYER_POSITION);
+  const [playerPositions, setPlayerPositions] = useState<number[]>([...DEFAULT_PLAYER_POSITIONS]);
   const [error, setError] = useState<string | null>(null);
 
   const clearDetectionState = useCallback(() => {
     setDetections([]);
     setLastInferenceMs(null);
     setFrameTimings(null);
-    setPlayerPosition(DEFAULT_PLAYER_POSITION);
+    setPlayerPositions([...DEFAULT_PLAYER_POSITIONS]);
     clearOverlay();
   }, [clearOverlay]);
 
@@ -121,10 +121,7 @@ export function useMotionDetector({
       });
       const sorted = [...result.detections].sort((a, b) => b.score - a.score);
       setDetections(sorted);
-      if (sorted[0]) {
-        const detectedPosition = getPersonPosition(sorted[0], frame.width);
-        setPlayerPosition(activePreferences.cameraMirrored ? 1 - detectedPosition : detectedPosition);
-      }
+      setPlayerPositions(getPlayerPositions(sorted, frame.width, activePreferences.cameraMirrored));
       setStatus(sorted.length ? `${sorted.length} person${sorted.length === 1 ? '' : 's'} detected` : 'Scanning');
 
       const drawStartedAt = performance.now();
@@ -253,7 +250,7 @@ export function useMotionDetector({
     detections,
     lastInferenceMs,
     frameTimings,
-    playerPosition,
+    playerPositions,
     error,
     clearDetectionState,
     resetDetector,

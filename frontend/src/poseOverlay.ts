@@ -2,6 +2,10 @@ import type { PersonDetection, PoseKeypoint } from './aiDetector';
 import { formatPercent } from './formatters';
 
 export const DEFAULT_PLAYER_POSITION = 0.5;
+export const DEFAULT_PLAYER_POSITIONS = [0.33, 0.67] as const;
+export const MAX_PLAYERS = 2;
+
+const PLAYER_COLORS = ['#2fffb2', '#66a3ff'] as const;
 
 const POSE_CONNECTIONS = [
   ['Left Shoulder', 'Right Shoulder'],
@@ -48,6 +52,26 @@ export function getPersonPosition(detection: PersonDetection, frameWidth: number
   return Math.max(0, Math.min(1, referenceX / frameWidth));
 }
 
+export function getPlayerPositions(
+  detections: PersonDetection[],
+  frameWidth: number,
+  cameraMirrored: boolean
+): number[] {
+  if (!detections.length) {
+    return [...DEFAULT_PLAYER_POSITIONS];
+  }
+
+  const detectedPositions = detections
+    .slice(0, MAX_PLAYERS)
+    .map((detection) => {
+      const position = getPersonPosition(detection, frameWidth);
+      return cameraMirrored ? 1 - position : position;
+    })
+    .sort((left, right) => left - right);
+
+  return DEFAULT_PLAYER_POSITIONS.map((fallbackPosition, index) => detectedPositions[index] ?? fallbackPosition);
+}
+
 export function drawDetections(
   canvas: HTMLCanvasElement,
   items: PersonDetection[]
@@ -71,8 +95,8 @@ export function drawDetections(
     const labelHeight = 28;
     const labelY = box.ymin > labelHeight ? box.ymin - labelHeight : box.ymin;
 
-    context.strokeStyle = '#2fffb2';
-    context.fillStyle = 'rgba(47, 255, 178, 0.14)';
+    context.strokeStyle = PLAYER_COLORS[index % PLAYER_COLORS.length];
+    context.fillStyle = index % PLAYER_COLORS.length === 0 ? 'rgba(47, 255, 178, 0.14)' : 'rgba(102, 163, 255, 0.14)';
     context.strokeRect(box.xmin, box.ymin, width, height);
     context.fillRect(box.xmin, box.ymin, width, height);
 
@@ -101,7 +125,7 @@ export function drawDetections(
 
     item.keypoints.forEach((keypoint) => {
       context.beginPath();
-      context.fillStyle = '#ff5f7a';
+      context.fillStyle = PLAYER_COLORS[index % PLAYER_COLORS.length];
       context.arc(keypoint.x, keypoint.y, Math.max(4, Math.round(canvas.width / 180)), 0, Math.PI * 2);
       context.fill();
     });

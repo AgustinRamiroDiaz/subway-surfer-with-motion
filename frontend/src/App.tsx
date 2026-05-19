@@ -150,8 +150,8 @@ function App(): ReactElement {
           <GameScene
             canStart={!detector.isLoading}
             phase={gamePhase}
-            playerPosition={detector.playerPosition}
-            positionLabel={formatPosition(detector.playerPosition)}
+            playerPositions={detector.playerPositions}
+            positionLabels={detector.playerPositions.map(formatPosition)}
             startLabel={detector.isLoading ? 'Loading model' : startLabel}
             onPause={handlePauseRun}
             onStart={handleStartRun}
@@ -164,7 +164,7 @@ function App(): ReactElement {
             cameraMirrored={preferences.cameraMirrored}
             frameRef={camera.frameRef}
             overlayRef={camera.overlayRef}
-            playerPosition={detector.playerPosition}
+            playerPositions={detector.playerPositions}
             selectedTrackerLabel={selectedTrackerLabel}
             videoRef={camera.videoRef}
             onLoadedMetadata={camera.syncCanvasSize}
