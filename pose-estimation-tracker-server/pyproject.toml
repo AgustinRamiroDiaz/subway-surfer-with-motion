@@ -6,13 +6,14 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.2.0",
-    "opencv-python-headless>=4.13.0.92",
+    "opencv-python>=4.13.0.92",
     "ultralytics>=8.4.51",
     "websockets>=15.0.1",
 ]
 
 [project.scripts]
 pose-tracker-server = "pose_estimation_tracker_server.server:main"
+pose-tracker-preview = "pose_estimation_tracker_server.preview:main"
 
 [dependency-groups]
 dev = [

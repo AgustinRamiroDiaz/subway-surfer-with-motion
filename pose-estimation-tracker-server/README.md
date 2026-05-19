@@ -25,6 +25,23 @@ VITE_POSE_TRACKER_WS_URL=ws://127.0.0.1:8765 pnpm start
 
 Then choose `Python WebSocket` in the app's advanced tracking selector.
 
+## OpenCV Playground
+
+Run YOLO directly against a local camera and show the matched pose points,
+tracking IDs, and inference timing in an OpenCV window:
+
+```bash
+uv run pose-tracker-preview
+```
+
+Useful flags:
+
+```bash
+uv run pose-tracker-preview --camera 0 --model yolo26s-pose.pt --tracker botsort.yaml --conf 0.35 --imgsz 640
+```
+
+Press `q` or Escape to close the preview.
+
 ## Protocol
 
 The frontend sends JSON messages:
