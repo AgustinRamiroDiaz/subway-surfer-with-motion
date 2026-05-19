@@ -1,4 +1,4 @@
-export type CameraFrameImage = HTMLCanvasElement | OffscreenCanvas;
+export type CameraFrameImage = HTMLCanvasElement | OffscreenCanvas | ImageBitmap;
 
 export type CameraFrameDescriptor = {
   frameId: string;

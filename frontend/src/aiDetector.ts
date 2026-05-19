@@ -278,6 +278,10 @@ type YoloModel = {
 
 type YoloPoseProcessor = (image: unknown) => Promise<unknown>;
 
+function isImageBitmap(image: CameraFrameImage): image is ImageBitmap {
+  return typeof ImageBitmap !== 'undefined' && image instanceof ImageBitmap;
+}
+
 type MediaPipeLandmark = {
   x: number;
   y: number;
@@ -588,6 +592,10 @@ async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOp
 
   const poseDetector: Detector = async (frame, detectorOptions) => {
     const image = frame.image;
+    if (isImageBitmap(image)) {
+      throw new Error('YOLO detector requires a canvas-backed camera frame');
+    }
+
     const startedAt = performance.now();
     const rawImage = RawImage.fromCanvas(image);
     const rawImageDoneAt = performance.now();

@@ -57,6 +57,7 @@ type WorkerOutboundMessage =
 
 let detector: Detector | null = null;
 let disposeDetector: (() => void) | null = null;
+let activeBackend: DetectorLoadOptions['backend'] | null = null;
 let frameCanvas: OffscreenCanvas | null = null;
 let frameContext: OffscreenCanvasRenderingContext2D | null = null;
 
@@ -102,6 +103,7 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
       disposeDetector?.();
       detector = result.detector;
       disposeDetector = result.dispose ?? null;
+      activeBackend = message.backend;
       post({
         type: 'loaded',
         requestId: message.requestId,
@@ -116,6 +118,26 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
     }
 
     const { bitmap } = message.frame;
+    const directFrame =
+      activeBackend === 'mediapipe'
+        ? createCameraFrame(bitmap, message.frame.frameId, message.frame.capturedAtMs)
+        : null;
+
+    if (directFrame) {
+      const result = await detector(directFrame, {
+        threshold: message.threshold,
+        percentage: false,
+      });
+      bitmap.close();
+
+      post({
+        type: 'result',
+        requestId: message.requestId,
+        result,
+      });
+      return;
+    }
+
     if (!frameCanvas || frameCanvas.width !== bitmap.width || frameCanvas.height !== bitmap.height) {
       frameCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
       frameContext = frameCanvas.getContext('2d');
