@@ -79,7 +79,7 @@ function createTrackWorld(mount: HTMLDivElement, initialPlayerPositions: number[
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.BasicShadowMap;
   renderer.domElement.className = 'game-canvas';
   mount.appendChild(renderer.domElement);
 
@@ -292,14 +292,15 @@ export function GameScene({
         obstacle.mesh.rotation.x += delta * 2.8;
         obstacle.mesh.rotation.z += delta * 1.5;
 
-        world.players.forEach((player, playerIndex) => {
+        for (let playerIndex = 0; playerIndex < world.players.length; playerIndex += 1) {
+          const player = world.players[playerIndex];
           const isCollision =
             !obstacle.hitBy[playerIndex] &&
             Math.abs(obstacle.x - player.position.x) < COLLISION_RADIUS_X &&
             Math.abs(obstacle.mesh.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
 
           if (!isCollision) {
-            return;
+            continue;
           }
 
           obstacle.hitBy[playerIndex] = true;
@@ -313,7 +314,7 @@ export function GameScene({
             status: 'Hit',
             statusLabel: `P${playerIndex + 1} hit`,
           }));
-        });
+        }
 
         if (obstacle.mesh.position.z > OBSTACLE_DESPAWN_Z) {
           world.scene.remove(obstacle.mesh);
