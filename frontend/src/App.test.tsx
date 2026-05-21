@@ -25,6 +25,7 @@ function chooseOption(currentValue: RegExp, optionName: RegExp): void {
 }
 
 beforeEach(() => {
+  window.history.pushState({}, '', '/');
   getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     clearRect: vi.fn(),
   } as unknown as CanvasRenderingContext2D);
@@ -95,14 +96,24 @@ test('shows Python WebRTC as a server-backed tracker option', () => {
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"selectedBackendId":"python-webrtc"');
 });
 
-test('explains configuration controls and tracking internals', () => {
+test('opens tracking internals in the documentation view', () => {
   renderApp();
 
   expect(screen.getByRole('button', { name: /about confidence/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /about players/i })).toBeInTheDocument();
 
-  fireEvent.click(screen.getByText(/tracking internals/i));
+  const docsLink = screen.getByRole('link', { name: /tracking docs/i });
+  expect(docsLink).toHaveAttribute('href', '/docs/tracking-internals');
+  expect(docsLink).toHaveAttribute('target', '_blank');
+});
 
+test('renders tracking internals as a dedicated docs page', () => {
+  window.history.pushState({}, '', '/docs/tracking-internals');
+
+  renderApp();
+
+  expect(screen.getByLabelText(/tracking internals documentation/i)).toBeInTheDocument();
   expect(screen.getByText(/the browser owns the camera/i)).toBeInTheDocument();
   expect(screen.getByText(/the backend keeps one latest-frame slot/i)).toBeInTheDocument();
+  expect(screen.queryByLabelText(/main game/i)).not.toBeInTheDocument();
 });

@@ -301,47 +301,24 @@ export function DetectionControls({
           </Accordion.Panel>
         </Accordion.Item>
 
-        <Accordion.Item className="advanced-panel docs-panel" value="tracking-internals">
-          <Accordion.Control className="advanced-panel-summary">Tracking internals</Accordion.Control>
-          <Accordion.Panel className="advanced-panel-content">
-            <div className="docs-section">
-              <p className="eyebrow">Client ownership</p>
-              <p>
-                The browser owns the camera, preview, overlay, player assignment, stored preferences, and game state.
-                Detection results are normalized into the same prediction shape no matter which tracker you choose.
-              </p>
-            </div>
-            <div className="docs-section">
-              <p className="eyebrow">Local trackers</p>
-              <p>
-                MediaPipe and YOLO run as pull detectors. The camera loop follows the browser video-frame callback, sends
-                the newest frame to the selected model, then draws detections and updates player positions.
-              </p>
-            </div>
-            <div className="docs-section">
-              <p className="eyebrow">Python WebRTC</p>
-              <p>
-                The frontend sends the camera track to Python over WebRTC. The WebSocket endpoint is signaling only, while
-                detection results return through the low-latency data channel.
-              </p>
-            </div>
-            <div className="docs-section">
-              <p className="eyebrow">Latency model</p>
-              <p>
-                The backend keeps one latest-frame slot instead of a queue. If inference is busy, stale frames are replaced
-                so the next result reflects the freshest camera moment available.
-              </p>
-            </div>
-            <div className="docs-section">
-              <p className="eyebrow">Privacy boundary</p>
-              <p>
-                In-browser trackers keep frames inside the page. Python WebRTC sends frames only to the signaling host you
-                configure, intended here for local development or your own LAN.
-              </p>
-            </div>
-          </Accordion.Panel>
-        </Accordion.Item>
       </Accordion>
+
+      <div className="docs-entry">
+        <div>
+          <p className="eyebrow">Documentation</p>
+          <p>Open the tracking internals view for the full client-side ownership and WebRTC data-flow notes.</p>
+        </div>
+        <Button
+          className="secondary-action"
+          component="a"
+          href="/docs/tracking-internals"
+          rel="noreferrer"
+          target="_blank"
+          variant="default"
+        >
+          Tracking docs
+        </Button>
+      </div>
 
       {frameTimings && (
         <Accordion className="settings-accordion timing-panel" variant="unstyled">

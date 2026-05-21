@@ -19,11 +19,24 @@ import {
 import { CameraFeedbackPanel } from './CameraFeedbackPanel';
 import { DetectionControls } from './DetectionControls';
 import { GameScene, type GamePhase } from './GameScene';
+import { TrackingInternalsDocs } from './TrackingInternalsDocs';
 import { useCameraStream } from './useCameraStream';
 import { useMotionDetector } from './useMotionDetector';
 import './App.css';
 
 function App(): ReactElement {
+  if (window.location.pathname === '/docs/tracking-internals') {
+    return (
+      <main className="app-shell docs-page-shell">
+        <TrackingInternalsDocs />
+      </main>
+    );
+  }
+
+  return <MotionRunnerApp />;
+}
+
+function MotionRunnerApp(): ReactElement {
   const [preferences, setPreferences] = useState<AppPreferences>(readStoredAppPreferences);
   const [gamePhase, setGamePhase] = useState<GamePhase>('ready');
   const camera = useCameraStream();

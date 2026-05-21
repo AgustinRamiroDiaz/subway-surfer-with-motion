@@ -20,6 +20,13 @@
   color: var(--text-strong);
 }
 
+.docs-page-shell {
+  display: grid;
+  align-items: start;
+  justify-items: center;
+  padding: 32px 20px;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
@@ -385,7 +392,8 @@
 }
 
 .game-controls button,
-.control-action {
+.control-action,
+.secondary-action {
   min-height: 46px;
   border: 1px solid var(--line-strong);
   border-radius: 6px;
@@ -401,14 +409,16 @@
 }
 
 .game-controls button:hover:not(:disabled),
-.control-action:hover:not(:disabled) {
+.control-action:hover:not(:disabled),
+.secondary-action:hover:not(:disabled) {
   transform: translateY(-1px);
   border-color: rgba(255, 255, 255, 0.32);
   background: var(--surface-4);
 }
 
 .game-controls button:disabled,
-.control-action:disabled {
+.control-action:disabled,
+.secondary-action:disabled {
   cursor: not-allowed;
   opacity: 0.48;
 }
@@ -604,18 +614,56 @@
   font-size: 0.82rem;
 }
 
-.docs-panel {
+.docs-entry {
+  display: grid;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
   color: var(--text-soft);
 }
 
-.docs-panel .mantine-Accordion-content {
+.docs-entry p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.docs-entry .secondary-action {
+  width: 100%;
+}
+
+.docs-view {
+  display: grid;
+  gap: 24px;
+  width: min(860px, 100%);
+  min-height: 100%;
+}
+
+.docs-view-header {
+  display: grid;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.docs-view-header h2 {
+  margin: 8px 0 10px;
+}
+
+.docs-view-header p:not(.eyebrow) {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.docs-sections {
+  display: grid;
   gap: 18px;
 }
 
 .docs-section {
   display: grid;
-  gap: 6px;
-  padding-bottom: 14px;
+  gap: 8px;
+  padding-bottom: 18px;
   border-bottom: 1px solid var(--line-soft);
 }
 
@@ -627,6 +675,18 @@
 .docs-section p {
   margin: 0;
   line-height: 1.5;
+}
+
+.docs-section h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 1rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.docs-section p:not(.eyebrow) {
+  color: var(--text-soft);
 }
 
 .docs-section .eyebrow {
