@@ -1,7 +1,13 @@
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { Button } from '@mantine/core';
 
-const sections = [
+interface DocSection {
+  eyebrow: string;
+  title: string;
+  body: ReactNode;
+}
+
+const sections: DocSection[] = [
   {
     eyebrow: 'Client ownership',
     title: 'The browser is the source of truth',
@@ -16,9 +22,22 @@ const sections = [
   },
   {
     eyebrow: 'Python WebRTC',
-    title: 'Remote tracking still keeps the UI local',
-    body:
-      'The frontend sends the camera media track to Python over WebRTC. WebSocket is only the setup lane for the offer, answer, and ICE candidates. Detection results return over the detections data channel using the same ModelPrediction structure as local trackers.',
+    title: 'High-performance tracking with standalone server',
+    body: (
+      <>
+        The frontend sends the camera media track to Python over WebRTC. To use this, download the latest
+        "pose-tracker-server" binary for your platform from{' '}
+        <a
+          href="https://github.com/AgustinRamiroDiaz/subway-surfer-with-motion/releases"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          GitHub Releases
+        </a>
+        . Run it with <code>./pose-tracker-server</code> and ensure the signaling URL in the app matches (default:
+        ws://localhost:8765). Detection results return over a low-latency data channel.
+      </>
+    ),
   },
   {
     eyebrow: 'Latency model',

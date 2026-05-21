@@ -15,7 +15,7 @@ uv run pose-tracker-server
 
 ### Standalone Binary
 
-You can download pre-compiled binaries for Windows, macOS, and Linux from the [GitHub Releases](https://github.com/your-repo/releases) page.
+You can download pre-compiled binaries for Windows, macOS, and Linux from the [GitHub Releases](https://github.com/AgustinRamiroDiaz/subway-surfer-with-motion/releases) page.
 
 1. Download the binary for your platform.
 2. Run it from the terminal:
