@@ -68,15 +68,15 @@ test('remembers detector decisions across remounts', () => {
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"selectedBackendId":"yolo"');
 });
 
-test('shows Python WebSocket as a server-backed tracker option', () => {
+test('shows Python WebRTC as a server-backed tracker option', () => {
   render(<App />);
 
   fireEvent.click(screen.getByText(/advanced tracking/i));
-  fireEvent.change(screen.getByLabelText(/tracker/i), { target: { value: 'python-websocket' } });
+  fireEvent.change(screen.getByLabelText(/tracker/i), { target: { value: 'python-webrtc' } });
 
-  expect(screen.getByLabelText(/tracker/i)).toHaveValue('python-websocket');
-  expect(screen.getByText(/server url: ws:\/\/127\.0\.0\.1:8765/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/tracker/i)).toHaveValue('python-webrtc');
+  expect(screen.getByText(/signaling url: ws:\/\/127\.0\.0\.1:8765/i)).toBeInTheDocument();
   expect(screen.queryByLabelText(/delegate/i)).not.toBeInTheDocument();
   expect(screen.queryByLabelText(/runtime/i)).not.toBeInTheDocument();
-  expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"selectedBackendId":"python-websocket"');
+  expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"selectedBackendId":"python-webrtc"');
 });

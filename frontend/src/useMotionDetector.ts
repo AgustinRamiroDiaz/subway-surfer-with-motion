@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import type { Detector, DetectorTimings, PersonDetection } from './aiDetector';
+import type { Detector, DetectorLoadResult, DetectorResult, DetectorTimings, PersonDetection } from './aiDetector';
 import { createCameraFrame } from './detectionSchema';
 import { loadDetectorClient } from './detectorClient';
 import type { AppPreferences } from './appPreferences';
@@ -58,6 +58,7 @@ export function useMotionDetector({
   clearOverlay,
 }: UseMotionDetectorOptions): MotionDetectorControls {
   const detectorRef = useRef<Detector | null>(null);
+  const detectorModeRef = useRef<DetectorLoadResult['mode']>('pull');
   const disposeDetectorRef = useRef<(() => void) | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const detectingRef = useRef(false);
@@ -97,8 +98,117 @@ export function useMotionDetector({
       window.clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+    if (detectorModeRef.current === 'stream') {
+      disposeDetectorRef.current?.();
+      disposeDetectorRef.current = null;
+      detectorRef.current = null;
+      detectorModeRef.current = 'pull';
+      setModelStatus('Model not loaded');
+    }
     setStatus(cameraEnabledRef.current ? 'Camera ready' : 'Camera idle');
   }, [cameraEnabledRef]);
+
+  const handleDetectorResult = useCallback((result: DetectorResult, captureMs: number, loopStartedAt: number | null) => {
+    const activePreferences = preferencesRef.current;
+    const frameWidth = result.frame.width;
+    const sorted = [...result.detections].sort((a, b) => b.score - a.score);
+    setDetections(sorted);
+    const playerCount = activePreferences.playerCount;
+    const fallbackPositions = getDefaultPlayerPositions(playerCount);
+    if (playerTrackIdsRef.current.length !== playerCount) {
+      playerTrackIdsRef.current = createEmptyTrackIds(playerCount);
+    }
+
+    const hasTrackingIds = sorted.some((d) => d.id !== undefined);
+    let finalPositions: number[];
+
+    if (hasTrackingIds) {
+      const now = performance.now();
+      const TRACK_TIMEOUT_MS = 2000;
+
+      sorted.forEach((d) => {
+        if (d.id !== undefined) {
+          trackIdLastSeenRef.current.set(d.id, now);
+        }
+      });
+
+      trackIdLastSeenRef.current.forEach((lastSeen, id) => {
+        if (now - lastSeen > TRACK_TIMEOUT_MS) {
+          trackIdLastSeenRef.current.delete(id);
+          const index = playerTrackIdsRef.current.indexOf(id);
+          if (index !== -1) {
+            playerTrackIdsRef.current[index] = null;
+          }
+        }
+      });
+
+      const nextPositions = fallbackPositions.map(
+        (fallbackPosition, index) => playerPositionsRef.current[index] ?? fallbackPosition
+      );
+      const assigned = new Set<PersonDetection>();
+
+      playerTrackIdsRef.current.forEach((trackedId, index) => {
+        if (trackedId === null) {
+          return;
+        }
+        const match = sorted.find((d) => d.id === trackedId);
+        if (match) {
+          const pos = getPersonPosition(match, frameWidth);
+          nextPositions[index] = activePreferences.cameraMirrored ? 1 - pos : pos;
+          assigned.add(match);
+        }
+      });
+
+      const unassignedDetections = sorted
+        .filter((d) => !assigned.has(d))
+        .sort((a, b) => {
+          const posA = getPersonPosition(a, frameWidth);
+          const posB = getPersonPosition(b, frameWidth);
+          return activePreferences.cameraMirrored ? posB - posA : posA - posB;
+        });
+
+      const emptySlots = playerTrackIdsRef.current
+        .map((id, index) => (id === null ? index : -1))
+        .filter((index) => index !== -1);
+
+      unassignedDetections.forEach((d, i) => {
+        if (i < emptySlots.length) {
+          const emptySlot = emptySlots[i];
+          if (emptySlot !== undefined) {
+            if (d.id !== undefined) {
+              playerTrackIdsRef.current[emptySlot] = d.id;
+            }
+            const pos = getPersonPosition(d, frameWidth);
+            nextPositions[emptySlot] = activePreferences.cameraMirrored ? 1 - pos : pos;
+            assigned.add(d);
+          }
+        }
+      });
+
+      finalPositions = nextPositions;
+    } else {
+      finalPositions = getPlayerPositions(sorted, frameWidth, activePreferences.cameraMirrored, playerCount);
+    }
+
+    setPlayerPositions(finalPositions);
+    setStatus(sorted.length ? `${sorted.length} person${sorted.length === 1 ? '' : 's'} detected` : 'Scanning');
+
+    const drawStartedAt = performance.now();
+    const overlay = overlayRef.current;
+    if (overlay) {
+      drawDetections(overlay, sorted);
+    }
+    const drawDoneAt = performance.now();
+
+    const loopMs = loopStartedAt === null ? result.timings.totalMs + (drawDoneAt - drawStartedAt) : drawDoneAt - loopStartedAt;
+    setLastInferenceMs(Math.round(result.timings.totalMs));
+    setFrameTimings({
+      ...result.timings,
+      captureMs,
+      drawMs: drawDoneAt - drawStartedAt,
+      loopMs,
+    });
+  }, [overlayRef, playerPositionsRef, preferencesRef]);
 
   const runDetection = useCallback(async () => {
     const detector = detectorRef.current;
@@ -130,107 +240,7 @@ export function useMotionDetector({
         threshold: activePreferences.threshold,
         percentage: false,
       });
-      const sorted = [...result.detections].sort((a, b) => b.score - a.score);
-      setDetections(sorted);
-      const playerCount = activePreferences.playerCount;
-      const fallbackPositions = getDefaultPlayerPositions(playerCount);
-      if (playerTrackIdsRef.current.length !== playerCount) {
-        playerTrackIdsRef.current = createEmptyTrackIds(playerCount);
-      }
-
-      const hasTrackingIds = sorted.some((d) => d.id !== undefined);
-      let finalPositions: number[];
-
-      if (hasTrackingIds) {
-        const now = performance.now();
-        const TRACK_TIMEOUT_MS = 2000;
-
-        // Update last seen for current detections
-        sorted.forEach((d) => {
-          if (d.id !== undefined) {
-            trackIdLastSeenRef.current.set(d.id, now);
-          }
-        });
-
-        // Clean up expired tracks
-        trackIdLastSeenRef.current.forEach((lastSeen, id) => {
-          if (now - lastSeen > TRACK_TIMEOUT_MS) {
-            trackIdLastSeenRef.current.delete(id);
-            const index = playerTrackIdsRef.current.indexOf(id);
-            if (index !== -1) {
-              playerTrackIdsRef.current[index] = null;
-            }
-          }
-        });
-
-        const nextPositions = fallbackPositions.map(
-          (fallbackPosition, index) => playerPositionsRef.current[index] ?? fallbackPosition
-        );
-        const assigned = new Set<PersonDetection>();
-
-        // 1. Maintain existing tracked players
-        playerTrackIdsRef.current.forEach((trackedId, index) => {
-          if (trackedId === null) {
-            return;
-          }
-          const match = sorted.find((d) => d.id === trackedId);
-          if (match) {
-            const pos = getPersonPosition(match, frame.width);
-            nextPositions[index] = activePreferences.cameraMirrored ? 1 - pos : pos;
-            assigned.add(match);
-          }
-        });
-
-        // 2. Assign remaining detections to empty slots based on X position
-        const unassignedDetections = sorted
-          .filter((d) => !assigned.has(d))
-          .sort((a, b) => {
-            const posA = getPersonPosition(a, frame.width);
-            const posB = getPersonPosition(b, frame.width);
-            // Sort left-to-right (respecting mirror setting)
-            return activePreferences.cameraMirrored ? posB - posA : posA - posB;
-          });
-
-        const emptySlots = playerTrackIdsRef.current
-          .map((id, index) => (id === null ? index : -1))
-          .filter((index) => index !== -1);
-
-        unassignedDetections.forEach((d, i) => {
-          if (i < emptySlots.length) {
-            const emptySlot = emptySlots[i];
-            if (emptySlot !== undefined) {
-              if (d.id !== undefined) {
-                playerTrackIdsRef.current[emptySlot] = d.id;
-              }
-              const pos = getPersonPosition(d, frame.width);
-              nextPositions[emptySlot] = activePreferences.cameraMirrored ? 1 - pos : pos;
-              assigned.add(d);
-            }
-          }
-        });
-
-        finalPositions = nextPositions;
-      } else {
-        finalPositions = getPlayerPositions(sorted, frame.width, activePreferences.cameraMirrored, playerCount);
-      }
-
-      setPlayerPositions(finalPositions);
-      setStatus(sorted.length ? `${sorted.length} person${sorted.length === 1 ? '' : 's'} detected` : 'Scanning');
-
-      const drawStartedAt = performance.now();
-      const overlay = overlayRef.current;
-      if (overlay) {
-        drawDetections(overlay, sorted);
-      }
-      const drawDoneAt = performance.now();
-
-      setLastInferenceMs(Math.round(result.timings.totalMs));
-      setFrameTimings({
-        ...result.timings,
-        captureMs: captureDoneAt - loopStartedAt,
-        drawMs: drawDoneAt - drawStartedAt,
-        loopMs: drawDoneAt - loopStartedAt,
-      });
+      handleDetectorResult(result, captureDoneAt - loopStartedAt, loopStartedAt);
     } catch (cause: unknown) {
       detectingRef.current = false;
       setIsDetecting(false);
@@ -244,7 +254,7 @@ export function useMotionDetector({
         void runDetection();
       }, DETECTION_INTERVAL_MS);
     }
-  }, [frameRef, overlayRef, playerPositionsRef, preferencesRef, syncCanvasSize, videoRef]);
+  }, [frameRef, handleDetectorResult, preferencesRef, syncCanvasSize, videoRef]);
 
   const loadDetector = useCallback(async () => {
     if (detectorRef.current) {
@@ -256,7 +266,7 @@ export function useMotionDetector({
     setModelStatus('Loading model');
 
     try {
-      const { detector, runtime, fallbackReason, dispose } = await loadDetectorClient({
+      const { detector, runtime, fallbackReason, dispose, mode } = await loadDetectorClient({
         backend: activePreferences.selectedBackendId,
         modelId: activePreferences.selectedModelId,
         runtime: activePreferences.selectedRuntimeId,
@@ -264,14 +274,33 @@ export function useMotionDetector({
         mediaPipeModelId: activePreferences.selectedMediaPipeModelId,
         mediaPipeDelegate: activePreferences.selectedMediaPipeDelegateId,
         playerCount: activePreferences.playerCount,
+        threshold: activePreferences.threshold,
+        stream: streamRef.current ?? undefined,
         onStatusChange: ({ message }) => setModelStatus(message),
+        onResult: (result) => {
+          if (!detectingRef.current) {
+            return;
+          }
+          syncCanvasSize();
+          handleDetectorResult(result, 0, null);
+        },
+        onError: (cause) => {
+          if (!detectingRef.current) {
+            return;
+          }
+          detectingRef.current = false;
+          setIsDetecting(false);
+          setError(cause.message);
+          setStatus('Detection stopped');
+        },
       });
       detectorRef.current = detector;
+      detectorModeRef.current = mode ?? 'pull';
       disposeDetectorRef.current = dispose ?? null;
       const runtimeLabel =
         activePreferences.selectedBackendId === 'mediapipe'
           ? runtime
-          : activePreferences.selectedBackendId === 'python-websocket'
+          : activePreferences.selectedBackendId === 'python-webrtc'
             ? runtime
           : `${runtime} ${activePreferences.selectedQuantizationId.toUpperCase()}`;
       setModelStatus(
@@ -281,13 +310,14 @@ export function useMotionDetector({
     } finally {
       setIsLoading(false);
     }
-  }, [preferencesRef]);
+  }, [handleDetectorResult, preferencesRef, streamRef, syncCanvasSize]);
 
   const resetDetector = useCallback(() => {
     stopDetection();
     disposeDetectorRef.current?.();
     disposeDetectorRef.current = null;
     detectorRef.current = null;
+    detectorModeRef.current = 'pull';
     clearDetectionState();
     setModelStatus('Model not loaded');
   }, [clearDetectionState, stopDetection]);
@@ -317,7 +347,9 @@ export function useMotionDetector({
       detectingRef.current = true;
       setIsDetecting(true);
       setStatus('Scanning');
-      void runDetection();
+      if (detectorModeRef.current !== 'stream') {
+        void runDetection();
+      }
       return true;
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : 'Unable to load detector');

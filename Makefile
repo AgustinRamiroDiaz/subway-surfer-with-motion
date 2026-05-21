@@ -10,7 +10,7 @@ BACKEND_TRACKER ?= botsort.yaml
 BACKEND_CONF ?= 0.35
 BACKEND_IMGSZ ?= 640
 BACKEND_MAX_POSES ?= 2
-POSE_TRACKER_WS_URL ?= ws://$(BACKEND_HOST):$(BACKEND_PORT)
+POSE_TRACKER_SIGNALING_URL ?= ws://$(BACKEND_HOST):$(BACKEND_PORT)
 
 BACKEND_ARGS := --host $(BACKEND_HOST) --port $(BACKEND_PORT) --model $(BACKEND_MODEL) --tracker $(BACKEND_TRACKER) --conf $(BACKEND_CONF) --imgsz $(BACKEND_IMGSZ) --max-poses $(BACKEND_MAX_POSES)
 
@@ -31,7 +31,7 @@ dev:
 	$(MAKE) -j2 frontend-dev backend-dev
 
 frontend:
-	VITE_POSE_TRACKER_WS_URL=$(POSE_TRACKER_WS_URL) pnpm start
+	VITE_POSE_TRACKER_SIGNALING_URL=$(POSE_TRACKER_SIGNALING_URL) pnpm start
 
 frontend-dev: frontend
 

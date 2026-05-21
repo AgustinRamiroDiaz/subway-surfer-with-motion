@@ -18,6 +18,7 @@ type WorkerLoadMessage = {
   mediaPipeModelId: DetectorLoadOptions['mediaPipeModelId'];
   mediaPipeDelegate: DetectorLoadOptions['mediaPipeDelegate'];
   playerCount: DetectorLoadOptions['playerCount'];
+  threshold: DetectorLoadOptions['threshold'];
 };
 
 type WorkerDetectMessage = {
@@ -89,6 +90,7 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
         mediaPipeModelId: message.mediaPipeModelId,
         mediaPipeDelegate: message.mediaPipeDelegate,
         playerCount: message.playerCount,
+        threshold: message.threshold,
         onStatusChange: ({ message: statusMessage }) => {
           post({
             type: 'status',

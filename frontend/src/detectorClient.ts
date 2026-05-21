@@ -1,18 +1,15 @@
 import { type DetectorLoadOptions, type DetectorLoadResult } from './aiDetector';
 import { loadYoloDetectorWorker, type WorkerDetectorLoadResult } from './detectorWorkerClient';
-import {
-  loadPythonWebSocketDetector,
-  type PythonWebSocketDetectorLoadResult,
-} from './pythonWebSocketDetectorClient';
+import { loadPythonWebRtcDetector, type PythonWebRtcDetectorLoadResult } from './pythonWebRtcDetectorClient';
 
 export type ClientDetectorLoadResult =
   | WorkerDetectorLoadResult
-  | PythonWebSocketDetectorLoadResult
+  | PythonWebRtcDetectorLoadResult
   | DetectorLoadResult;
 
 export function loadDetectorClient(options: DetectorLoadOptions): Promise<ClientDetectorLoadResult> {
-  if (options.backend === 'python-websocket') {
-    return loadPythonWebSocketDetector(options);
+  if (options.backend === 'python-webrtc') {
+    return loadPythonWebRtcDetector(options);
   }
 
   return loadYoloDetectorWorker(options);

@@ -44,8 +44,8 @@ function App(): ReactElement {
   }, [preferences]);
 
   const selectedTrackerLabel = useMemo(() => {
-    if (preferences.selectedBackendId === 'python-websocket') {
-      return 'Python WebSocket';
+    if (preferences.selectedBackendId === 'python-webrtc') {
+      return 'Python WebRTC';
     }
 
     if (preferences.selectedBackendId === 'mediapipe') {
@@ -132,6 +132,10 @@ function App(): ReactElement {
     updatePreferences({ ...preferences, playerCount }, true);
   }, [preferences, updatePreferences]);
 
+  const handleThresholdChange = useCallback((threshold: number) => {
+    updatePreferences({ ...preferences, threshold }, preferences.selectedBackendId === 'python-webrtc');
+  }, [preferences, updatePreferences]);
+
   const handleStopCamera = useCallback(() => {
     detector.stopDetection();
     camera.stopCamera();
@@ -198,7 +202,7 @@ function App(): ReactElement {
             onQuantizationChange={handleQuantizationChange}
             onRuntimeChange={handleRuntimeChange}
             onStopCamera={handleStopCamera}
-            onThresholdChange={(threshold) => setPreferences({ ...preferences, threshold })}
+            onThresholdChange={handleThresholdChange}
           />
         </aside>
       </section>

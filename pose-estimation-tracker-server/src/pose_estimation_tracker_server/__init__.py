@@ -1,2 +1,1 @@
-"""WebSocket pose tracker server for the motion runner UI."""
-
+"""WebRTC pose tracker server for the motion runner UI."""

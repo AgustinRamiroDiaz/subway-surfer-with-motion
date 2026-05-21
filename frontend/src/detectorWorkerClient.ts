@@ -177,6 +177,7 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
       mediaPipeModelId: options.mediaPipeModelId,
       mediaPipeDelegate: options.mediaPipeDelegate,
       playerCount: options.playerCount,
+      threshold: options.threshold,
     });
   });
 }

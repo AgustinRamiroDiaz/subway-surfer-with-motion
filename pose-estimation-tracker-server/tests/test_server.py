@@ -2,7 +2,14 @@ import json
 import asyncio
 from unittest.mock import MagicMock, patch
 
-from pose_estimation_tracker_server.server import handle_message, handle_binary_message
+import pytest
+
+from pose_estimation_tracker_server.server import (
+    LatestFrameBuffer,
+    handle_message,
+    handle_binary_message,
+    parse_webrtc_config,
+)
 
 
 def test_handle_message_rejects_invalid_json():
@@ -60,3 +67,42 @@ def test_handle_binary_message_success(mock_decode):
     args, _ = tracker.detect_core.call_args
     assert args[0] == {"id": "f1"}
     assert args[2] == 0.6
+
+
+def test_parse_webrtc_config_uses_offer_config():
+    tracker = MagicMock()
+    tracker.conf = 0.5
+    tracker.max_poses = 2
+
+    threshold, max_poses = parse_webrtc_config(
+        {"config": {"threshold": 0.7, "maxPoses": 4}},
+        tracker,
+    )
+
+    assert threshold == 0.7
+    assert max_poses == 4
+
+
+def test_parse_webrtc_config_rejects_invalid_config():
+    tracker = MagicMock()
+    tracker.conf = 0.5
+    tracker.max_poses = 2
+
+    with pytest.raises(ValueError, match="config.threshold must be a number"):
+        parse_webrtc_config({"config": {"threshold": "high"}}, tracker)
+
+
+def test_latest_frame_buffer_returns_only_newest_frame():
+    async def run():
+        buffer = LatestFrameBuffer()
+        await buffer.push("first", 1)  # type: ignore[arg-type]
+        await buffer.push("second", 2)  # type: ignore[arg-type]
+
+        frame = await buffer.get_after(0)
+
+        assert frame is not None
+        assert frame.sequence == 2
+        assert frame.image == "second"
+        assert frame.received_at_ms == 2
+
+    asyncio.run(run())
