@@ -2,6 +2,8 @@
 
 A browser-based motion-control game prototype. The app uses the user's camera to detect a person, maps their horizontal position into three lanes, and drives a Three.js runner scene where the player dodges incoming obstacle balls.
 
+Play now at https://agustinramirodiaz.github.io/subway-surfer-with-motion/!
+
 ## Features
 
 - Live camera feedback with three lane guides
