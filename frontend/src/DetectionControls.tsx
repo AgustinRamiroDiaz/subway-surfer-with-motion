@@ -1,4 +1,5 @@
-import type { ChangeEvent, ReactElement } from 'react';
+import type { ReactElement } from 'react';
+import { Accordion, ActionIcon, Button, Select, Slider, Switch, Tooltip } from '@mantine/core';
 import {
   DETECTOR_BACKENDS,
   DETECTOR_RUNTIMES,
@@ -19,6 +20,11 @@ import type { AppPreferences } from './appPreferences';
 import { formatMs, formatPercent } from './formatters';
 import { MAX_PLAYERS, MIN_PLAYERS } from './poseOverlay';
 import type { FrameTimings } from './useMotionDetector';
+
+type HelpLabelProps = {
+  children: string;
+  help: string;
+};
 
 type DetectionControlsProps = {
   preferences: AppPreferences;
@@ -41,6 +47,25 @@ type DetectionControlsProps = {
   onThresholdChange: (value: number) => void;
   stopDisabled: boolean;
 };
+
+function HelpLabel({ children, help }: HelpLabelProps): ReactElement {
+  return (
+    <span className="control-label">
+      <span>{children}</span>
+      <Tooltip label={help} multiline withArrow position="top" className="control-tooltip">
+        <ActionIcon
+          aria-label={`About ${children}`}
+          className="tooltip-trigger"
+          radius="xl"
+          size="xs"
+          variant="subtle"
+        >
+          ?
+        </ActionIcon>
+      </Tooltip>
+    </span>
+  );
+}
 
 export function DetectionControls({
   preferences,
@@ -66,6 +91,33 @@ export function DetectionControls({
   const availableQuantizations = getAvailableQuantizations(preferences.selectedModelId);
   const isYolo = preferences.selectedBackendId === 'yolo';
   const isPythonWebRtc = preferences.selectedBackendId === 'python-webrtc';
+  const backendOptions = DETECTOR_BACKENDS.map((backend) => ({
+    value: backend.id,
+    label: `${backend.label} · ${backend.description}`,
+  }));
+  const yoloModelOptions = YOLO_MODELS.map((model) => ({
+    value: model.id,
+    label: `${model.label} · ${model.description}`,
+  }));
+  const runtimeOptions = DETECTOR_RUNTIMES.map((runtime) => ({
+    value: runtime.id,
+    label: `${runtime.label} · ${runtime.description}`,
+  }));
+  const quantizationOptions = availableQuantizations.map((quantization) => {
+    const option = getQuantizationOption(quantization.dtype);
+    return {
+      value: quantization.dtype,
+      label: `${option.label} · ${option.description} · ${quantization.sizeMb} MB`,
+    };
+  });
+  const mediaPipeModelOptions = MEDIAPIPE_MODELS.map((model) => ({
+    value: model.id,
+    label: `${model.label} · ${model.description}`,
+  }));
+  const mediaPipeDelegateOptions = MEDIAPIPE_DELEGATES.map((delegate) => ({
+    value: delegate.id,
+    label: `${delegate.label} · ${delegate.description}`,
+  }));
 
   return (
     <>
@@ -79,183 +131,256 @@ export function DetectionControls({
       {error && <p className="error-message">{error}</p>}
 
       <div className="quick-settings">
-        <label className="toggle-control">
-          <span>Mirror camera</span>
-          <input
-            type="checkbox"
-            checked={preferences.cameraMirrored}
-            onChange={(event) => onCameraMirrorChange(event.target.checked)}
-          />
-        </label>
+        <Switch
+          checked={preferences.cameraMirrored}
+          className="toggle-control"
+          label={
+            <HelpLabel help="Matches the preview to your mirror image. Player assignment still uses corrected left/right positions.">
+              Mirror camera
+            </HelpLabel>
+          }
+          onChange={(event) => onCameraMirrorChange(event.currentTarget.checked)}
+        />
 
-        <label className="player-count-control">
-          <span>Players</span>
+        <div className="player-count-control">
+          <HelpLabel help="Sets how many people the overlay should assign to lanes. The detector may see more people, but gameplay only follows this count.">
+            Players
+          </HelpLabel>
           <strong>{preferences.playerCount}</strong>
-          <input
-            type="range"
+          <Slider
+            thumbLabel="Players"
             min={MIN_PLAYERS}
             max={MAX_PLAYERS}
-            step="1"
+            step={1}
             value={preferences.playerCount}
-            onChange={(event) => onPlayerCountChange(Number(event.target.value))}
+            onChange={onPlayerCountChange}
           />
-        </label>
+        </div>
 
-        <label className="threshold-control">
-          <span>Confidence</span>
+        <div className="threshold-control">
+          <HelpLabel help="Filters uncertain detections. Raise it to reduce jitter and false positives; lower it when bodies are partially visible.">
+            Confidence
+          </HelpLabel>
           <strong>{formatPercent(preferences.threshold)}</strong>
-          <input
-            type="range"
-            min="0.1"
-            max="0.9"
-            step="0.05"
+          <Slider
+            thumbLabel="Confidence"
+            min={0.1}
+            max={0.9}
+            step={0.05}
             value={preferences.threshold}
-            onChange={(event) => onThresholdChange(Number(event.target.value))}
+            label={(value) => formatPercent(value)}
+            onChange={onThresholdChange}
           />
-        </label>
+        </div>
       </div>
 
-      <details className="advanced-panel">
-        <summary>Advanced tracking</summary>
+      <Accordion className="settings-accordion" multiple variant="unstyled">
+        <Accordion.Item className="advanced-panel" value="advanced-tracking">
+          <Accordion.Control className="advanced-panel-summary">Advanced tracking</Accordion.Control>
+          <Accordion.Panel className="advanced-panel-content">
+            <Select
+              aria-label="Tracker"
+              className="model-control"
+              data={backendOptions}
+              disabled={isLoading}
+              label={
+                <HelpLabel help="Choose where pose detection runs: in-browser MediaPipe, in-browser YOLO, or the local Python WebRTC tracker.">
+                  Tracker
+                </HelpLabel>
+              }
+              value={preferences.selectedBackendId}
+              onChange={(value) => {
+                if (value) {
+                  onBackendChange(value);
+                }
+              }}
+            />
 
-        <label className="model-control">
-          <span>Tracker</span>
-          <select
-            value={preferences.selectedBackendId}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) => onBackendChange(event.target.value as DetectorBackendId)}
-            disabled={isLoading}
-          >
-            {DETECTOR_BACKENDS.map((backend) => (
-              <option key={backend.id} value={backend.id}>
-                {backend.label} · {backend.description}
-              </option>
-            ))}
-          </select>
-        </label>
+            {isPythonWebRtc ? (
+              <div className="connection-note">
+                <HelpLabel help="WebSocket is used only to exchange the WebRTC offer, answer, and ICE candidates. Camera frames and detections move over WebRTC.">
+                  Signaling URL
+                </HelpLabel>
+                <code>{import.meta.env.VITE_POSE_TRACKER_SIGNALING_URL ?? 'ws://127.0.0.1:8765'}</code>
+              </div>
+            ) : isYolo ? (
+              <>
+                <Select
+                  aria-label="Model"
+                  className="model-control"
+                  data={yoloModelOptions}
+                  disabled={isLoading}
+                  label={
+                    <HelpLabel help="Pose models return body keypoints; detection models return person boxes. Smaller models react faster, larger ones can be steadier.">
+                      Model
+                    </HelpLabel>
+                  }
+                  value={preferences.selectedModelId}
+                  onChange={(value) => {
+                    if (value) {
+                      onModelChange(value);
+                    }
+                  }}
+                />
 
-        {isPythonWebRtc ? (
-          <p className="model-status">
-            Signaling URL: {import.meta.env.VITE_POSE_TRACKER_SIGNALING_URL ?? 'ws://127.0.0.1:8765'}
-          </p>
-        ) : isYolo ? (
-          <>
-            <label className="model-control">
-              <span>Model</span>
-              <select
-                value={preferences.selectedModelId}
-                onChange={(event) => onModelChange(event.target.value as YoloModelId)}
-                disabled={isLoading}
-              >
-                {YOLO_MODELS.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.label} · {model.description}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <Select
+                  aria-label="Runtime"
+                  className="model-control"
+                  data={runtimeOptions}
+                  disabled={isLoading}
+                  label={
+                    <HelpLabel help="WebGPU uses the browser GPU path when available. WASM keeps everything on CPU and is useful for compatibility checks.">
+                      Runtime
+                    </HelpLabel>
+                  }
+                  value={preferences.selectedRuntimeId}
+                  onChange={(value) => {
+                    if (value) {
+                      onRuntimeChange(value);
+                    }
+                  }}
+                />
 
-            <label className="model-control">
-              <span>Runtime</span>
-              <select
-                value={preferences.selectedRuntimeId}
-                onChange={(event) => onRuntimeChange(event.target.value as DetectorRuntimeId)}
-                disabled={isLoading}
-              >
-                {DETECTOR_RUNTIMES.map((runtime) => (
-                  <option key={runtime.id} value={runtime.id}>
-                    {runtime.label} · {runtime.description}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <Select
+                  aria-label="Quantization"
+                  className="model-control"
+                  data={quantizationOptions}
+                  disabled={isLoading}
+                  label={
+                    <HelpLabel help="Controls model weight precision. Lower-bit files download faster and use less memory; FP16 usually preserves more detail on WebGPU.">
+                      Quantization
+                    </HelpLabel>
+                  }
+                  value={preferences.selectedQuantizationId}
+                  onChange={(value) => {
+                    if (value) {
+                      onQuantizationChange(value);
+                    }
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                <Select
+                  aria-label="Model"
+                  className="model-control"
+                  data={mediaPipeModelOptions}
+                  disabled={isLoading}
+                  label={
+                    <HelpLabel help="Lite is quickest, Full is balanced, and Heavy favors accuracy when your machine has enough headroom.">
+                      Model
+                    </HelpLabel>
+                  }
+                  value={preferences.selectedMediaPipeModelId}
+                  onChange={(value) => {
+                    if (value) {
+                      onMediaPipeModelChange(value);
+                    }
+                  }}
+                />
 
-            <label className="model-control">
-              <span>Quantization</span>
-              <select
-                value={preferences.selectedQuantizationId}
-                onChange={(event) => onQuantizationChange(event.target.value as DetectorQuantizationId)}
-                disabled={isLoading}
-              >
-                {availableQuantizations.map((quantization) => {
-                  const option = getQuantizationOption(quantization.dtype);
-                  return (
-                    <option key={quantization.dtype} value={quantization.dtype}>
-                      {option.label} · {option.description} · {quantization.sizeMb} MB
-                    </option>
-                  );
-                })}
-              </select>
-            </label>
-          </>
-        ) : (
-          <>
-            <label className="model-control">
-              <span>Model</span>
-              <select
-                value={preferences.selectedMediaPipeModelId}
-                onChange={(event) => onMediaPipeModelChange(event.target.value as MediaPipeModelId)}
-                disabled={isLoading}
-              >
-                {MEDIAPIPE_MODELS.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.label} · {model.description}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <Select
+                  aria-label="Delegate"
+                  className="model-control"
+                  data={mediaPipeDelegateOptions}
+                  disabled={isLoading}
+                  label={
+                    <HelpLabel help="GPU is the preferred fast path. CPU is the fallback when the GPU delegate is unavailable or unstable.">
+                      Delegate
+                    </HelpLabel>
+                  }
+                  value={preferences.selectedMediaPipeDelegateId}
+                  onChange={(value) => {
+                    if (value) {
+                      onMediaPipeDelegateChange(value);
+                    }
+                  }}
+                />
+              </>
+            )}
+          </Accordion.Panel>
+        </Accordion.Item>
 
-            <label className="model-control">
-              <span>Delegate</span>
-              <select
-                value={preferences.selectedMediaPipeDelegateId}
-                onChange={(event) => onMediaPipeDelegateChange(event.target.value as MediaPipeDelegateId)}
-                disabled={isLoading}
-              >
-                {MEDIAPIPE_DELEGATES.map((delegate) => (
-                  <option key={delegate.id} value={delegate.id}>
-                    {delegate.label} · {delegate.description}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </>
-        )}
-      </details>
+        <Accordion.Item className="advanced-panel docs-panel" value="tracking-internals">
+          <Accordion.Control className="advanced-panel-summary">Tracking internals</Accordion.Control>
+          <Accordion.Panel className="advanced-panel-content">
+            <div className="docs-section">
+              <p className="eyebrow">Client ownership</p>
+              <p>
+                The browser owns the camera, preview, overlay, player assignment, stored preferences, and game state.
+                Detection results are normalized into the same prediction shape no matter which tracker you choose.
+              </p>
+            </div>
+            <div className="docs-section">
+              <p className="eyebrow">Local trackers</p>
+              <p>
+                MediaPipe and YOLO run as pull detectors. The camera loop follows the browser video-frame callback, sends
+                the newest frame to the selected model, then draws detections and updates player positions.
+              </p>
+            </div>
+            <div className="docs-section">
+              <p className="eyebrow">Python WebRTC</p>
+              <p>
+                The frontend sends the camera track to Python over WebRTC. The WebSocket endpoint is signaling only, while
+                detection results return through the low-latency data channel.
+              </p>
+            </div>
+            <div className="docs-section">
+              <p className="eyebrow">Latency model</p>
+              <p>
+                The backend keeps one latest-frame slot instead of a queue. If inference is busy, stale frames are replaced
+                so the next result reflects the freshest camera moment available.
+              </p>
+            </div>
+            <div className="docs-section">
+              <p className="eyebrow">Privacy boundary</p>
+              <p>
+                In-browser trackers keep frames inside the page. Python WebRTC sends frames only to the signaling host you
+                configure, intended here for local development or your own LAN.
+              </p>
+            </div>
+          </Accordion.Panel>
+        </Accordion.Item>
+      </Accordion>
 
       {frameTimings && (
-        <details className="advanced-panel timing-panel" aria-label="Frame timing breakdown">
-          <summary>Frame timing</summary>
-          <dl>
-            <div>
-              <dt>Capture</dt>
-              <dd>{formatMs(frameTimings.captureMs)}</dd>
-            </div>
-            <div>
-              <dt>Raw image</dt>
-              <dd>{formatMs(frameTimings.rawImageMs)}</dd>
-            </div>
-            <div>
-              <dt>Preprocess</dt>
-              <dd>{formatMs(frameTimings.preprocessMs)}</dd>
-            </div>
-            <div>
-              <dt>Model</dt>
-              <dd>{formatMs(frameTimings.modelMs)}</dd>
-            </div>
-            <div>
-              <dt>Postprocess</dt>
-              <dd>{formatMs(frameTimings.postprocessMs)}</dd>
-            </div>
-            <div>
-              <dt>Draw</dt>
-              <dd>{formatMs(frameTimings.drawMs)}</dd>
-            </div>
-            <div>
-              <dt>Total</dt>
-              <dd>{formatMs(frameTimings.loopMs)}</dd>
-            </div>
-          </dl>
-        </details>
+        <Accordion className="settings-accordion timing-panel" variant="unstyled">
+          <Accordion.Item className="advanced-panel" value="frame-timing">
+            <Accordion.Control className="advanced-panel-summary">Frame timing</Accordion.Control>
+            <Accordion.Panel className="advanced-panel-content">
+              <dl aria-label="Frame timing breakdown">
+                <div>
+                  <dt>Capture</dt>
+                  <dd>{formatMs(frameTimings.captureMs)}</dd>
+                </div>
+                <div>
+                  <dt>Raw image</dt>
+                  <dd>{formatMs(frameTimings.rawImageMs)}</dd>
+                </div>
+                <div>
+                  <dt>Preprocess</dt>
+                  <dd>{formatMs(frameTimings.preprocessMs)}</dd>
+                </div>
+                <div>
+                  <dt>Model</dt>
+                  <dd>{formatMs(frameTimings.modelMs)}</dd>
+                </div>
+                <div>
+                  <dt>Postprocess</dt>
+                  <dd>{formatMs(frameTimings.postprocessMs)}</dd>
+                </div>
+                <div>
+                  <dt>Draw</dt>
+                  <dd>{formatMs(frameTimings.drawMs)}</dd>
+                </div>
+                <div>
+                  <dt>Total</dt>
+                  <dd>{formatMs(frameTimings.loopMs)}</dd>
+                </div>
+              </dl>
+            </Accordion.Panel>
+          </Accordion.Item>
+        </Accordion>
       )}
 
       <div className="detection-list" aria-live="polite">
@@ -276,9 +401,9 @@ export function DetectionControls({
         )}
       </div>
 
-      <button type="button" onClick={onStopCamera} disabled={stopDisabled}>
+      <Button className="control-action" type="button" onClick={onStopCamera} disabled={stopDisabled} variant="default">
         Stop camera
-      </button>
+      </Button>
     </>
   );
 }
