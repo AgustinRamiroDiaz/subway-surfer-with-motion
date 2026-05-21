@@ -251,6 +251,7 @@ export type DetectorLoadOptions = {
   quantization: DetectorQuantizationId;
   mediaPipeModelId: MediaPipeModelId;
   mediaPipeDelegate: MediaPipeDelegateId;
+  playerCount: number;
   onStatusChange?: (state: DetectorLoadState) => void;
 };
 
@@ -647,7 +648,7 @@ export async function loadMediaPipePoseDetector(options: DetectorLoadOptions): P
       delegate: options.mediaPipeDelegate,
     },
     runningMode: 'VIDEO',
-    numPoses: 2,
+    numPoses: options.playerCount,
     minPoseDetectionConfidence: 0.5,
     minPosePresenceConfidence: 0.5,
     minTrackingConfidence: 0.5,

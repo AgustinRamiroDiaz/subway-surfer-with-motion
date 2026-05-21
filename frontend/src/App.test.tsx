@@ -28,6 +28,7 @@ test('renders the motion game shell', () => {
   expect(within(screen.getByLabelText(/game controls/i)).getByRole('button', { name: /enable camera/i })).toBeEnabled();
   expect(within(screen.getByLabelText(/game controls/i)).getByRole('button', { name: /pause/i })).toBeDisabled();
   expect(screen.getByRole('checkbox', { name: /mirror camera/i })).toBeChecked();
+  expect(screen.getByLabelText(/players/i)).toHaveValue('2');
   expect(screen.getByRole('button', { name: /stop camera/i })).toBeDisabled();
 });
 
@@ -51,6 +52,7 @@ test('remembers detector decisions across remounts', () => {
   });
   fireEvent.change(screen.getByLabelText(/runtime/i), { target: { value: 'wasm' } });
   fireEvent.change(screen.getByLabelText(/quantization/i), { target: { value: 'uint8' } });
+  fireEvent.change(screen.getByLabelText(/players/i), { target: { value: '4' } });
   fireEvent.click(screen.getByRole('checkbox', { name: /mirror camera/i }));
 
   unmount();
@@ -61,6 +63,7 @@ test('remembers detector decisions across remounts', () => {
   expect(screen.getByLabelText(/^model$/i)).toHaveValue('onnx-community/yolo26s-pose-ONNX');
   expect(screen.getByLabelText(/runtime/i)).toHaveValue('wasm');
   expect(screen.getByLabelText(/quantization/i)).toHaveValue('uint8');
+  expect(screen.getByLabelText(/players/i)).toHaveValue('4');
   expect(screen.getByRole('checkbox', { name: /mirror camera/i })).not.toBeChecked();
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"selectedBackendId":"yolo"');
 });

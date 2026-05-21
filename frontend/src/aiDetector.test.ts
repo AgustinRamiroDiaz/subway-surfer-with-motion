@@ -163,6 +163,7 @@ describe('loadYoloDetector', () => {
       quantization: 'uint8',
       mediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
       mediaPipeDelegate: DEFAULT_MEDIAPIPE_DELEGATE_ID,
+      playerCount: 2,
     });
     const frame = createCameraFrame(canvas, 'test-frame-1', 100);
     const result = await detector(frame, { threshold: 0.5, percentage: false });
@@ -213,6 +214,7 @@ describe('loadYoloDetector', () => {
       quantization: 'fp16',
       mediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
       mediaPipeDelegate: DEFAULT_MEDIAPIPE_DELEGATE_ID,
+      playerCount: 2,
     });
 
     expect(mockFromPretrainedModel).toHaveBeenCalledWith(
@@ -243,6 +245,7 @@ describe('loadYoloDetector', () => {
       quantization: 'uint8',
       mediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
       mediaPipeDelegate: DEFAULT_MEDIAPIPE_DELEGATE_ID,
+      playerCount: 2,
     });
     const result = await detector(createCameraFrame(canvas, 'test-frame-2', 200), {
       threshold: 0.5,
@@ -284,6 +287,7 @@ describe('loadMediaPipePoseDetector', () => {
       quantization: 'uint8',
       mediaPipeModelId: 'full',
       mediaPipeDelegate: 'CPU',
+      playerCount: 4,
     });
 
     expect(mockForVisionTasks).toHaveBeenCalledWith(
@@ -300,7 +304,7 @@ describe('loadMediaPipePoseDetector', () => {
         minPoseDetectionConfidence: 0.5,
         minPosePresenceConfidence: 0.5,
         minTrackingConfidence: 0.5,
-        numPoses: 2,
+        numPoses: 4,
         outputSegmentationMasks: false,
         runningMode: 'VIDEO',
       })
@@ -319,6 +323,7 @@ describe('loadMediaPipePoseDetector', () => {
       quantization: 'uint8',
       mediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
       mediaPipeDelegate: 'GPU',
+      playerCount: 2,
     });
     const result = await detector(createCameraFrame(canvas, 'mediapipe-frame-1', 1234), {
       threshold: 0.45,
@@ -366,6 +371,7 @@ describe('loadMediaPipePoseDetector', () => {
       quantization: 'uint8',
       mediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
       mediaPipeDelegate: DEFAULT_MEDIAPIPE_DELEGATE_ID,
+      playerCount: 2,
     });
     const result = await detector(createCameraFrame(canvas, 'mediapipe-frame-2', 2000), {
       threshold: 0.5,
@@ -393,6 +399,7 @@ describe('loadMediaPipePoseDetector', () => {
       quantization: 'uint8',
       mediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
       mediaPipeDelegate: DEFAULT_MEDIAPIPE_DELEGATE_ID,
+      playerCount: 2,
     });
     const result = await detector(createCameraFrame(canvas, 'mediapipe-frame-2', 2000), {
       threshold: 0.5,

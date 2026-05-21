@@ -3,9 +3,32 @@ import { formatPercent } from './formatters';
 
 export const DEFAULT_PLAYER_POSITION = 0.5;
 export const DEFAULT_PLAYER_POSITIONS = [0.33, 0.67] as const;
-export const MAX_PLAYERS = 2;
+export const DEFAULT_PLAYER_COUNT = 2;
+export const MIN_PLAYERS = 1;
+export const MAX_PLAYERS = 4;
 
-const PLAYER_COLORS = ['#2fffb2', '#66a3ff'] as const;
+const PLAYER_COLORS = ['#2fffb2', '#66a3ff', '#ffd166', '#ff6a85'] as const;
+
+export function normalizePlayerCount(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_PLAYER_COUNT;
+  }
+
+  return Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, Math.round(value)));
+}
+
+export function getDefaultPlayerPositions(playerCount = DEFAULT_PLAYER_COUNT): number[] {
+  const normalizedPlayerCount = normalizePlayerCount(playerCount);
+
+  if (normalizedPlayerCount === DEFAULT_PLAYER_POSITIONS.length) {
+    return [...DEFAULT_PLAYER_POSITIONS];
+  }
+
+  return Array.from(
+    { length: normalizedPlayerCount },
+    (_, index) => (index + 1) / (normalizedPlayerCount + 1)
+  );
+}
 
 const POSE_CONNECTIONS = [
   ['Left Shoulder', 'Right Shoulder'],
@@ -55,21 +78,24 @@ export function getPersonPosition(detection: PersonDetection, frameWidth: number
 export function getPlayerPositions(
   detections: PersonDetection[],
   frameWidth: number,
-  cameraMirrored: boolean
+  cameraMirrored: boolean,
+  playerCount = DEFAULT_PLAYER_COUNT
 ): number[] {
+  const fallbackPositions = getDefaultPlayerPositions(playerCount);
+
   if (!detections.length) {
-    return [...DEFAULT_PLAYER_POSITIONS];
+    return fallbackPositions;
   }
 
   const detectedPositions = detections
-    .slice(0, MAX_PLAYERS)
+    .slice(0, fallbackPositions.length)
     .map((detection) => {
       const position = getPersonPosition(detection, frameWidth);
       return cameraMirrored ? 1 - position : position;
     })
     .sort((left, right) => left - right);
 
-  return DEFAULT_PLAYER_POSITIONS.map((fallbackPosition, index) => detectedPositions[index] ?? fallbackPosition);
+  return fallbackPositions.map((fallbackPosition, index) => detectedPositions[index] ?? fallbackPosition);
 }
 
 export function drawDetections(

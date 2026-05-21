@@ -11,8 +11,8 @@ const OBSTACLE_SPEED = 7.2;
 const SPAWN_INTERVAL_MS = 2000;
 const COLLISION_RADIUS_X = 0.92;
 const COLLISION_RADIUS_Z = 0.78;
-const PLAYER_COLORS = ['#2fffb2', '#66a3ff'] as const;
-const PLAYER_EMISSIVE_COLORS = ['#0b5a3f', '#153766'] as const;
+const PLAYER_COLORS = ['#2fffb2', '#66a3ff', '#ffd166', '#ff6a85'] as const;
+const PLAYER_EMISSIVE_COLORS = ['#0b5a3f', '#153766', '#6b3e00', '#5a0b1f'] as const;
 
 type GameSceneProps = {
   canStart: boolean;
@@ -217,6 +217,7 @@ export function GameScene({
   onStart,
 }: GameSceneProps): ReactElement {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const playerCount = playerPositions.length;
   const playerPositionsRef = useRef(playerPositions);
   const gamePhaseRef = useRef<GamePhase>(phase);
   const [stats, setStats] = useState<GameStats>({
@@ -229,6 +230,15 @@ export function GameScene({
   useEffect(() => {
     playerPositionsRef.current = playerPositions;
   }, [playerPositions]);
+
+  useEffect(() => {
+    setStats({
+      dodged: 0,
+      hits: Array.from({ length: playerCount }, () => 0),
+      status: 'Running',
+      statusLabel: 'Running',
+    });
+  }, [playerCount]);
 
   useEffect(() => {
     gamePhaseRef.current = phase;
@@ -352,7 +362,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, []);
+  }, [playerCount]);
 
   return (
     <div className="game-scene" ref={mountRef}>

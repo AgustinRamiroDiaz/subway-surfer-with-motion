@@ -126,6 +126,16 @@
   box-shadow: 0 0 14px rgba(102, 163, 255, 0.72);
 }
 
+.camera-position-marker.player-3 {
+  background: #ffd166;
+  box-shadow: 0 0 14px rgba(255, 209, 102, 0.72);
+}
+
+.camera-position-marker.player-4 {
+  background: #ff6a85;
+  box-shadow: 0 0 14px rgba(255, 106, 133, 0.72);
+}
+
 .game-scene {
   position: absolute;
   inset: 0;
@@ -162,6 +172,14 @@
 
 .game-stats dd.player-2 {
   color: #66a3ff;
+}
+
+.game-stats dd.player-3 {
+  color: #ffd166;
+}
+
+.game-stats dd.player-4 {
+  color: #ff6a85;
 }
 
 .game-controls {
@@ -405,6 +423,7 @@ button:disabled {
 
 .model-control,
 .toggle-control,
+.player-count-control,
 .threshold-control {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -444,6 +463,7 @@ button:disabled {
   opacity: 0.55;
 }
 
+.player-count-control input,
 .threshold-control input {
   grid-column: 1 / -1;
   accent-color: var(--accent);

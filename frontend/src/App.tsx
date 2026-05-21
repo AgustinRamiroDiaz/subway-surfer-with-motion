@@ -125,6 +125,13 @@ function App(): ReactElement {
     updatePreferences({ ...preferences, selectedQuantizationId }, true);
   }, [preferences, updatePreferences]);
 
+  const handlePlayerCountChange = useCallback((playerCount: number) => {
+    if (playerCount === preferences.playerCount) {
+      return;
+    }
+    updatePreferences({ ...preferences, playerCount }, true);
+  }, [preferences, updatePreferences]);
+
   const handleStopCamera = useCallback(() => {
     detector.stopDetection();
     camera.stopCamera();
@@ -187,6 +194,7 @@ function App(): ReactElement {
             onMediaPipeDelegateChange={handleMediaPipeDelegateChange}
             onMediaPipeModelChange={handleMediaPipeModelChange}
             onModelChange={handleModelChange}
+            onPlayerCountChange={handlePlayerCountChange}
             onQuantizationChange={handleQuantizationChange}
             onRuntimeChange={handleRuntimeChange}
             onStopCamera={handleStopCamera}

@@ -176,6 +176,7 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
       quantization: options.quantization,
       mediaPipeModelId: options.mediaPipeModelId,
       mediaPipeDelegate: options.mediaPipeDelegate,
+      playerCount: options.playerCount,
     });
   });
 }

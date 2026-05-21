@@ -17,6 +17,7 @@ type WorkerLoadMessage = {
   quantization: DetectorLoadOptions['quantization'];
   mediaPipeModelId: DetectorLoadOptions['mediaPipeModelId'];
   mediaPipeDelegate: DetectorLoadOptions['mediaPipeDelegate'];
+  playerCount: DetectorLoadOptions['playerCount'];
 };
 
 type WorkerDetectMessage = {
@@ -87,6 +88,7 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
         quantization: message.quantization,
         mediaPipeModelId: message.mediaPipeModelId,
         mediaPipeDelegate: message.mediaPipeDelegate,
+        playerCount: message.playerCount,
         onStatusChange: ({ message: statusMessage }) => {
           post({
             type: 'status',

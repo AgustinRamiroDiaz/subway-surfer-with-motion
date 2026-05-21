@@ -17,6 +17,7 @@ import {
 } from './aiDetector';
 import type { AppPreferences } from './appPreferences';
 import { formatMs, formatPercent } from './formatters';
+import { MAX_PLAYERS, MIN_PLAYERS } from './poseOverlay';
 import type { FrameTimings } from './useMotionDetector';
 
 type DetectionControlsProps = {
@@ -33,6 +34,7 @@ type DetectionControlsProps = {
   onMediaPipeDelegateChange: (value: MediaPipeDelegateId) => void;
   onMediaPipeModelChange: (value: MediaPipeModelId) => void;
   onModelChange: (value: YoloModelId) => void;
+  onPlayerCountChange: (value: number) => void;
   onQuantizationChange: (value: DetectorQuantizationId) => void;
   onRuntimeChange: (value: DetectorRuntimeId) => void;
   onStopCamera: () => void;
@@ -54,6 +56,7 @@ export function DetectionControls({
   onMediaPipeDelegateChange,
   onMediaPipeModelChange,
   onModelChange,
+  onPlayerCountChange,
   onQuantizationChange,
   onRuntimeChange,
   onStopCamera,
@@ -82,6 +85,19 @@ export function DetectionControls({
             type="checkbox"
             checked={preferences.cameraMirrored}
             onChange={(event) => onCameraMirrorChange(event.target.checked)}
+          />
+        </label>
+
+        <label className="player-count-control">
+          <span>Players</span>
+          <strong>{preferences.playerCount}</strong>
+          <input
+            type="range"
+            min={MIN_PLAYERS}
+            max={MAX_PLAYERS}
+            step="1"
+            value={preferences.playerCount}
+            onChange={(event) => onPlayerCountChange(Number(event.target.value))}
           />
         </label>
 

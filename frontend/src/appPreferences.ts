@@ -20,6 +20,7 @@ import {
   getDefaultQuantizationForRuntime,
   getQuantizationOption,
 } from './aiDetector';
+import { DEFAULT_PLAYER_COUNT, normalizePlayerCount } from './poseOverlay';
 
 export const DEFAULT_THRESHOLD = 0.45;
 export const DEFAULT_CAMERA_MIRRORED = true;
@@ -32,6 +33,7 @@ export type AppPreferences = {
   selectedQuantizationId: DetectorQuantizationId;
   selectedMediaPipeModelId: MediaPipeModelId;
   selectedMediaPipeDelegateId: MediaPipeDelegateId;
+  playerCount: number;
   threshold: number;
   cameraMirrored: boolean;
 };
@@ -45,6 +47,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   selectedQuantizationId: DEFAULT_DETECTOR_QUANTIZATION_ID,
   selectedMediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
   selectedMediaPipeDelegateId: DEFAULT_MEDIAPIPE_DELEGATE_ID,
+  playerCount: DEFAULT_PLAYER_COUNT,
   threshold: DEFAULT_THRESHOLD,
   cameraMirrored: DEFAULT_CAMERA_MIRRORED,
 };
@@ -97,6 +100,7 @@ export function readStoredAppPreferences(): AppPreferences {
       selectedMediaPipeDelegateId: isOptionId(stored.selectedMediaPipeDelegateId, MEDIAPIPE_DELEGATES)
         ? stored.selectedMediaPipeDelegateId
         : defaults.selectedMediaPipeDelegateId,
+      playerCount: normalizePlayerCount(stored.playerCount),
       threshold:
         typeof stored.threshold === 'number' && Number.isFinite(stored.threshold)
           ? Math.min(0.9, Math.max(0.1, stored.threshold))

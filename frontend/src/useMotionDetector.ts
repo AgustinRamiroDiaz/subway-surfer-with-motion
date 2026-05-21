@@ -3,10 +3,14 @@ import type { Detector, DetectorTimings, PersonDetection } from './aiDetector';
 import { createCameraFrame } from './detectionSchema';
 import { loadDetectorClient } from './detectorClient';
 import type { AppPreferences } from './appPreferences';
-import { DEFAULT_PLAYER_POSITIONS, drawDetections, getPlayerPositions, getPersonPosition } from './poseOverlay';
+import { drawDetections, getDefaultPlayerPositions, getPlayerPositions, getPersonPosition } from './poseOverlay';
 import { useLatest } from './useLatest';
 
 const DETECTION_INTERVAL_MS = 180;
+
+function createEmptyTrackIds(playerCount: number): Array<number | null> {
+  return Array.from({ length: playerCount }, () => null);
+}
 
 export type FrameTimings = DetectorTimings & {
   captureMs: number;
@@ -60,6 +64,7 @@ export function useMotionDetector({
   const frameSequenceRef = useRef(0);
   const preferencesRef = useLatest(preferences);
   const cameraEnabledRef = useLatest(cameraEnabled);
+  const initialPlayerPositions = getDefaultPlayerPositions(preferences.playerCount);
 
   const [isDetecting, setIsDetecting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -68,20 +73,22 @@ export function useMotionDetector({
   const [detections, setDetections] = useState<PersonDetection[]>([]);
   const [lastInferenceMs, setLastInferenceMs] = useState<number | null>(null);
   const [frameTimings, setFrameTimings] = useState<FrameTimings | null>(null);
-  const [playerPositions, setPlayerPositions] = useState<number[]>([...DEFAULT_PLAYER_POSITIONS]);
+  const [playerPositions, setPlayerPositions] = useState<number[]>(initialPlayerPositions);
+  const playerPositionsRef = useLatest(playerPositions);
   const [error, setError] = useState<string | null>(null);
-  const playerTrackIdsRef = useRef<(number | null)[]>(new Array(DEFAULT_PLAYER_POSITIONS.length).fill(null));
+  const playerTrackIdsRef = useRef<Array<number | null>>(createEmptyTrackIds(initialPlayerPositions.length));
   const trackIdLastSeenRef = useRef<Map<number, number>>(new Map());
 
   const clearDetectionState = useCallback(() => {
+    const fallbackPositions = getDefaultPlayerPositions(preferencesRef.current.playerCount);
     setDetections([]);
     setLastInferenceMs(null);
     setFrameTimings(null);
-    setPlayerPositions([...DEFAULT_PLAYER_POSITIONS]);
-    playerTrackIdsRef.current.fill(null);
+    setPlayerPositions(fallbackPositions);
+    playerTrackIdsRef.current = createEmptyTrackIds(fallbackPositions.length);
     trackIdLastSeenRef.current.clear();
     clearOverlay();
-  }, [clearOverlay]);
+  }, [clearOverlay, preferencesRef]);
 
   const stopDetection = useCallback(() => {
     detectingRef.current = false;
@@ -125,6 +132,11 @@ export function useMotionDetector({
       });
       const sorted = [...result.detections].sort((a, b) => b.score - a.score);
       setDetections(sorted);
+      const playerCount = activePreferences.playerCount;
+      const fallbackPositions = getDefaultPlayerPositions(playerCount);
+      if (playerTrackIdsRef.current.length !== playerCount) {
+        playerTrackIdsRef.current = createEmptyTrackIds(playerCount);
+      }
 
       const hasTrackingIds = sorted.some((d) => d.id !== undefined);
       let finalPositions: number[];
@@ -151,7 +163,9 @@ export function useMotionDetector({
           }
         });
 
-        const nextPositions = [...playerPositions];
+        const nextPositions = fallbackPositions.map(
+          (fallbackPosition, index) => playerPositionsRef.current[index] ?? fallbackPosition
+        );
         const assigned = new Set<PersonDetection>();
 
         // 1. Maintain existing tracked players
@@ -197,7 +211,7 @@ export function useMotionDetector({
 
         finalPositions = nextPositions;
       } else {
-        finalPositions = getPlayerPositions(sorted, frame.width, activePreferences.cameraMirrored);
+        finalPositions = getPlayerPositions(sorted, frame.width, activePreferences.cameraMirrored, playerCount);
       }
 
       setPlayerPositions(finalPositions);
@@ -230,7 +244,7 @@ export function useMotionDetector({
         void runDetection();
       }, DETECTION_INTERVAL_MS);
     }
-  }, [frameRef, overlayRef, preferencesRef, syncCanvasSize, videoRef]);
+  }, [frameRef, overlayRef, playerPositionsRef, preferencesRef, syncCanvasSize, videoRef]);
 
   const loadDetector = useCallback(async () => {
     if (detectorRef.current) {
@@ -249,6 +263,7 @@ export function useMotionDetector({
         quantization: activePreferences.selectedQuantizationId,
         mediaPipeModelId: activePreferences.selectedMediaPipeModelId,
         mediaPipeDelegate: activePreferences.selectedMediaPipeDelegateId,
+        playerCount: activePreferences.playerCount,
         onStatusChange: ({ message }) => setModelStatus(message),
       });
       detectorRef.current = detector;
@@ -322,6 +337,13 @@ export function useMotionDetector({
       disposeDetectorRef.current?.();
     };
   }, []);
+
+  useEffect(() => {
+    const fallbackPositions = getDefaultPlayerPositions(preferences.playerCount);
+    setPlayerPositions(fallbackPositions);
+    playerTrackIdsRef.current = createEmptyTrackIds(fallbackPositions.length);
+    trackIdLastSeenRef.current.clear();
+  }, [preferences.playerCount]);
 
   return {
     isDetecting,
