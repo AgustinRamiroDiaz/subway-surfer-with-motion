@@ -1,0 +1,78 @@
+name: Package Backend
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: pose-tracker-server-linux
+            executable_name: pose-tracker-server
+          - os: windows-latest
+            artifact_name: pose-tracker-server-windows
+            executable_name: pose-tracker-server.exe
+          - os: macos-latest
+            artifact_name: pose-tracker-server-macos
+            executable_name: pose-tracker-server
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-glx libglib2.0-0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Setup Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: |
+          cd pose-estimation-tracker-server
+          uv sync --frozen
+
+      - name: Build with PyInstaller
+        shell: bash
+        run: |
+          cd pose-estimation-tracker-server
+          # Create a standalone entry point for PyInstaller
+          cat <<EOF > entrypoint.py
+          from pose_estimation_tracker_server.server import main
+          if __name__ == "__main__":
+              main()
+          EOF
+          
+          # Install pyinstaller into the environment
+          uv pip install pyinstaller
+          
+          # Run PyInstaller
+          # --collect-all is needed for ultralytics and its data files/models
+          uv run pyinstaller --onefile \
+            --name ${{ matrix.executable_name }} \
+            --collect-all ultralytics \
+            --hidden-import aiortc \
+            --hidden-import websockets \
+            --hidden-import numpy \
+            entrypoint.py
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: pose-estimation-tracker-server/dist/${{ matrix.executable_name }}

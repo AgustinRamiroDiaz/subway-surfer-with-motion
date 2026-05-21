@@ -6,10 +6,23 @@ frontend-compatible person detections over a low-latency data channel.
 
 ## Run
 
+### Using uv (Recommended for Development)
+
 ```bash
 uv sync
 uv run pose-tracker-server
 ```
+
+### Standalone Binary
+
+You can download pre-compiled binaries for Windows, macOS, and Linux from the [GitHub Releases](https://github.com/your-repo/releases) page.
+
+1. Download the binary for your platform.
+2. Run it from the terminal:
+   ```bash
+   ./pose-tracker-server --port 8765
+   ```
+   (On Windows, use `pose-tracker-server.exe`)
 
 Use a different model, port, or tracker:
 
