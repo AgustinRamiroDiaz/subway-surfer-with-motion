@@ -6,8 +6,6 @@ import type { AppPreferences } from './appPreferences';
 import { drawDetections, getDefaultPlayerPositions, getPlayerPositions, getPersonPosition } from './poseOverlay';
 import { useLatest } from './useLatest';
 
-const DETECTION_INTERVAL_MS = 180;
-
 function createEmptyTrackIds(playerCount: number): Array<number | null> {
   return Array.from({ length: playerCount }, () => null);
 }
@@ -60,7 +58,8 @@ export function useMotionDetector({
   const detectorRef = useRef<Detector | null>(null);
   const detectorModeRef = useRef<DetectorLoadResult['mode']>('pull');
   const disposeDetectorRef = useRef<(() => void) | null>(null);
-  const timeoutRef = useRef<number | null>(null);
+  const videoFrameCallbackRef = useRef<number | null>(null);
+  const runDetectionRef = useRef<(() => void) | null>(null);
   const detectingRef = useRef(false);
   const frameSequenceRef = useRef(0);
   const preferencesRef = useLatest(preferences);
@@ -91,22 +90,31 @@ export function useMotionDetector({
     clearOverlay();
   }, [clearOverlay, preferencesRef]);
 
-  const stopDetection = useCallback(() => {
-    detectingRef.current = false;
-    setIsDetecting(false);
-    if (timeoutRef.current !== null) {
-      window.clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
+  const cancelScheduledDetectionFrame = useCallback(() => {
+    if (videoFrameCallbackRef.current !== null) {
+      videoRef.current?.cancelVideoFrameCallback(videoFrameCallbackRef.current);
+      videoFrameCallbackRef.current = null;
     }
-    if (detectorModeRef.current === 'stream') {
-      disposeDetectorRef.current?.();
-      disposeDetectorRef.current = null;
-      detectorRef.current = null;
-      detectorModeRef.current = 'pull';
-      setModelStatus('Model not loaded');
+  }, [videoRef]);
+
+  const scheduleDetectionFrame = useCallback(() => {
+    if (!detectingRef.current || detectorModeRef.current === 'stream') {
+      return;
     }
-    setStatus(cameraEnabledRef.current ? 'Camera ready' : 'Camera idle');
-  }, [cameraEnabledRef]);
+    if (videoFrameCallbackRef.current !== null) {
+      return;
+    }
+
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    videoFrameCallbackRef.current = video.requestVideoFrameCallback(() => {
+      videoFrameCallbackRef.current = null;
+      runDetectionRef.current?.();
+    });
+  }, [videoRef]);
 
   const handleDetectorResult = useCallback((result: DetectorResult, captureMs: number, loopStartedAt: number | null) => {
     const activePreferences = preferencesRef.current;
@@ -210,6 +218,20 @@ export function useMotionDetector({
     });
   }, [overlayRef, playerPositionsRef, preferencesRef]);
 
+  const stopDetection = useCallback(() => {
+    detectingRef.current = false;
+    setIsDetecting(false);
+    cancelScheduledDetectionFrame();
+    if (detectorModeRef.current === 'stream') {
+      disposeDetectorRef.current?.();
+      disposeDetectorRef.current = null;
+      detectorRef.current = null;
+      detectorModeRef.current = 'pull';
+      setModelStatus('Model not loaded');
+    }
+    setStatus(cameraEnabledRef.current ? 'Camera ready' : 'Camera idle');
+  }, [cameraEnabledRef, cancelScheduledDetectionFrame]);
+
   const runDetection = useCallback(async () => {
     const detector = detectorRef.current;
     const video = videoRef.current;
@@ -221,9 +243,7 @@ export function useMotionDetector({
     }
 
     if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth || !video.videoHeight) {
-      timeoutRef.current = window.setTimeout(() => {
-        void runDetection();
-      }, DETECTION_INTERVAL_MS);
+      scheduleDetectionFrame();
       return;
     }
 
@@ -250,11 +270,15 @@ export function useMotionDetector({
     }
 
     if (detectingRef.current) {
-      timeoutRef.current = window.setTimeout(() => {
-        void runDetection();
-      }, DETECTION_INTERVAL_MS);
+      scheduleDetectionFrame();
     }
-  }, [frameRef, handleDetectorResult, preferencesRef, syncCanvasSize, videoRef]);
+  }, [frameRef, handleDetectorResult, preferencesRef, scheduleDetectionFrame, syncCanvasSize, videoRef]);
+
+  useEffect(() => {
+    runDetectionRef.current = () => {
+      void runDetection();
+    };
+  }, [runDetection]);
 
   const loadDetector = useCallback(async () => {
     if (detectorRef.current) {
@@ -348,7 +372,7 @@ export function useMotionDetector({
       setIsDetecting(true);
       setStatus('Scanning');
       if (detectorModeRef.current !== 'stream') {
-        void runDetection();
+        scheduleDetectionFrame();
       }
       return true;
     } catch (cause: unknown) {
@@ -358,17 +382,15 @@ export function useMotionDetector({
       detectingRef.current = false;
       return false;
     }
-  }, [loadDetector, runDetection, startCamera, streamRef, videoRef]);
+  }, [loadDetector, scheduleDetectionFrame, startCamera, streamRef, videoRef]);
 
   useEffect(() => {
     return () => {
       detectingRef.current = false;
-      if (timeoutRef.current !== null) {
-        window.clearTimeout(timeoutRef.current);
-      }
+      cancelScheduledDetectionFrame();
       disposeDetectorRef.current?.();
     };
-  }, []);
+  }, [cancelScheduledDetectionFrame]);
 
   useEffect(() => {
     const fallbackPositions = getDefaultPlayerPositions(preferences.playerCount);
