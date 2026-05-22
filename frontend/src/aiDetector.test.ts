@@ -335,6 +335,9 @@ describe('loadMediaPipePoseDetector', () => {
       minPoseDetectionConfidence: 0.45,
       minPosePresenceConfidence: 0.45,
       minTrackingConfidence: 0.45,
+      numPoses: 2,
+      outputSegmentationMasks: false,
+      runningMode: 'VIDEO',
     });
     expect(mockDetectForVideo).toHaveBeenCalledWith(canvas, 1234);
     expect(result.detections).toHaveLength(1);

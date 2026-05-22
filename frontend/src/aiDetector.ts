@@ -312,6 +312,9 @@ type MediaPipePoseLandmarker = {
     minPoseDetectionConfidence?: number;
     minPosePresenceConfidence?: number;
     minTrackingConfidence?: number;
+    numPoses?: number;
+    outputSegmentationMasks?: boolean;
+    runningMode?: 'IMAGE' | 'VIDEO';
   }) => Promise<void>;
   close?: () => void;
 };
@@ -674,6 +677,9 @@ export async function loadMediaPipePoseDetector(options: DetectorLoadOptions): P
         minPoseDetectionConfidence: detectorOptions.threshold,
         minPosePresenceConfidence: detectorOptions.threshold,
         minTrackingConfidence: detectorOptions.threshold,
+        numPoses: options.playerCount,
+        outputSegmentationMasks: false,
+        runningMode: 'VIDEO',
       });
       appliedThreshold = detectorOptions.threshold;
     }
