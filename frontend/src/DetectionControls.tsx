@@ -17,7 +17,7 @@ import {
   getQuantizationOption,
 } from './aiDetector';
 import type { AppPreferences } from './appPreferences';
-import type { CameraDeviceOption } from './useCameraStream';
+import type { CameraControlOption } from './useCameraController';
 import { formatMs, formatPercent } from './formatters';
 import { MAX_PLAYERS, MIN_PLAYERS } from './poseOverlay';
 import type { FrameTimings } from './useMotionDetector';
@@ -29,7 +29,8 @@ type HelpLabelProps = {
 
 type DetectionControlsProps = {
   preferences: AppPreferences;
-  cameraDevices: CameraDeviceOption[];
+  cameraOptions: CameraControlOption[];
+  selectedCameraValue: string;
   detections: PersonDetection[];
   error: string | null;
   frameTimings: FrameTimings | null;
@@ -38,8 +39,7 @@ type DetectionControlsProps = {
   modelStatus: string;
   status: string;
   onBackendChange: (value: DetectorBackendId) => void;
-  onCameraDeviceChange: (value: string | null) => void;
-  onCameraFacingModeChange: (value: AppPreferences['cameraFacingMode']) => void;
+  onCameraChange: (value: string | null) => void;
   onCameraMirrorChange: (value: boolean) => void;
   onMediaPipeDelegateChange: (value: MediaPipeDelegateId) => void;
   onMediaPipeModelChange: (value: MediaPipeModelId) => void;
@@ -73,7 +73,8 @@ function HelpLabel({ children, help }: HelpLabelProps): ReactElement {
 
 export function DetectionControls({
   preferences,
-  cameraDevices,
+  cameraOptions,
+  selectedCameraValue,
   detections,
   error,
   frameTimings,
@@ -82,8 +83,7 @@ export function DetectionControls({
   modelStatus,
   status,
   onBackendChange,
-  onCameraDeviceChange,
-  onCameraFacingModeChange,
+  onCameraChange,
   onCameraMirrorChange,
   onMediaPipeDelegateChange,
   onMediaPipeModelChange,
@@ -125,22 +125,6 @@ export function DetectionControls({
     value: delegate.id,
     label: `${delegate.label} · ${delegate.description}`,
   }));
-  const cameraValue = preferences.cameraDeviceId
-    ? `device:${preferences.cameraDeviceId}`
-    : `facing:${preferences.cameraFacingMode}`;
-  const selectedDeviceIsAvailable =
-    preferences.cameraDeviceId === null || cameraDevices.some((device) => device.deviceId === preferences.cameraDeviceId);
-  const cameraOptions = [
-    { value: 'facing:user', label: 'Front camera' },
-    { value: 'facing:environment', label: 'Back camera' },
-    ...(selectedDeviceIsAvailable
-      ? []
-      : [{ value: cameraValue, label: 'Selected camera' }]),
-    ...cameraDevices.map((device) => ({
-      value: `device:${device.deviceId}`,
-      label: device.label,
-    })),
-  ];
 
   return (
     <>
@@ -163,19 +147,8 @@ export function DetectionControls({
               Camera
             </HelpLabel>
           }
-          value={cameraValue}
-          onChange={(value) => {
-            if (!value) {
-              return;
-            }
-
-            if (value.startsWith('device:')) {
-              onCameraDeviceChange(value.slice('device:'.length));
-              return;
-            }
-
-            onCameraFacingModeChange(value === 'facing:environment' ? 'environment' : 'user');
-          }}
+          value={selectedCameraValue}
+          onChange={onCameraChange}
         />
 
         <Switch

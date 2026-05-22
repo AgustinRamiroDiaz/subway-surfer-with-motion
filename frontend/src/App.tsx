@@ -13,7 +13,6 @@ import {
 } from './aiDetector';
 import {
   type AppPreferences,
-  type CameraFacingMode,
   readStoredAppPreferences,
   writeStoredAppPreferences,
 } from './appPreferences';
@@ -21,7 +20,7 @@ import { CameraFeedbackPanel } from './CameraFeedbackPanel';
 import { DetectionControls } from './DetectionControls';
 import { GameScene, type GamePhase } from './GameScene';
 import { TrackingInternalsDocs } from './TrackingInternalsDocs';
-import { useCameraStream } from './useCameraStream';
+import { useCameraController } from './useCameraController';
 import { useMotionDetector } from './useMotionDetector';
 import './App.css';
 
@@ -39,15 +38,16 @@ function App(): ReactElement {
 
 function MotionRunnerApp(): ReactElement {
   const [preferences, setPreferences] = useState<AppPreferences>(readStoredAppPreferences);
-  const [cameraError, setCameraError] = useState<string | null>(null);
   const [gamePhase, setGamePhase] = useState<GamePhase>('ready');
-  const camera = useCameraStream();
-  const startCameraWithPreferences = useCallback(() => {
-    return camera.startCamera({
-      facingMode: preferences.cameraFacingMode,
-      deviceId: preferences.cameraDeviceId,
-    });
-  }, [camera, preferences.cameraDeviceId, preferences.cameraFacingMode]);
+  const camera = useCameraController({
+    preferences,
+    setPreferences,
+    onCameraRestart: () => {
+      detector.stopDetection();
+      detector.clearDetectionState();
+      setGamePhase('ready');
+    },
+  });
   const detector = useMotionDetector({
     preferences,
     cameraEnabled: camera.cameraEnabled,
@@ -55,7 +55,7 @@ function MotionRunnerApp(): ReactElement {
     overlayRef: camera.overlayRef,
     frameRef: camera.frameRef,
     streamRef: camera.streamRef,
-    startCamera: startCameraWithPreferences,
+    startCamera: camera.startCameraWithPreferences,
     syncCanvasSize: camera.syncCanvasSize,
     clearOverlay: camera.clearOverlay,
   });
@@ -157,54 +157,21 @@ function MotionRunnerApp(): ReactElement {
     updatePreferences({ ...preferences, threshold }, preferences.selectedBackendId === 'python-webrtc');
   }, [preferences, updatePreferences]);
 
-  const restartCameraIfEnabled = useCallback(async (nextPreferences: AppPreferences) => {
-    if (!camera.cameraEnabled) {
-      return;
-    }
-
-    detector.stopDetection();
-    detector.clearDetectionState();
-    setGamePhase('ready');
-    setCameraError(null);
-
-    try {
-      await camera.startCamera({
-        facingMode: nextPreferences.cameraFacingMode,
-        deviceId: nextPreferences.cameraDeviceId,
-      });
-    } catch (cause: unknown) {
-      camera.stopCamera();
-      setCameraError(cause instanceof Error ? cause.message : 'Unable to switch camera');
-    }
-  }, [camera, detector]);
-
-  const handleCameraFacingModeChange = useCallback((cameraFacingMode: CameraFacingMode) => {
-    const nextPreferences = { ...preferences, cameraFacingMode, cameraDeviceId: null };
-    setPreferences(nextPreferences);
-    void restartCameraIfEnabled(nextPreferences);
-  }, [preferences, restartCameraIfEnabled]);
-
-  const handleCameraDeviceChange = useCallback((cameraDeviceId: string | null) => {
-    const nextPreferences = { ...preferences, cameraDeviceId };
-    setPreferences(nextPreferences);
-    void restartCameraIfEnabled(nextPreferences);
-  }, [preferences, restartCameraIfEnabled]);
-
   const handleStopCamera = useCallback(() => {
     detector.stopDetection();
     camera.stopCamera();
     detector.clearDetectionState();
-    setCameraError(null);
+    camera.clearError();
     setGamePhase('ready');
   }, [camera, detector]);
 
   const handleStartRun = useCallback(async () => {
-    setCameraError(null);
+    camera.clearError();
     const started = await detector.startDetection();
     if (started) {
       setGamePhase('running');
     }
-  }, [detector]);
+  }, [camera, detector]);
 
   const handlePauseRun = useCallback(() => {
     detector.stopDetection();
@@ -241,7 +208,7 @@ function MotionRunnerApp(): ReactElement {
 
           <DetectionControls
             detections={detector.detections}
-            error={detector.error ?? cameraError}
+            error={detector.error ?? camera.error}
             frameTimings={detector.frameTimings}
             isLoading={detector.isLoading}
             lastInferenceMs={detector.lastInferenceMs}
@@ -250,9 +217,9 @@ function MotionRunnerApp(): ReactElement {
             status={detector.status}
             stopDisabled={!camera.cameraEnabled && !detector.isDetecting}
             onBackendChange={handleBackendChange}
-            cameraDevices={camera.cameraDevices}
-            onCameraDeviceChange={handleCameraDeviceChange}
-            onCameraFacingModeChange={handleCameraFacingModeChange}
+            cameraOptions={camera.cameraOptions}
+            selectedCameraValue={camera.selectedCameraValue}
+            onCameraChange={camera.changeCamera}
             onCameraMirrorChange={(cameraMirrored) => setPreferences({ ...preferences, cameraMirrored })}
             onMediaPipeDelegateChange={handleMediaPipeDelegateChange}
             onMediaPipeModelChange={handleMediaPipeModelChange}
