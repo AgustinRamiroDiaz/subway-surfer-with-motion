@@ -45,6 +45,7 @@ test('renders the motion game shell', () => {
   expect(within(screen.getByLabelText(/game controls/i)).getByRole('button', { name: /pause/i })).toBeDisabled();
   expect(screen.getByDisplayValue('Front camera')).toBeInTheDocument();
   expect(screen.getByRole('switch', { name: /mirror camera/i })).toBeChecked();
+  expect(screen.getByRole('switch', { name: /camera multiplier/i })).not.toBeChecked();
   expect(screen.getByRole('slider', { name: /players/i })).toHaveAttribute('aria-valuenow', '2');
   expect(screen.getByRole('button', { name: /stop camera/i })).toBeDisabled();
 });
@@ -70,6 +71,7 @@ test('remembers detector decisions across remounts', () => {
   fireEvent.keyDown(screen.getByRole('slider', { name: /players/i }), { key: 'ArrowRight' });
   fireEvent.keyDown(screen.getByRole('slider', { name: /players/i }), { key: 'ArrowRight' });
   userEvent.click(screen.getByRole('switch', { name: /mirror camera/i }));
+  userEvent.click(screen.getByRole('switch', { name: /camera multiplier/i }));
 
   unmount();
   renderApp();
@@ -82,8 +84,10 @@ test('remembers detector decisions across remounts', () => {
   expect(screen.getByDisplayValue('Back camera')).toBeInTheDocument();
   expect(screen.getByRole('slider', { name: /players/i })).toHaveAttribute('aria-valuenow', '4');
   expect(screen.getByRole('switch', { name: /mirror camera/i })).not.toBeChecked();
+  expect(screen.getByRole('switch', { name: /camera multiplier/i })).toBeChecked();
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"selectedBackendId":"yolo"');
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"cameraFacingMode":"environment"');
+  expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"devCameraMultiplierEnabled":true');
 });
 
 test('shows Python WebRTC as a server-backed tracker option', () => {

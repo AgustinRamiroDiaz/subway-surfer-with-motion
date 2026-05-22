@@ -40,6 +40,7 @@ type DetectionControlsProps = {
   status: string;
   onBackendChange: (value: DetectorBackendId) => void;
   onCameraChange: (value: string | null) => void;
+  onDevCameraMultiplierChange: (value: boolean) => void;
   onCameraMirrorChange: (value: boolean) => void;
   onMediaPipeDelegateChange: (value: MediaPipeDelegateId) => void;
   onMediaPipeModelChange: (value: MediaPipeModelId) => void;
@@ -84,6 +85,7 @@ export function DetectionControls({
   status,
   onBackendChange,
   onCameraChange,
+  onDevCameraMultiplierChange,
   onCameraMirrorChange,
   onMediaPipeDelegateChange,
   onMediaPipeModelChange,
@@ -160,6 +162,17 @@ export function DetectionControls({
             </HelpLabel>
           }
           onChange={(event) => onCameraMirrorChange(event.currentTarget.checked)}
+        />
+
+        <Switch
+          checked={preferences.devCameraMultiplierEnabled}
+          className="toggle-control"
+          label={
+            <HelpLabel help="Developer test mode that duplicates the camera frame side by side before the detector receives it. Restart is automatic while the camera is active.">
+              Camera multiplier
+            </HelpLabel>
+          }
+          onChange={(event) => onDevCameraMultiplierChange(event.currentTarget.checked)}
         />
 
         <div className="player-count-control">

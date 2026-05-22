@@ -221,6 +221,7 @@ function MotionRunnerApp(): ReactElement {
             cameraOptions={camera.cameraOptions}
             selectedCameraValue={camera.selectedCameraValue}
             onCameraChange={camera.changeCamera}
+            onDevCameraMultiplierChange={camera.changeDevCameraMultiplier}
             onCameraMirrorChange={(cameraMirrored) => setPreferences({ ...preferences, cameraMirrored })}
             onMediaPipeDelegateChange={handleMediaPipeDelegateChange}
             onMediaPipeModelChange={handleMediaPipeModelChange}

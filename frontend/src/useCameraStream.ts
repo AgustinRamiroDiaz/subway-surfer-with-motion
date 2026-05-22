@@ -9,6 +9,7 @@ export type CameraDeviceOption = {
 export type StartCameraOptions = {
   facingMode: CameraFacingMode;
   deviceId: string | null;
+  devCameraMultiplierEnabled: boolean;
 };
 
 type CameraStreamControls = {
@@ -33,11 +34,122 @@ function getCameraAccessUnavailableMessage(): string {
   return 'This browser does not expose camera access through navigator.mediaDevices.';
 }
 
+type StreamPreprocessor = {
+  stream: MediaStream;
+  cleanup: () => void;
+};
+
+function waitForVideoMetadata(video: HTMLVideoElement): Promise<void> {
+  if (video.videoWidth && video.videoHeight) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve, reject) => {
+    const handleLoadedMetadata = () => {
+      cleanup();
+      resolve();
+    };
+    const handleError = () => {
+      cleanup();
+      reject(new Error('Unable to read camera metadata for the developer camera multiplier.'));
+    };
+    const cleanup = () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('error', handleError);
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
+    video.addEventListener('error', handleError, { once: true });
+  });
+}
+
+async function createSideBySideStream(sourceStream: MediaStream): Promise<StreamPreprocessor> {
+  const sourceVideo = document.createElement('video');
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+
+  if (!context || !canvas.captureStream) {
+    throw new Error('This browser cannot create a canvas-backed camera stream.');
+  }
+
+  sourceVideo.muted = true;
+  sourceVideo.playsInline = true;
+  sourceVideo.srcObject = sourceStream;
+  try {
+    await sourceVideo.play();
+    await waitForVideoMetadata(sourceVideo);
+  } catch (cause) {
+    sourceStream.getTracks().forEach((track) => track.stop());
+    sourceVideo.srcObject = null;
+    throw cause;
+  }
+
+  canvas.width = sourceVideo.videoWidth * 2;
+  canvas.height = sourceVideo.videoHeight;
+
+  let animationFrameId: number | null = null;
+  let videoFrameCallbackId: number | null = null;
+  let stopped = false;
+
+  const drawFrame = () => {
+    if (stopped || !sourceVideo.videoWidth || !sourceVideo.videoHeight) {
+      return;
+    }
+
+    context.drawImage(sourceVideo, 0, 0, sourceVideo.videoWidth, sourceVideo.videoHeight);
+    context.drawImage(sourceVideo, sourceVideo.videoWidth, 0, sourceVideo.videoWidth, sourceVideo.videoHeight);
+  };
+
+  const scheduleDraw = () => {
+    if (stopped) {
+      return;
+    }
+
+    if ('requestVideoFrameCallback' in sourceVideo) {
+      videoFrameCallbackId = sourceVideo.requestVideoFrameCallback(() => {
+        videoFrameCallbackId = null;
+        drawFrame();
+        scheduleDraw();
+      });
+      return;
+    }
+
+    animationFrameId = window.requestAnimationFrame(() => {
+      animationFrameId = null;
+      drawFrame();
+      scheduleDraw();
+    });
+  };
+
+  drawFrame();
+  scheduleDraw();
+
+  const outputStream = canvas.captureStream(30);
+
+  return {
+    stream: outputStream,
+    cleanup: () => {
+      stopped = true;
+      if (videoFrameCallbackId !== null) {
+        sourceVideo.cancelVideoFrameCallback(videoFrameCallbackId);
+      }
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+      outputStream.getTracks().forEach((track) => track.stop());
+      sourceStream.getTracks().forEach((track) => track.stop());
+      sourceVideo.pause();
+      sourceVideo.srcObject = null;
+    },
+  };
+}
+
 export function useCameraStream(): CameraStreamControls {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const overlayRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const streamCleanupRef = useRef<(() => void) | null>(null);
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [cameraDevices, setCameraDevices] = useState<CameraDeviceOption[]>([]);
 
@@ -82,12 +194,19 @@ export function useCameraStream(): CameraStreamControls {
     });
   }, [refreshCameraDevices]);
 
-  const startCamera = useCallback(async ({ facingMode, deviceId }: StartCameraOptions) => {
+  const stopActiveStream = useCallback(() => {
+    streamCleanupRef.current?.();
+    streamCleanupRef.current = null;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }, []);
+
+  const startCamera = useCallback(async ({ facingMode, deviceId, devCameraMultiplierEnabled }: StartCameraOptions) => {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error(getCameraAccessUnavailableMessage());
     }
 
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    stopActiveStream();
 
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
@@ -98,19 +217,34 @@ export function useCameraStream(): CameraStreamControls {
       audio: false,
     });
 
-    streamRef.current = stream;
+    let activeStream: StreamPreprocessor;
+    try {
+      activeStream = devCameraMultiplierEnabled
+        ? await createSideBySideStream(stream)
+        : {
+            stream,
+            cleanup: () => {
+              stream.getTracks().forEach((track) => track.stop());
+            },
+          };
+    } catch (cause) {
+      stream.getTracks().forEach((track) => track.stop());
+      throw cause;
+    }
+
+    streamRef.current = activeStream.stream;
+    streamCleanupRef.current = activeStream.cleanup;
     if (videoRef.current) {
-      videoRef.current.srcObject = stream;
+      videoRef.current.srcObject = activeStream.stream;
       await videoRef.current.play();
     }
     setCameraEnabled(true);
     refreshCameraDevicesWithoutBlocking();
-    return stream;
-  }, [refreshCameraDevicesWithoutBlocking]);
+    return activeStream.stream;
+  }, [refreshCameraDevicesWithoutBlocking, stopActiveStream]);
 
   const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
+    stopActiveStream();
 
     if (videoRef.current) {
       videoRef.current.srcObject = null;
@@ -118,7 +252,7 @@ export function useCameraStream(): CameraStreamControls {
 
     clearOverlay();
     setCameraEnabled(false);
-  }, [clearOverlay]);
+  }, [clearOverlay, stopActiveStream]);
 
   useEffect(() => {
     refreshCameraDevicesWithoutBlocking();
@@ -132,6 +266,12 @@ export function useCameraStream(): CameraStreamControls {
       navigator.mediaDevices.removeEventListener?.('devicechange', refreshCameraDevicesWithoutBlocking);
     };
   }, [refreshCameraDevicesWithoutBlocking]);
+
+  useEffect(() => {
+    return () => {
+      stopActiveStream();
+    };
+  }, [stopActiveStream]);
 
   return {
     videoRef,
