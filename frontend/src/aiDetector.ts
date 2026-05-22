@@ -554,6 +554,7 @@ function decodeMediaPipePoseResult(
         label,
         x: clamp((landmark?.x ?? 0) * image.width, 0, image.width),
         y: clamp((landmark?.y ?? 0) * image.height, 0, image.height),
+        ...(typeof landmark?.z === 'number' ? { z: landmark.z * image.width } : {}),
         score,
       };
     });

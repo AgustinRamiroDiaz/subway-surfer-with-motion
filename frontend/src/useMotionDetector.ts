@@ -10,6 +10,21 @@ function createEmptyTrackIds(playerCount: number): Array<number | null> {
   return Array.from({ length: playerCount }, () => null);
 }
 
+function mirrorDetection(detection: PersonDetection, frameWidth: number): PersonDetection {
+  return {
+    ...detection,
+    box: {
+      ...detection.box,
+      xmin: frameWidth - detection.box.xmax,
+      xmax: frameWidth - detection.box.xmin,
+    },
+    keypoints: detection.keypoints?.map((keypoint) => ({
+      ...keypoint,
+      x: frameWidth - keypoint.x,
+    })),
+  };
+}
+
 export type FrameTimings = DetectorTimings & {
   captureMs: number;
   drawMs: number;
@@ -34,6 +49,7 @@ type MotionDetectorControls = {
   status: string;
   modelStatus: string;
   detections: PersonDetection[];
+  playerDetections: Array<PersonDetection | null>;
   lastInferenceMs: number | null;
   frameTimings: FrameTimings | null;
   playerPositions: number[];
@@ -71,6 +87,9 @@ export function useMotionDetector({
   const [status, setStatus] = useState('Camera idle');
   const [modelStatus, setModelStatus] = useState('Model not loaded');
   const [detections, setDetections] = useState<PersonDetection[]>([]);
+  const [playerDetections, setPlayerDetections] = useState<Array<PersonDetection | null>>(
+    Array.from({ length: preferences.playerCount }, () => null)
+  );
   const [lastInferenceMs, setLastInferenceMs] = useState<number | null>(null);
   const [frameTimings, setFrameTimings] = useState<FrameTimings | null>(null);
   const [playerPositions, setPlayerPositions] = useState<number[]>(initialPlayerPositions);
@@ -82,6 +101,7 @@ export function useMotionDetector({
   const clearDetectionState = useCallback(() => {
     const fallbackPositions = getDefaultPlayerPositions(preferencesRef.current.playerCount);
     setDetections([]);
+    setPlayerDetections(Array.from({ length: fallbackPositions.length }, () => null));
     setLastInferenceMs(null);
     setFrameTimings(null);
     setPlayerPositions(fallbackPositions);
@@ -129,6 +149,10 @@ export function useMotionDetector({
 
     const hasTrackingIds = sorted.some((d) => d.id !== undefined);
     let finalPositions: number[];
+    let finalDetections: Array<PersonDetection | null> = Array.from(
+      { length: playerCount },
+      (): PersonDetection | null => null
+    );
 
     if (hasTrackingIds) {
       const now = performance.now();
@@ -163,6 +187,7 @@ export function useMotionDetector({
         if (match) {
           const pos = getPersonPosition(match, frameWidth);
           nextPositions[index] = activePreferences.cameraMirrored ? 1 - pos : pos;
+          finalDetections[index] = match;
           assigned.add(match);
         }
       });
@@ -188,6 +213,7 @@ export function useMotionDetector({
             }
             const pos = getPersonPosition(d, frameWidth);
             nextPositions[emptySlot] = activePreferences.cameraMirrored ? 1 - pos : pos;
+            finalDetections[emptySlot] = d;
             assigned.add(d);
           }
         }
@@ -196,9 +222,22 @@ export function useMotionDetector({
       finalPositions = nextPositions;
     } else {
       finalPositions = getPlayerPositions(sorted, frameWidth, activePreferences.cameraMirrored, playerCount);
+      const sortedByPosition = sorted
+        .slice(0, playerCount)
+        .sort((left, right) => {
+          const leftPosition = getPersonPosition(left, frameWidth);
+          const rightPosition = getPersonPosition(right, frameWidth);
+          return activePreferences.cameraMirrored ? rightPosition - leftPosition : leftPosition - rightPosition;
+        });
+      finalDetections = finalPositions.map((_, index) => sortedByPosition[index] ?? null);
     }
 
     setPlayerPositions(finalPositions);
+    setPlayerDetections(
+      activePreferences.cameraMirrored
+        ? finalDetections.map((detection) => detection ? mirrorDetection(detection, frameWidth) : null)
+        : finalDetections
+    );
     setStatus(sorted.length ? `${sorted.length} person${sorted.length === 1 ? '' : 's'} detected` : 'Scanning');
 
     const drawStartedAt = performance.now();
@@ -395,6 +434,7 @@ export function useMotionDetector({
   useEffect(() => {
     const fallbackPositions = getDefaultPlayerPositions(preferences.playerCount);
     setPlayerPositions(fallbackPositions);
+    setPlayerDetections(Array.from({ length: fallbackPositions.length }, () => null));
     playerTrackIdsRef.current = createEmptyTrackIds(fallbackPositions.length);
     trackIdLastSeenRef.current.clear();
   }, [preferences.playerCount]);
@@ -405,6 +445,7 @@ export function useMotionDetector({
     status,
     modelStatus,
     detections,
+    playerDetections,
     lastInferenceMs,
     frameTimings,
     playerPositions,

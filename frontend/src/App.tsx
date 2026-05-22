@@ -187,6 +187,7 @@ function MotionRunnerApp(): ReactElement {
           <GameScene
             canStart={!detector.isLoading}
             phase={gamePhase}
+            playerDetections={detector.playerDetections}
             playerPositions={detector.playerPositions}
             startLabel={detector.isLoading ? 'Loading model' : startLabel}
             onPause={handlePauseRun}

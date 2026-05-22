@@ -21,6 +21,7 @@ export type PoseKeypoint = {
   label: string;
   x: number;
   y: number;
+  z?: number;
   score: number;
 };
 
