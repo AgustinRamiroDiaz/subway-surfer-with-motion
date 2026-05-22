@@ -17,6 +17,7 @@ import {
   getQuantizationOption,
 } from './aiDetector';
 import type { AppPreferences } from './appPreferences';
+import type { CameraDeviceOption } from './useCameraStream';
 import { formatMs, formatPercent } from './formatters';
 import { MAX_PLAYERS, MIN_PLAYERS } from './poseOverlay';
 import type { FrameTimings } from './useMotionDetector';
@@ -28,6 +29,7 @@ type HelpLabelProps = {
 
 type DetectionControlsProps = {
   preferences: AppPreferences;
+  cameraDevices: CameraDeviceOption[];
   detections: PersonDetection[];
   error: string | null;
   frameTimings: FrameTimings | null;
@@ -36,6 +38,8 @@ type DetectionControlsProps = {
   modelStatus: string;
   status: string;
   onBackendChange: (value: DetectorBackendId) => void;
+  onCameraDeviceChange: (value: string | null) => void;
+  onCameraFacingModeChange: (value: AppPreferences['cameraFacingMode']) => void;
   onCameraMirrorChange: (value: boolean) => void;
   onMediaPipeDelegateChange: (value: MediaPipeDelegateId) => void;
   onMediaPipeModelChange: (value: MediaPipeModelId) => void;
@@ -69,6 +73,7 @@ function HelpLabel({ children, help }: HelpLabelProps): ReactElement {
 
 export function DetectionControls({
   preferences,
+  cameraDevices,
   detections,
   error,
   frameTimings,
@@ -77,6 +82,8 @@ export function DetectionControls({
   modelStatus,
   status,
   onBackendChange,
+  onCameraDeviceChange,
+  onCameraFacingModeChange,
   onCameraMirrorChange,
   onMediaPipeDelegateChange,
   onMediaPipeModelChange,
@@ -118,6 +125,22 @@ export function DetectionControls({
     value: delegate.id,
     label: `${delegate.label} · ${delegate.description}`,
   }));
+  const cameraValue = preferences.cameraDeviceId
+    ? `device:${preferences.cameraDeviceId}`
+    : `facing:${preferences.cameraFacingMode}`;
+  const selectedDeviceIsAvailable =
+    preferences.cameraDeviceId === null || cameraDevices.some((device) => device.deviceId === preferences.cameraDeviceId);
+  const cameraOptions = [
+    { value: 'facing:user', label: 'Front camera' },
+    { value: 'facing:environment', label: 'Back camera' },
+    ...(selectedDeviceIsAvailable
+      ? []
+      : [{ value: cameraValue, label: 'Selected camera' }]),
+    ...cameraDevices.map((device) => ({
+      value: `device:${device.deviceId}`,
+      label: device.label,
+    })),
+  ];
 
   return (
     <>
@@ -131,6 +154,30 @@ export function DetectionControls({
       {error && <p className="error-message">{error}</p>}
 
       <div className="quick-settings">
+        <Select
+          aria-label="Camera"
+          className="model-control"
+          data={cameraOptions}
+          label={
+            <HelpLabel help="Choose the phone-facing camera or a specific camera once the browser has shared device names.">
+              Camera
+            </HelpLabel>
+          }
+          value={cameraValue}
+          onChange={(value) => {
+            if (!value) {
+              return;
+            }
+
+            if (value.startsWith('device:')) {
+              onCameraDeviceChange(value.slice('device:'.length));
+              return;
+            }
+
+            onCameraFacingModeChange(value === 'facing:environment' ? 'environment' : 'user');
+          }}
+        />
+
         <Switch
           checked={preferences.cameraMirrored}
           className="toggle-control"

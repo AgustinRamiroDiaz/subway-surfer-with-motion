@@ -43,6 +43,7 @@ test('renders the motion game shell', () => {
   expect(screen.getByLabelText(/camera feedback/i)).toBeInTheDocument();
   expect(within(screen.getByLabelText(/game controls/i)).getByRole('button', { name: /enable camera/i })).toBeEnabled();
   expect(within(screen.getByLabelText(/game controls/i)).getByRole('button', { name: /pause/i })).toBeDisabled();
+  expect(screen.getByDisplayValue('Front camera')).toBeInTheDocument();
   expect(screen.getByRole('switch', { name: /mirror camera/i })).toBeChecked();
   expect(screen.getByRole('slider', { name: /players/i })).toHaveAttribute('aria-valuenow', '2');
   expect(screen.getByRole('button', { name: /stop camera/i })).toBeDisabled();
@@ -65,6 +66,7 @@ test('remembers detector decisions across remounts', () => {
   chooseOption(/MediaPipe · Pose landmark tracking/i, /YOLO · Object and pose detection/i);
   chooseOption(/YOLO26n-pose · Nano pose/i, /YOLO26s-pose · Small pose/i);
   chooseOption(/WebGPU · GPU accelerated/i, /WASM · CPU fallback/i);
+  chooseOption(/Front camera/i, /Back camera/i);
   fireEvent.keyDown(screen.getByRole('slider', { name: /players/i }), { key: 'ArrowRight' });
   fireEvent.keyDown(screen.getByRole('slider', { name: /players/i }), { key: 'ArrowRight' });
   userEvent.click(screen.getByRole('switch', { name: /mirror camera/i }));
@@ -77,9 +79,11 @@ test('remembers detector decisions across remounts', () => {
   expect(screen.getByDisplayValue('YOLO26s-pose · Small pose')).toBeInTheDocument();
   expect(screen.getByDisplayValue('WASM · CPU fallback')).toBeInTheDocument();
   expect(screen.getByDisplayValue(/UINT8 · Fast WASM quantized/)).toBeInTheDocument();
+  expect(screen.getByDisplayValue('Back camera')).toBeInTheDocument();
   expect(screen.getByRole('slider', { name: /players/i })).toHaveAttribute('aria-valuenow', '4');
   expect(screen.getByRole('switch', { name: /mirror camera/i })).not.toBeChecked();
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"selectedBackendId":"yolo"');
+  expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"cameraFacingMode":"environment"');
 });
 
 test('shows Python WebRTC as a server-backed tracker option', () => {

@@ -24,7 +24,10 @@ import { DEFAULT_PLAYER_COUNT, normalizePlayerCount } from './poseOverlay';
 
 export const DEFAULT_THRESHOLD = 0.45;
 export const DEFAULT_CAMERA_MIRRORED = true;
+export const CAMERA_FACING_MODES = ['user', 'environment'] as const;
 export const APP_PREFERENCES_STORAGE_KEY = 'motion-runner:detection-preferences:v1';
+
+export type CameraFacingMode = (typeof CAMERA_FACING_MODES)[number];
 
 export type AppPreferences = {
   selectedBackendId: DetectorBackendId;
@@ -36,6 +39,8 @@ export type AppPreferences = {
   playerCount: number;
   threshold: number;
   cameraMirrored: boolean;
+  cameraFacingMode: CameraFacingMode;
+  cameraDeviceId: string | null;
 };
 
 type StoredAppPreferences = Partial<AppPreferences>;
@@ -50,6 +55,8 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   playerCount: DEFAULT_PLAYER_COUNT,
   threshold: DEFAULT_THRESHOLD,
   cameraMirrored: DEFAULT_CAMERA_MIRRORED,
+  cameraFacingMode: 'user',
+  cameraDeviceId: null,
 };
 
 function isOptionId<T extends string>(value: unknown, options: ReadonlyArray<{ id: T }>): value is T {
@@ -58,6 +65,10 @@ function isOptionId<T extends string>(value: unknown, options: ReadonlyArray<{ i
 
 function isQuantizationId(value: unknown): value is DetectorQuantizationId {
   return typeof value === 'string' && getQuantizationOption(value as DetectorQuantizationId).id === value;
+}
+
+function isCameraFacingMode(value: unknown): value is CameraFacingMode {
+  return typeof value === 'string' && CAMERA_FACING_MODES.some((mode) => mode === value);
 }
 
 export function readStoredAppPreferences(): AppPreferences {
@@ -107,6 +118,13 @@ export function readStoredAppPreferences(): AppPreferences {
           : defaults.threshold,
       cameraMirrored:
         typeof stored.cameraMirrored === 'boolean' ? stored.cameraMirrored : defaults.cameraMirrored,
+      cameraFacingMode: isCameraFacingMode(stored.cameraFacingMode)
+        ? stored.cameraFacingMode
+        : defaults.cameraFacingMode,
+      cameraDeviceId:
+        typeof stored.cameraDeviceId === 'string' && stored.cameraDeviceId.length > 0
+          ? stored.cameraDeviceId
+          : defaults.cameraDeviceId,
     };
   } catch {
     return defaults;
