@@ -70,10 +70,6 @@ export function CameraFeedbackPanel({
               style={{ left: getGuideLeft(guide.playerIndex), top: getGuideTop(guide.jumpY) }}
             />
             <div
-              className="camera-height-guide idle"
-              style={{ left: getGuideLeft(guide.playerIndex), top: getGuideTop(guide.idleY) }}
-            />
-            <div
               className="camera-height-guide duck"
               style={{ left: getGuideLeft(guide.playerIndex), top: getGuideTop(guide.duckY) }}
             />

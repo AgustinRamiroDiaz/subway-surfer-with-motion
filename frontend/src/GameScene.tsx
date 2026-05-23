@@ -55,7 +55,6 @@ export type GamePhase = 'ready' | 'running' | 'paused';
 export type JumpDuckGuide = {
   playerIndex: number;
   jumpY: number;
-  idleY: number;
   duckY: number;
 };
 
@@ -220,7 +219,6 @@ function calibrationToGuides(players: PlayerCalibration[]): JumpDuckGuide[] {
   return players.map((player, playerIndex) => ({
     playerIndex,
     jumpY: player.eyesY - player.eyeToShoulderDistance / 2,
-    idleY: player.eyesY,
     duckY: player.shouldersY,
   }));
 }
@@ -236,20 +234,16 @@ function getJumpDuckAction(
 
   const jumpTargetY = calibration.eyesY - calibration.eyeToShoulderDistance / 2;
   const duckTargetY = calibration.shouldersY;
-  const distanceToIdle = Math.abs(metrics.eyesY - calibration.eyesY);
-  const distanceToDuck = Math.abs(metrics.eyesY - duckTargetY);
-  const distanceToJump = Math.abs(metrics.eyesY - jumpTargetY);
-  const idleBand = calibration.eyeToShoulderDistance * 0.22;
 
-  if (distanceToIdle <= idleBand) {
-    return 'run';
-  }
-
-  if (distanceToJump < distanceToDuck) {
+  if (metrics.eyesY <= jumpTargetY) {
     return 'jump';
   }
 
-  return 'duck';
+  if (metrics.eyesY >= duckTargetY) {
+    return 'duck';
+  }
+
+  return 'run';
 }
 
 function distanceBetween(left: PoseKeypoint, right: PoseKeypoint): number {

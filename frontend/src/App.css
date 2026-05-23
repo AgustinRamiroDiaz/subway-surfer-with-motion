@@ -210,11 +210,6 @@
   box-shadow: 0 0 10px rgba(255, 209, 102, 0.78);
 }
 
-.camera-height-guide.idle {
-  background: #2fffb2;
-  box-shadow: 0 0 10px rgba(47, 255, 178, 0.78);
-}
-
 .camera-height-guide.duck {
   background: #ff5f7a;
   box-shadow: 0 0 10px rgba(255, 95, 122, 0.78);
@@ -223,11 +218,6 @@
 .camera-height-guide.jump::before,
 .camera-height-guide.jump::after {
   background: #ffd166;
-}
-
-.camera-height-guide.idle::before,
-.camera-height-guide.idle::after {
-  background: #2fffb2;
 }
 
 .camera-height-guide.duck::before,
