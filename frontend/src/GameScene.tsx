@@ -17,7 +17,7 @@ const SPAWN_INTERVAL_MS = 2000;
 const COLLISION_RADIUS_X = 0.92;
 const COLLISION_RADIUS_Z = 0.78;
 const JUMP_DUCK_SPAWN_INTERVAL_MS = 1700;
-const JUMP_DUCK_CALIBRATION_MS = 2600;
+const JUMP_DUCK_CALIBRATION_MS = 3000;
 const JUMP_DUCK_MIN_SAMPLES = 10;
 const PLAYER_COLORS = ['#2fffb2', '#66a3ff', '#ffd166', '#ff6a85'] as const;
 const PLAYER_EMISSIVE_COLORS = ['#0b5a3f', '#153766', '#6b3e00', '#5a0b1f'] as const;
@@ -32,6 +32,7 @@ type GameSceneProps = {
   startLabel: string;
   onPause: () => void;
   onStart: () => void;
+  onJumpDuckGuidesChange: (guides: JumpDuckGuide[]) => void;
 };
 
 type Obstacle = {
@@ -51,16 +52,25 @@ type GameStats = {
 
 export type GamePhase = 'ready' | 'running' | 'paused';
 
-type RunnerGameId = 'sideways' | 'jump-duck';
-
-type BodyMetrics = {
-  height: number;
-  centerY: number;
+export type JumpDuckGuide = {
+  playerIndex: number;
+  jumpY: number;
+  idleY: number;
+  duckY: number;
 };
 
-type PlayerCalibration = BodyMetrics;
+type RunnerGameId = 'sideways' | 'jump-duck';
 
-type CalibrationSample = BodyMetrics;
+type PoseVerticalMetrics = {
+  eyesY: number;
+  shouldersY: number;
+  eyeToShoulderDistance: number;
+  armsUp: boolean;
+};
+
+type PlayerCalibration = PoseVerticalMetrics;
+
+type CalibrationSample = PoseVerticalMetrics;
 
 type CalibrationRun = {
   startedAt: number | null;
@@ -142,19 +152,37 @@ function findKeypoint(detection: PersonDetection | null, label: string): PoseKey
   return keypoint;
 }
 
-function getBodyMetrics(detection: PersonDetection | null): BodyMetrics | null {
-  if (!detection) {
+function averageKeypointY(keypoints: Array<PoseKeypoint | null>): number | null {
+  const visibleKeypoints = keypoints.filter((keypoint): keypoint is PoseKeypoint => keypoint !== null);
+  if (!visibleKeypoints.length) {
     return null;
   }
 
-  const boxHeight = detection.box.ymax - detection.box.ymin;
-  if (!Number.isFinite(boxHeight) || boxHeight < 1) {
+  return visibleKeypoints.reduce((sum, keypoint) => sum + keypoint.y, 0) / visibleKeypoints.length;
+}
+
+function getPoseVerticalMetrics(detection: PersonDetection | null): PoseVerticalMetrics | null {
+  const leftEye = findKeypoint(detection, 'Left Eye');
+  const rightEye = findKeypoint(detection, 'Right Eye');
+  const nose = findKeypoint(detection, 'Nose');
+  const leftShoulder = findKeypoint(detection, 'Left Shoulder');
+  const rightShoulder = findKeypoint(detection, 'Right Shoulder');
+  const leftWrist = findKeypoint(detection, 'Left Wrist');
+  const rightWrist = findKeypoint(detection, 'Right Wrist');
+  const eyesY = averageKeypointY([leftEye, rightEye]) ?? nose?.y ?? null;
+  const shouldersY = averageKeypointY([leftShoulder, rightShoulder]);
+
+  if (eyesY === null || shouldersY === null) {
     return null;
   }
+
+  const eyeToShoulderDistance = Math.max(1, shouldersY - eyesY);
 
   return {
-    height: boxHeight,
-    centerY: (detection.box.ymin + detection.box.ymax) / 2,
+    eyesY,
+    shouldersY,
+    eyeToShoulderDistance,
+    armsUp: Boolean(leftWrist && rightWrist && leftWrist.y < eyesY && rightWrist.y < eyesY),
   };
 }
 
@@ -165,15 +193,18 @@ function averageMetrics(samples: CalibrationSample[]): PlayerCalibration | null 
 
   const total = samples.reduce(
     (sum, sample) => ({
-      height: sum.height + sample.height,
-      centerY: sum.centerY + sample.centerY,
+      eyesY: sum.eyesY + sample.eyesY,
+      shouldersY: sum.shouldersY + sample.shouldersY,
+      eyeToShoulderDistance: sum.eyeToShoulderDistance + sample.eyeToShoulderDistance,
     }),
-    { height: 0, centerY: 0 }
+    { eyesY: 0, shouldersY: 0, eyeToShoulderDistance: 0 }
   );
 
   return {
-    height: total.height / samples.length,
-    centerY: total.centerY / samples.length,
+    eyesY: total.eyesY / samples.length,
+    shouldersY: total.shouldersY / samples.length,
+    eyeToShoulderDistance: total.eyeToShoulderDistance / samples.length,
+    armsUp: true,
   };
 }
 
@@ -185,27 +216,40 @@ function createCalibrationRun(playerCount: number): CalibrationRun {
   };
 }
 
+function calibrationToGuides(players: PlayerCalibration[]): JumpDuckGuide[] {
+  return players.map((player, playerIndex) => ({
+    playerIndex,
+    jumpY: player.eyesY - player.eyeToShoulderDistance / 2,
+    idleY: player.eyesY,
+    duckY: player.shouldersY,
+  }));
+}
+
 function getJumpDuckAction(
   detection: PersonDetection | null,
   calibration: PlayerCalibration | undefined
 ): 'run' | 'jump' | 'duck' {
-  const metrics = getBodyMetrics(detection);
-  if (!metrics || !calibration || calibration.height <= 0) {
+  const metrics = getPoseVerticalMetrics(detection);
+  if (!metrics || !calibration || calibration.eyeToShoulderDistance <= 0) {
     return 'run';
   }
 
-  const heightRatio = metrics.height / calibration.height;
-  const liftRatio = (calibration.centerY - metrics.centerY) / calibration.height;
+  const jumpTargetY = calibration.eyesY - calibration.eyeToShoulderDistance / 2;
+  const duckTargetY = calibration.shouldersY;
+  const distanceToIdle = Math.abs(metrics.eyesY - calibration.eyesY);
+  const distanceToDuck = Math.abs(metrics.eyesY - duckTargetY);
+  const distanceToJump = Math.abs(metrics.eyesY - jumpTargetY);
+  const idleBand = calibration.eyeToShoulderDistance * 0.22;
 
-  if (heightRatio < 0.78) {
-    return 'duck';
+  if (distanceToIdle <= idleBand) {
+    return 'run';
   }
 
-  if (liftRatio > 0.08) {
+  if (distanceToJump < distanceToDuck) {
     return 'jump';
   }
 
-  return 'run';
+  return 'duck';
 }
 
 function distanceBetween(left: PoseKeypoint, right: PoseKeypoint): number {
@@ -693,6 +737,7 @@ export function GameScene({
   startLabel,
   onPause,
   onStart,
+  onJumpDuckGuidesChange,
 }: GameSceneProps): ReactElement {
   const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -724,7 +769,10 @@ export function GameScene({
 
   useEffect(() => {
     selectedGameIdRef.current = selectedGameId;
-  }, [selectedGameId]);
+    if (selectedGameId !== 'jump-duck') {
+      onJumpDuckGuidesChange([]);
+    }
+  }, [onJumpDuckGuidesChange, selectedGameId]);
 
   useEffect(() => {
     playerDetectionsRef.current = playerDetections;
@@ -741,7 +789,8 @@ export function GameScene({
     jumpDuckActionsRef.current = Array.from({ length: playerCount }, () => 'run');
     lastCalibrationProgressRef.current = -1;
     setCalibrationState({ calibrated: selectedGameId === 'sideways', progress: selectedGameId === 'sideways' ? 1 : 0 });
-  }, [playerCount, selectedGameId]);
+    onJumpDuckGuidesChange([]);
+  }, [onJumpDuckGuidesChange, playerCount, selectedGameId]);
 
   useEffect(() => {
     gamePhaseRef.current = phase;
@@ -858,8 +907,8 @@ export function GameScene({
         }
 
         playerDetectionsRef.current.forEach((detection, index) => {
-          const metrics = getBodyMetrics(detection);
-          if (metrics) {
+          const metrics = getPoseVerticalMetrics(detection);
+          if (metrics?.armsUp) {
             calibration.samples[index]?.push(metrics);
           }
         });
@@ -881,6 +930,7 @@ export function GameScene({
           if (players.every((player): player is PlayerCalibration => player !== null)) {
             calibration.players = players;
             setCalibrationState({ calibrated: true, progress: 1 });
+            onJumpDuckGuidesChange(calibrationToGuides(players));
             lastSpawnAt = now;
           }
         }

@@ -1,9 +1,11 @@
 import type { ReactElement, RefObject } from 'react';
+import type { JumpDuckGuide } from './GameScene';
 import { useI18n } from './i18n';
 
 type CameraFeedbackPanelProps = {
   cameraEnabled: boolean;
   cameraMirrored: boolean;
+  jumpDuckGuides: JumpDuckGuide[];
   playerPositions: number[];
   selectedTrackerLabel: string;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -15,6 +17,7 @@ type CameraFeedbackPanelProps = {
 export function CameraFeedbackPanel({
   cameraEnabled,
   cameraMirrored,
+  jumpDuckGuides,
   playerPositions,
   selectedTrackerLabel,
   videoRef,
@@ -23,6 +26,20 @@ export function CameraFeedbackPanel({
   onLoadedMetadata,
 }: CameraFeedbackPanelProps): ReactElement {
   const { t } = useI18n();
+  const videoHeight = videoRef.current?.videoHeight ?? 0;
+
+  const getGuideTop = (y: number): string => {
+    if (!videoHeight) {
+      return '0%';
+    }
+
+    return `${Math.max(0, Math.min(1, y / videoHeight)) * 100}%`;
+  };
+
+  const getGuideLeft = (playerIndex: number): string => {
+    const playerPosition = playerPositions[playerIndex] ?? 0.5;
+    return `${Math.max(0, Math.min(1, playerPosition)) * 100}%`;
+  };
 
   return (
     <section className="video-stage sidebar-camera" aria-label={t('camera.feedback')}>
@@ -45,6 +62,22 @@ export function CameraFeedbackPanel({
             key={`player-marker-${index + 1}`}
             style={{ left: `${playerPosition * 100}%` }}
           />
+        ))}
+        {jumpDuckGuides.map((guide) => (
+          <div className={`camera-height-guides player-${guide.playerIndex + 1}`} key={`height-guide-${guide.playerIndex}`}>
+            <div
+              className="camera-height-guide jump"
+              style={{ left: getGuideLeft(guide.playerIndex), top: getGuideTop(guide.jumpY) }}
+            />
+            <div
+              className="camera-height-guide idle"
+              style={{ left: getGuideLeft(guide.playerIndex), top: getGuideTop(guide.idleY) }}
+            />
+            <div
+              className="camera-height-guide duck"
+              style={{ left: getGuideLeft(guide.playerIndex), top: getGuideTop(guide.duckY) }}
+            />
+          </div>
         ))}
       </div>
       <canvas

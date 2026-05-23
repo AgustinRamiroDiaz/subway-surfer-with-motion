@@ -177,6 +177,64 @@
   box-shadow: 0 0 14px rgba(255, 106, 133, 0.72);
 }
 
+.camera-height-guide {
+  position: absolute;
+  width: min(34%, 150px);
+  height: 2px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  opacity: 0.92;
+}
+
+.camera-height-guide::before,
+.camera-height-guide::after {
+  position: absolute;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  content: "";
+  transform: translateY(-50%);
+}
+
+.camera-height-guide::before {
+  left: 0;
+}
+
+.camera-height-guide::after {
+  right: 0;
+}
+
+.camera-height-guide.jump {
+  background: #ffd166;
+  box-shadow: 0 0 10px rgba(255, 209, 102, 0.78);
+}
+
+.camera-height-guide.idle {
+  background: #2fffb2;
+  box-shadow: 0 0 10px rgba(47, 255, 178, 0.78);
+}
+
+.camera-height-guide.duck {
+  background: #ff5f7a;
+  box-shadow: 0 0 10px rgba(255, 95, 122, 0.78);
+}
+
+.camera-height-guide.jump::before,
+.camera-height-guide.jump::after {
+  background: #ffd166;
+}
+
+.camera-height-guide.idle::before,
+.camera-height-guide.idle::after {
+  background: #2fffb2;
+}
+
+.camera-height-guide.duck::before,
+.camera-height-guide.duck::after {
+  background: #ff5f7a;
+}
+
 .game-scene {
   position: absolute;
   inset: 0;

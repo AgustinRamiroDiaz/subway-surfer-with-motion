@@ -18,7 +18,7 @@ import {
 } from './appPreferences';
 import { CameraFeedbackPanel } from './CameraFeedbackPanel';
 import { DetectionControls } from './DetectionControls';
-import { GameScene, type GamePhase } from './GameScene';
+import { GameScene, type GamePhase, type JumpDuckGuide } from './GameScene';
 import { useI18n } from './i18n';
 import { TrackingInternalsDocs } from './TrackingInternalsDocs';
 import { useCameraController } from './useCameraController';
@@ -41,6 +41,7 @@ function MotionRunnerApp(): ReactElement {
   const { t } = useI18n();
   const [preferences, setPreferences] = useState<AppPreferences>(readStoredAppPreferences);
   const [gamePhase, setGamePhase] = useState<GamePhase>('ready');
+  const [jumpDuckGuides, setJumpDuckGuides] = useState<JumpDuckGuide[]>([]);
   const camera = useCameraController({
     preferences,
     setPreferences,
@@ -180,6 +181,10 @@ function MotionRunnerApp(): ReactElement {
     setGamePhase('paused');
   }, [detector]);
 
+  const handleJumpDuckGuidesChange = useCallback((guides: JumpDuckGuide[]) => {
+    setJumpDuckGuides(guides);
+  }, []);
+
   const startLabel = camera.cameraEnabled ? t('app.startRun') : t('app.enableCamera');
 
   return (
@@ -192,6 +197,7 @@ function MotionRunnerApp(): ReactElement {
             playerDetections={detector.playerDetections}
             playerPositions={detector.playerPositions}
             startLabel={detector.isLoading ? t('app.loadingModel') : startLabel}
+            onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
             onPause={handlePauseRun}
             onStart={handleStartRun}
           />
@@ -202,6 +208,7 @@ function MotionRunnerApp(): ReactElement {
             cameraEnabled={camera.cameraEnabled}
             cameraMirrored={preferences.cameraMirrored}
             frameRef={camera.frameRef}
+            jumpDuckGuides={jumpDuckGuides}
             overlayRef={camera.overlayRef}
             playerPositions={detector.playerPositions}
             selectedTrackerLabel={selectedTrackerLabel}
