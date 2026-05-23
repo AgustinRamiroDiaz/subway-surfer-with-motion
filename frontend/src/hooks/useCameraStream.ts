@@ -211,8 +211,8 @@ export function useCameraStream(): CameraStreamControls {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
         ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode }),
-        width: { ideal: 640, max: 640 },
-        height: { ideal: 480, max: 480 },
+        width: { ideal: 4096 },
+        height: { ideal: 2160 },
       },
       audio: false,
     });
