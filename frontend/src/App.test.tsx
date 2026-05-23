@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { afterEach, beforeEach, expect, test, vi, type MockInstance } from 'vitest';
 import App from './App';
+import { GAME_SELECTION_STORAGE_KEY } from './GameScene';
 import { I18nProvider } from './i18n';
 
 vi.mock('./detectorClient', () => ({
@@ -98,6 +99,30 @@ test('remembers detector decisions across remounts', () => {
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"selectedBackendId":"yolo"');
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"cameraFacingMode":"environment"');
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"devCameraMultiplierEnabled":true');
+});
+
+test('remembers the selected level across remounts', () => {
+  const { unmount } = renderApp();
+
+  fireEvent.click(screen.getByRole('button', { name: /saltar y agacharse/i }));
+
+  expect(screen.getByRole('heading', { name: /saltos y agaches/i })).toBeInTheDocument();
+  expect(window.localStorage.getItem(GAME_SELECTION_STORAGE_KEY)).toBe('jump-duck');
+
+  unmount();
+  renderApp();
+
+  expect(screen.getByRole('heading', { name: /saltos y agaches/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /saltar y agacharse/i })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('ignores invalid stored levels', () => {
+  window.localStorage.setItem(GAME_SELECTION_STORAGE_KEY, 'training-room');
+
+  renderApp();
+
+  expect(screen.getByRole('heading', { name: /carrera lateral/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /carrera lateral/i })).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('shows Python WebRTC as a server-backed tracker option', () => {

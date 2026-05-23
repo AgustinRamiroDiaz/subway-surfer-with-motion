@@ -23,6 +23,7 @@ const PLAYER_COLORS = ['#2fffb2', '#66a3ff', '#ffd166', '#ff6a85'] as const;
 const PLAYER_EMISSIVE_COLORS = ['#0b5a3f', '#153766', '#6b3e00', '#5a0b1f'] as const;
 const PLAYER_MODEL_PATH = '/models/RobotExpressive.glb';
 const KEYPOINT_CONFIDENCE = 0.2;
+export const GAME_SELECTION_STORAGE_KEY = 'motion-runner:selected-game:v1';
 
 type GameSceneProps = {
   canStart: boolean;
@@ -90,6 +91,31 @@ type CalibrationState = {
   calibrated: boolean;
   progress: number;
 };
+
+function isRunnerGameId(value: unknown): value is RunnerGameId {
+  return value === 'sideways' || value === 'jump-duck';
+}
+
+function readStoredRunnerGameId(): RunnerGameId {
+  if (typeof window === 'undefined') {
+    return 'sideways';
+  }
+
+  try {
+    const storedGameId = window.localStorage.getItem(GAME_SELECTION_STORAGE_KEY);
+    return isRunnerGameId(storedGameId) ? storedGameId : 'sideways';
+  } catch {
+    return 'sideways';
+  }
+}
+
+function writeStoredRunnerGameId(gameId: RunnerGameId): void {
+  try {
+    window.localStorage.setItem(GAME_SELECTION_STORAGE_KEY, gameId);
+  } catch {
+    // Level selection is a convenience and should never block gameplay.
+  }
+}
 
 type PlayerRigBoneName =
   | 'Hips'
@@ -826,8 +852,8 @@ export function GameScene({
   const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement | null>(null);
   const playerCount = playerPositions.length;
-  const [selectedGameId, setSelectedGameId] = useState<RunnerGameId>('sideways');
-  const selectedGameIdRef = useRef<RunnerGameId>('sideways');
+  const [selectedGameId, setSelectedGameId] = useState<RunnerGameId>(readStoredRunnerGameId);
+  const selectedGameIdRef = useRef<RunnerGameId>(selectedGameId);
   const playerPositionsRef = useRef(playerPositions);
   const playerDetectionsRef = useRef(playerDetections);
   const gamePhaseRef = useRef<GamePhase>(phase);
@@ -890,6 +916,7 @@ export function GameScene({
     }
 
     setSelectedGameId(gameId);
+    writeStoredRunnerGameId(gameId);
   };
 
   const isJumpDuckGame = selectedGameId === 'jump-duck';
