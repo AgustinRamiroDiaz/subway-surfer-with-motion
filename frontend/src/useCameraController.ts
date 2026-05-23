@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { AppPreferences } from './appPreferences';
+import { useI18n } from './i18n';
 import { useCameraStream } from './useCameraStream';
 
 export type CameraControlOption = {
@@ -34,6 +35,7 @@ export function useCameraController({
   setPreferences,
   onCameraRestart,
 }: CameraControllerOptions): CameraController {
+  const { t } = useI18n();
   const stream = useCameraStream();
   const [error, setError] = useState<string | null>(null);
   const selectedCameraValue = getCameraValue(preferences);
@@ -44,17 +46,17 @@ export function useCameraController({
       stream.cameraDevices.some((device) => device.deviceId === preferences.cameraDeviceId);
 
     return [
-      { value: 'facing:user', label: 'Front camera' },
-      { value: 'facing:environment', label: 'Back camera' },
+      { value: 'facing:user', label: t('camera.front') },
+      { value: 'facing:environment', label: t('camera.back') },
       ...(selectedDeviceIsAvailable
         ? []
-        : [{ value: selectedCameraValue, label: 'Selected camera' }]),
+        : [{ value: selectedCameraValue, label: t('camera.selected') }]),
       ...stream.cameraDevices.map((device) => ({
         value: `device:${device.deviceId}`,
         label: device.label,
       })),
     ];
-  }, [preferences.cameraDeviceId, selectedCameraValue, stream.cameraDevices]);
+  }, [preferences.cameraDeviceId, selectedCameraValue, stream.cameraDevices, t]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -84,9 +86,9 @@ export function useCameraController({
       });
     } catch (cause: unknown) {
       stream.stopCamera();
-      setError(cause instanceof Error ? cause.message : 'Unable to switch camera');
+      setError(cause instanceof Error ? cause.message : t('camera.switchError'));
     }
-  }, [onCameraRestart, stream]);
+  }, [onCameraRestart, stream, t]);
 
   const changeCamera = useCallback((value: string | null) => {
     if (!value) {

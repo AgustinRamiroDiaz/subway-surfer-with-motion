@@ -1,4 +1,5 @@
 import type { ReactElement, RefObject } from 'react';
+import { useI18n } from './i18n';
 
 type CameraFeedbackPanelProps = {
   cameraEnabled: boolean;
@@ -21,10 +22,12 @@ export function CameraFeedbackPanel({
   frameRef,
   onLoadedMetadata,
 }: CameraFeedbackPanelProps): ReactElement {
+  const { t } = useI18n();
+
   return (
-    <section className="video-stage sidebar-camera" aria-label="Camera feedback">
+    <section className="video-stage sidebar-camera" aria-label={t('camera.feedback')}>
       <div className="sidebar-camera-label">
-        <p className="eyebrow">Camera</p>
+        <p className="eyebrow">{t('camera.title')}</p>
         <strong>{selectedTrackerLabel}</strong>
       </div>
       <video
@@ -53,7 +56,7 @@ export function CameraFeedbackPanel({
 
       {!cameraEnabled && (
         <div className="camera-empty-state">
-          <p>Camera off</p>
+          <p>{t('camera.off')}</p>
         </div>
       )}
     </section>

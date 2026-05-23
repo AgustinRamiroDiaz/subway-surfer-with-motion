@@ -19,6 +19,7 @@ import {
 import { CameraFeedbackPanel } from './CameraFeedbackPanel';
 import { DetectionControls } from './DetectionControls';
 import { GameScene, type GamePhase } from './GameScene';
+import { useI18n } from './i18n';
 import { TrackingInternalsDocs } from './TrackingInternalsDocs';
 import { useCameraController } from './useCameraController';
 import { useMotionDetector } from './useMotionDetector';
@@ -37,6 +38,7 @@ function App(): ReactElement {
 }
 
 function MotionRunnerApp(): ReactElement {
+  const { t } = useI18n();
   const [preferences, setPreferences] = useState<AppPreferences>(readStoredAppPreferences);
   const [gamePhase, setGamePhase] = useState<GamePhase>('ready');
   const camera = useCameraController({
@@ -178,24 +180,24 @@ function MotionRunnerApp(): ReactElement {
     setGamePhase('paused');
   }, [detector]);
 
-  const startLabel = camera.cameraEnabled ? 'Start run' : 'Enable camera';
+  const startLabel = camera.cameraEnabled ? t('app.startRun') : t('app.enableCamera');
 
   return (
     <main className="app-shell">
-      <section className="workspace" aria-label="Motion game workspace">
-        <section className="game-stage" aria-label="Main game">
+      <section className="workspace" aria-label={t('app.workspace')}>
+        <section className="game-stage" aria-label={t('app.mainGame')}>
           <GameScene
             canStart={!detector.isLoading}
             phase={gamePhase}
             playerDetections={detector.playerDetections}
             playerPositions={detector.playerPositions}
-            startLabel={detector.isLoading ? 'Loading model' : startLabel}
+            startLabel={detector.isLoading ? t('app.loadingModel') : startLabel}
             onPause={handlePauseRun}
             onStart={handleStartRun}
           />
         </section>
 
-        <aside className="control-panel" aria-label="Detection controls">
+        <aside className="control-panel" aria-label={t('app.detectionControls')}>
           <CameraFeedbackPanel
             cameraEnabled={camera.cameraEnabled}
             cameraMirrored={preferences.cameraMirrored}

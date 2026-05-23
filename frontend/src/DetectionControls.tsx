@@ -19,6 +19,7 @@ import {
 import type { AppPreferences } from './appPreferences';
 import type { CameraControlOption } from './useCameraController';
 import { formatMs, formatPercent } from './formatters';
+import { LANGUAGES, type LanguageId, type TranslationKey, useI18n } from './i18n';
 import { MAX_PLAYERS, MIN_PLAYERS } from './poseOverlay';
 import type { FrameTimings } from './useMotionDetector';
 
@@ -54,12 +55,14 @@ type DetectionControlsProps = {
 };
 
 function HelpLabel({ children, help }: HelpLabelProps): ReactElement {
+  const { t } = useI18n();
+
   return (
     <span className="control-label">
       <span>{children}</span>
       <Tooltip label={help} multiline withArrow position="top" className="control-tooltip">
         <ActionIcon
-          aria-label={`About ${children}`}
+          aria-label={t('controls.about', { label: children })}
           className="tooltip-trigger"
           radius="xl"
           size="xs"
@@ -70,6 +73,19 @@ function HelpLabel({ children, help }: HelpLabelProps): ReactElement {
       </Tooltip>
     </span>
   );
+}
+
+function getYoloModelDescriptionKey(model: (typeof YOLO_MODELS)[number]): TranslationKey {
+  if (model.label === 'YOLO26n') {
+    return 'model.yolo26n.description';
+  }
+  if (model.label === 'YOLO26s') {
+    return 'model.yolo26s.description';
+  }
+  if (model.label === 'YOLO26n-pose') {
+    return 'model.yolo26n-pose.description';
+  }
+  return 'model.yolo26s-pose.description';
 }
 
 export function DetectionControls({
@@ -97,57 +113,73 @@ export function DetectionControls({
   onThresholdChange,
   stopDisabled,
 }: DetectionControlsProps): ReactElement {
+  const { language, setLanguage, t, tn } = useI18n();
   const availableQuantizations = getAvailableQuantizations(preferences.selectedModelId);
   const isYolo = preferences.selectedBackendId === 'yolo';
   const isPythonWebRtc = preferences.selectedBackendId === 'python-webrtc';
+  const languageOptions = LANGUAGES.map((item) => ({
+    value: item.id,
+    label: item.label,
+  }));
   const backendOptions = DETECTOR_BACKENDS.map((backend) => ({
     value: backend.id,
-    label: `${backend.label} · ${backend.description}`,
+    label: `${backend.label} · ${t(`backend.${backend.id}.description` as TranslationKey)}`,
   }));
   const yoloModelOptions = YOLO_MODELS.map((model) => ({
     value: model.id,
-    label: `${model.label} · ${model.description}`,
+    label: `${model.label} · ${t(getYoloModelDescriptionKey(model))}`,
   }));
   const runtimeOptions = DETECTOR_RUNTIMES.map((runtime) => ({
     value: runtime.id,
-    label: `${runtime.label} · ${runtime.description}`,
+    label: `${runtime.label} · ${t(`runtime.${runtime.id}.description` as TranslationKey)}`,
   }));
   const quantizationOptions = availableQuantizations.map((quantization) => {
     const option = getQuantizationOption(quantization.dtype);
     return {
       value: quantization.dtype,
-      label: `${option.label} · ${option.description} · ${quantization.sizeMb} MB`,
+      label: `${option.label} · ${t(`quantization.${option.id}.description` as TranslationKey)} · ${quantization.sizeMb} MB`,
     };
   });
   const mediaPipeModelOptions = MEDIAPIPE_MODELS.map((model) => ({
     value: model.id,
-    label: `${model.label} · ${model.description}`,
+    label: `${model.label} · ${t(`mediapipe.${model.id}.description` as TranslationKey)}`,
   }));
   const mediaPipeDelegateOptions = MEDIAPIPE_DELEGATES.map((delegate) => ({
     value: delegate.id,
-    label: `${delegate.label} · ${delegate.description}`,
+    label: `${delegate.label} · ${t(`delegate.${delegate.id.toLowerCase()}.description` as TranslationKey)}`,
   }));
 
   return (
     <>
       <div className="status-panel">
-        <p className="eyebrow">Run state</p>
+        <p className="eyebrow">{t('status.runState')}</p>
         <h2>{status}</h2>
         <p className="model-status">{modelStatus}</p>
-        {lastInferenceMs !== null && <p className="latency">{lastInferenceMs} ms inference</p>}
+        {lastInferenceMs !== null && <p className="latency">{t('status.inferenceMs', { ms: lastInferenceMs })}</p>}
       </div>
 
       {error && <p className="error-message">{error}</p>}
 
       <div className="quick-settings">
         <Select
-          aria-label="Camera"
+          aria-label={t('language.label')}
+          className="model-control"
+          data={languageOptions}
+          label={<HelpLabel help={t('language.help')}>{t('language.label')}</HelpLabel>}
+          value={language}
+          onChange={(value) => {
+            if (value) {
+              setLanguage(value as LanguageId);
+            }
+          }}
+        />
+
+        <Select
+          aria-label={t('controls.camera')}
           className="model-control"
           data={cameraOptions}
           label={
-            <HelpLabel help="Choose the phone-facing camera or a specific camera once the browser has shared device names.">
-              Camera
-            </HelpLabel>
+            <HelpLabel help={t('controls.cameraHelp')}>{t('controls.camera')}</HelpLabel>
           }
           value={selectedCameraValue}
           onChange={onCameraChange}
@@ -157,9 +189,7 @@ export function DetectionControls({
           checked={preferences.cameraMirrored}
           className="toggle-control"
           label={
-            <HelpLabel help="Matches the preview to your mirror image. Player assignment still uses corrected left/right positions.">
-              Mirror camera
-            </HelpLabel>
+            <HelpLabel help={t('controls.mirrorCameraHelp')}>{t('controls.mirrorCamera')}</HelpLabel>
           }
           onChange={(event) => onCameraMirrorChange(event.currentTarget.checked)}
         />
@@ -168,20 +198,16 @@ export function DetectionControls({
           checked={preferences.devCameraMultiplierEnabled}
           className="toggle-control"
           label={
-            <HelpLabel help="Developer test mode that duplicates the camera frame side by side before the detector receives it. Restart is automatic while the camera is active.">
-              Camera multiplier
-            </HelpLabel>
+            <HelpLabel help={t('controls.cameraMultiplierHelp')}>{t('controls.cameraMultiplier')}</HelpLabel>
           }
           onChange={(event) => onDevCameraMultiplierChange(event.currentTarget.checked)}
         />
 
         <div className="player-count-control">
-          <HelpLabel help="Sets how many people the overlay should assign to lanes. The detector may see more people, but gameplay only follows this count.">
-            Players
-          </HelpLabel>
+          <HelpLabel help={t('controls.playersHelp')}>{t('controls.players')}</HelpLabel>
           <strong>{preferences.playerCount}</strong>
           <Slider
-            thumbLabel="Players"
+            thumbLabel={t('controls.players')}
             min={MIN_PLAYERS}
             max={MAX_PLAYERS}
             step={1}
@@ -191,12 +217,10 @@ export function DetectionControls({
         </div>
 
         <div className="threshold-control">
-          <HelpLabel help="Filters uncertain detections. Raise it to reduce jitter and false positives; lower it when bodies are partially visible.">
-            Confidence
-          </HelpLabel>
+          <HelpLabel help={t('controls.confidenceHelp')}>{t('controls.confidence')}</HelpLabel>
           <strong>{formatPercent(preferences.threshold)}</strong>
           <Slider
-            thumbLabel="Confidence"
+            thumbLabel={t('controls.confidence')}
             min={0.1}
             max={0.9}
             step={0.05}
@@ -209,17 +233,15 @@ export function DetectionControls({
 
       <Accordion className="settings-accordion" multiple variant="unstyled">
         <Accordion.Item className="advanced-panel" value="advanced-tracking">
-          <Accordion.Control className="advanced-panel-summary">Advanced tracking</Accordion.Control>
+          <Accordion.Control className="advanced-panel-summary">{t('controls.advancedTracking')}</Accordion.Control>
           <Accordion.Panel className="advanced-panel-content">
             <Select
-              aria-label="Tracker"
+              aria-label={t('controls.tracker')}
               className="model-control"
               data={backendOptions}
               disabled={isLoading}
               label={
-                <HelpLabel help="Choose where pose detection runs: in-browser MediaPipe, in-browser YOLO, or the local Python WebRTC tracker.">
-                  Tracker
-                </HelpLabel>
+                <HelpLabel help={t('controls.trackerHelp')}>{t('controls.tracker')}</HelpLabel>
               }
               value={preferences.selectedBackendId}
               onChange={(value) => {
@@ -231,22 +253,18 @@ export function DetectionControls({
 
             {isPythonWebRtc ? (
               <div className="connection-note">
-                <HelpLabel help="WebSocket is used only to exchange the WebRTC offer, answer, and ICE candidates. Camera frames and detections move over WebRTC.">
-                  Signaling URL
-                </HelpLabel>
+                <HelpLabel help={t('controls.signalingUrlHelp')}>{t('controls.signalingUrl')}</HelpLabel>
                 <code>{import.meta.env.VITE_POSE_TRACKER_SIGNALING_URL ?? 'ws://127.0.0.1:8765'}</code>
               </div>
             ) : isYolo ? (
               <>
                 <Select
-                  aria-label="Model"
+                  aria-label={t('controls.model')}
                   className="model-control"
                   data={yoloModelOptions}
                   disabled={isLoading}
                   label={
-                    <HelpLabel help="Pose models return body keypoints; detection models return person boxes. Smaller models react faster, larger ones can be steadier.">
-                      Model
-                    </HelpLabel>
+                    <HelpLabel help={t('controls.yoloModelHelp')}>{t('controls.model')}</HelpLabel>
                   }
                   value={preferences.selectedModelId}
                   onChange={(value) => {
@@ -257,14 +275,12 @@ export function DetectionControls({
                 />
 
                 <Select
-                  aria-label="Runtime"
+                  aria-label={t('controls.runtime')}
                   className="model-control"
                   data={runtimeOptions}
                   disabled={isLoading}
                   label={
-                    <HelpLabel help="WebGPU uses the browser GPU path when available. WASM keeps everything on CPU and is useful for compatibility checks.">
-                      Runtime
-                    </HelpLabel>
+                    <HelpLabel help={t('controls.runtimeHelp')}>{t('controls.runtime')}</HelpLabel>
                   }
                   value={preferences.selectedRuntimeId}
                   onChange={(value) => {
@@ -275,14 +291,12 @@ export function DetectionControls({
                 />
 
                 <Select
-                  aria-label="Quantization"
+                  aria-label={t('controls.quantization')}
                   className="model-control"
                   data={quantizationOptions}
                   disabled={isLoading}
                   label={
-                    <HelpLabel help="Controls model weight precision. Lower-bit files download faster and use less memory; FP16 usually preserves more detail on WebGPU.">
-                      Quantization
-                    </HelpLabel>
+                    <HelpLabel help={t('controls.quantizationHelp')}>{t('controls.quantization')}</HelpLabel>
                   }
                   value={preferences.selectedQuantizationId}
                   onChange={(value) => {
@@ -295,14 +309,12 @@ export function DetectionControls({
             ) : (
               <>
                 <Select
-                  aria-label="Model"
+                  aria-label={t('controls.model')}
                   className="model-control"
                   data={mediaPipeModelOptions}
                   disabled={isLoading}
                   label={
-                    <HelpLabel help="Lite is quickest, Full is balanced, and Heavy favors accuracy when your machine has enough headroom.">
-                      Model
-                    </HelpLabel>
+                    <HelpLabel help={t('controls.mediaPipeModelHelp')}>{t('controls.model')}</HelpLabel>
                   }
                   value={preferences.selectedMediaPipeModelId}
                   onChange={(value) => {
@@ -313,14 +325,12 @@ export function DetectionControls({
                 />
 
                 <Select
-                  aria-label="Delegate"
+                  aria-label={t('controls.delegate')}
                   className="model-control"
                   data={mediaPipeDelegateOptions}
                   disabled={isLoading}
                   label={
-                    <HelpLabel help="GPU is the preferred fast path. CPU is the fallback when the GPU delegate is unavailable or unstable.">
-                      Delegate
-                    </HelpLabel>
+                    <HelpLabel help={t('controls.delegateHelp')}>{t('controls.delegate')}</HelpLabel>
                   }
                   value={preferences.selectedMediaPipeDelegateId}
                   onChange={(value) => {
@@ -338,8 +348,8 @@ export function DetectionControls({
 
       <div className="docs-entry">
         <div>
-          <p className="eyebrow">Documentation</p>
-          <p>Open the tracking internals view for the full client-side ownership and WebRTC data-flow notes.</p>
+          <p className="eyebrow">{t('docs.eyebrow')}</p>
+          <p>{t('docs.entryText')}</p>
         </div>
         <Button
           className="secondary-action"
@@ -349,42 +359,42 @@ export function DetectionControls({
           target="_blank"
           variant="default"
         >
-          Tracking docs
+          {t('docs.link')}
         </Button>
       </div>
 
       {frameTimings && (
         <Accordion className="settings-accordion timing-panel" variant="unstyled">
           <Accordion.Item className="advanced-panel" value="frame-timing">
-            <Accordion.Control className="advanced-panel-summary">Frame timing</Accordion.Control>
+            <Accordion.Control className="advanced-panel-summary">{t('timing.title')}</Accordion.Control>
             <Accordion.Panel className="advanced-panel-content">
-              <dl aria-label="Frame timing breakdown">
+              <dl aria-label={t('timing.breakdown')}>
                 <div>
-                  <dt>Capture</dt>
+                  <dt>{t('timing.capture')}</dt>
                   <dd>{formatMs(frameTimings.captureMs)}</dd>
                 </div>
                 <div>
-                  <dt>Raw image</dt>
+                  <dt>{t('timing.rawImage')}</dt>
                   <dd>{formatMs(frameTimings.rawImageMs)}</dd>
                 </div>
                 <div>
-                  <dt>Preprocess</dt>
+                  <dt>{t('timing.preprocess')}</dt>
                   <dd>{formatMs(frameTimings.preprocessMs)}</dd>
                 </div>
                 <div>
-                  <dt>Model</dt>
+                  <dt>{t('timing.model')}</dt>
                   <dd>{formatMs(frameTimings.modelMs)}</dd>
                 </div>
                 <div>
-                  <dt>Postprocess</dt>
+                  <dt>{t('timing.postprocess')}</dt>
                   <dd>{formatMs(frameTimings.postprocessMs)}</dd>
                 </div>
                 <div>
-                  <dt>Draw</dt>
+                  <dt>{t('timing.draw')}</dt>
                   <dd>{formatMs(frameTimings.drawMs)}</dd>
                 </div>
                 <div>
-                  <dt>Total</dt>
+                  <dt>{t('timing.total')}</dt>
                   <dd>{formatMs(frameTimings.loopMs)}</dd>
                 </div>
               </dl>
@@ -394,25 +404,27 @@ export function DetectionControls({
       )}
 
       <div className="detection-list" aria-live="polite">
-        <p className="eyebrow">People</p>
+        <p className="eyebrow">{t('people.title')}</p>
         {detections.length > 0 ? (
           <ul>
             {detections.slice(0, 8).map((detection, index) => (
               <li key={`${detection.label}-${index}-${Math.round(detection.score * 1000)}`}>
-                <span>Person {index + 1}</span>
+                <span>{t('people.person', { index: index + 1 })}</span>
                 <strong>
-                  {detection.keypoints?.length ? `${detection.keypoints.length} points` : formatPercent(detection.score)}
+                  {detection.keypoints?.length
+                    ? tn('people.points', detection.keypoints.length)
+                    : formatPercent(detection.score)}
                 </strong>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="muted">No people above threshold.</p>
+          <p className="muted">{t('people.empty')}</p>
         )}
       </div>
 
       <Button className="control-action" type="button" onClick={onStopCamera} disabled={stopDisabled} variant="default">
-        Stop camera
+        {t('controls.stopCamera')}
       </Button>
     </>
   );

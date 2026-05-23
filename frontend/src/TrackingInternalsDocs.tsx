@@ -1,5 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Button } from '@mantine/core';
+import { useI18n } from './i18n';
 
 interface DocSection {
   eyebrow: string;
@@ -7,66 +8,58 @@ interface DocSection {
   body: ReactNode;
 }
 
-const sections: DocSection[] = [
-  {
-    eyebrow: 'Client ownership',
-    title: 'The browser is the source of truth',
-    body:
-      'The browser owns the camera permission, live preview, overlay canvas, player assignment, game state, and stored preferences. Every tracker returns the same prediction shape, so changing backends does not hand away the rest of the experience.',
-  },
-  {
-    eyebrow: 'Local trackers',
-    title: 'MediaPipe and YOLO use a browser-native pull loop',
-    body:
-      'Local detectors run from HTMLVideoElement.requestVideoFrameCallback(). The app waits for an actual camera frame, snapshots the newest pixels, runs inference, draws the overlay, and schedules the next video-frame callback.',
-  },
-  {
-    eyebrow: 'Python WebRTC',
-    title: 'High-performance tracking with standalone server',
-    body: (
-      <>
-        The frontend sends the camera media track to Python over WebRTC. To use this, download the latest
-        "pose-tracker-server" binary for your platform from{' '}
-        <a
-          href="https://github.com/AgustinRamiroDiaz/subway-surfer-with-motion/releases"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          GitHub Releases
-        </a>
-        . Run it with <code>./pose-tracker-server</code> and ensure the signaling URL in the app matches (default:
-        ws://localhost:8765). Detection results return over a low-latency data channel.
-      </>
-    ),
-  },
-  {
-    eyebrow: 'Latency model',
-    title: 'Fresh frames beat queued frames',
-    body:
-      'The backend keeps one latest-frame slot. When inference is busy, newer frames replace stale pending frames. That means the next result is biased toward the freshest camera moment instead of slowly working through old input.',
-  },
-  {
-    eyebrow: 'Privacy boundary',
-    title: 'You choose where frames go',
-    body:
-      'In-browser trackers keep camera frames inside the page. Python WebRTC sends frames only to the signaling host you configure, which is intended for your own machine or LAN during local development.',
-  },
-];
-
 export function TrackingInternalsDocs(): ReactElement {
+  const { t } = useI18n();
+  const sections: DocSection[] = [
+    {
+      eyebrow: t('docs.client.eyebrow'),
+      title: t('docs.client.title'),
+      body: t('docs.client.body'),
+    },
+    {
+      eyebrow: t('docs.local.eyebrow'),
+      title: t('docs.local.title'),
+      body: t('docs.local.body'),
+    },
+    {
+      eyebrow: t('docs.python.eyebrow'),
+      title: t('docs.python.title'),
+      body: (
+        <>
+          {t('docs.python.beforeLink')}
+          <a
+            href="https://github.com/AgustinRamiroDiaz/subway-surfer-with-motion/releases"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t('docs.python.link')}
+          </a>
+          {t('docs.python.afterLink')}<code>./pose-tracker-server</code>{t('docs.python.afterCode')}
+        </>
+      ),
+    },
+    {
+      eyebrow: t('docs.latency.eyebrow'),
+      title: t('docs.latency.title'),
+      body: t('docs.latency.body'),
+    },
+    {
+      eyebrow: t('docs.privacy.eyebrow'),
+      title: t('docs.privacy.title'),
+      body: t('docs.privacy.body'),
+    },
+  ];
+
   return (
-    <div className="docs-view" aria-label="Tracking internals documentation">
+    <div className="docs-view" aria-label={t('docs.aria')}>
       <div className="docs-view-header">
         <div>
-          <p className="eyebrow">Documentation</p>
-          <h2>Tracking internals</h2>
-          <p>
-            A deeper map of how camera frames, model predictions, overlay drawing, and player state stay under client
-            control.
-          </p>
+          <p className="eyebrow">{t('docs.eyebrow')}</p>
+          <h2>{t('docs.title')}</h2>
+          <p>{t('docs.intro')}</p>
         </div>
         <Button className="secondary-action" component="a" href="/" variant="default">
-          Back to app
+          {t('docs.back')}
         </Button>
       </div>
 

@@ -3,6 +3,7 @@ import type { Detector, DetectorLoadResult, DetectorResult, DetectorTimings, Per
 import { createCameraFrame } from './detectionSchema';
 import { loadDetectorClient } from './detectorClient';
 import type { AppPreferences } from './appPreferences';
+import { translateDetectorStatus, useI18n } from './i18n';
 import { drawDetections, getDefaultPlayerPositions, getPlayerPositions, getPersonPosition } from './poseOverlay';
 import { useLatest } from './useLatest';
 
@@ -71,6 +72,7 @@ export function useMotionDetector({
   syncCanvasSize,
   clearOverlay,
 }: UseMotionDetectorOptions): MotionDetectorControls {
+  const { t, tn } = useI18n();
   const detectorRef = useRef<Detector | null>(null);
   const detectorModeRef = useRef<DetectorLoadResult['mode']>('pull');
   const disposeDetectorRef = useRef<(() => void) | null>(null);
@@ -84,8 +86,8 @@ export function useMotionDetector({
 
   const [isDetecting, setIsDetecting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [status, setStatus] = useState('Camera idle');
-  const [modelStatus, setModelStatus] = useState('Model not loaded');
+  const [status, setStatus] = useState(t('status.cameraIdle'));
+  const [modelStatus, setModelStatus] = useState(t('status.modelNotLoaded'));
   const [detections, setDetections] = useState<PersonDetection[]>([]);
   const [playerDetections, setPlayerDetections] = useState<Array<PersonDetection | null>>(
     Array.from({ length: preferences.playerCount }, () => null)
@@ -238,7 +240,7 @@ export function useMotionDetector({
         ? finalDetections.map((detection) => detection ? mirrorDetection(detection, frameWidth) : null)
         : finalDetections
     );
-    setStatus(sorted.length ? `${sorted.length} person${sorted.length === 1 ? '' : 's'} detected` : 'Scanning');
+    setStatus(sorted.length ? tn('status.detectedPeople', sorted.length) : t('status.scanning'));
 
     const drawStartedAt = performance.now();
     const overlay = overlayRef.current;
@@ -266,10 +268,10 @@ export function useMotionDetector({
       disposeDetectorRef.current = null;
       detectorRef.current = null;
       detectorModeRef.current = 'pull';
-      setModelStatus('Model not loaded');
+      setModelStatus(t('status.modelNotLoaded'));
     }
-    setStatus(cameraEnabledRef.current ? 'Camera ready' : 'Camera idle');
-  }, [cameraEnabledRef, cancelScheduledDetectionFrame]);
+    setStatus(cameraEnabledRef.current ? t('status.cameraReady') : t('status.cameraIdle'));
+  }, [cameraEnabledRef, cancelScheduledDetectionFrame, t]);
 
   const runDetection = useCallback(async () => {
     const detector = detectorRef.current;
@@ -303,15 +305,15 @@ export function useMotionDetector({
     } catch (cause: unknown) {
       detectingRef.current = false;
       setIsDetecting(false);
-      setError(cause instanceof Error ? cause.message : 'Detection failed');
-      setStatus('Detection stopped');
+      setError(cause instanceof Error ? cause.message : t('status.detectionFailed'));
+      setStatus(t('status.detectionStopped'));
       return;
     }
 
     if (detectingRef.current) {
       scheduleDetectionFrame();
     }
-  }, [frameRef, handleDetectorResult, preferencesRef, scheduleDetectionFrame, syncCanvasSize, videoRef]);
+  }, [frameRef, handleDetectorResult, preferencesRef, scheduleDetectionFrame, syncCanvasSize, t, videoRef]);
 
   useEffect(() => {
     runDetectionRef.current = () => {
@@ -326,7 +328,7 @@ export function useMotionDetector({
 
     const activePreferences = preferencesRef.current;
     setIsLoading(true);
-    setModelStatus('Loading model');
+    setModelStatus(t('status.loadingModel'));
 
     try {
       const { detector, runtime, fallbackReason, dispose, mode } = await loadDetectorClient({
@@ -339,7 +341,7 @@ export function useMotionDetector({
         playerCount: activePreferences.playerCount,
         threshold: activePreferences.threshold,
         stream: streamRef.current ?? undefined,
-        onStatusChange: ({ message }) => setModelStatus(message),
+        onStatusChange: ({ message }) => setModelStatus(translateDetectorStatus(message, t)),
         onResult: (result) => {
           if (!detectingRef.current) {
             return;
@@ -354,7 +356,7 @@ export function useMotionDetector({
           detectingRef.current = false;
           setIsDetecting(false);
           setError(cause.message);
-          setStatus('Detection stopped');
+          setStatus(t('status.detectionStopped'));
         },
       });
       detectorRef.current = detector;
@@ -367,13 +369,15 @@ export function useMotionDetector({
             ? runtime
           : `${runtime} ${activePreferences.selectedQuantizationId.toUpperCase()}`;
       setModelStatus(
-        fallbackReason ? `Model ready on ${runtimeLabel}. WebGPU fallback: ${fallbackReason}` : `Model ready on ${runtimeLabel}`
+        fallbackReason
+          ? t('status.modelReadyFallback', { runtime: runtimeLabel, reason: fallbackReason })
+          : t('status.modelReady', { runtime: runtimeLabel })
       );
       return detectorRef.current;
     } finally {
       setIsLoading(false);
     }
-  }, [handleDetectorResult, preferencesRef, streamRef, syncCanvasSize]);
+  }, [handleDetectorResult, preferencesRef, streamRef, syncCanvasSize, t]);
 
   const resetDetector = useCallback(() => {
     stopDetection();
@@ -382,20 +386,20 @@ export function useMotionDetector({
     detectorRef.current = null;
     detectorModeRef.current = 'pull';
     clearDetectionState();
-    setModelStatus('Model not loaded');
-  }, [clearDetectionState, stopDetection]);
+    setModelStatus(t('status.modelNotLoaded'));
+  }, [clearDetectionState, stopDetection, t]);
 
   const startDetection = useCallback(async () => {
     setError(null);
 
     if (!streamRef.current) {
-      setStatus('Requesting camera');
+      setStatus(t('status.requestingCamera'));
       try {
         await startCamera();
-        setStatus('Camera ready');
+        setStatus(t('status.cameraReady'));
       } catch (cause: unknown) {
-        setError(cause instanceof Error ? cause.message : 'Camera permission was denied');
-        setStatus('Camera blocked');
+        setError(cause instanceof Error ? cause.message : t('status.cameraDenied'));
+        setStatus(t('status.cameraBlocked'));
         return false;
       }
     }
@@ -409,19 +413,19 @@ export function useMotionDetector({
       await loadDetector();
       detectingRef.current = true;
       setIsDetecting(true);
-      setStatus('Scanning');
+      setStatus(t('status.scanning'));
       if (detectorModeRef.current !== 'stream') {
         scheduleDetectionFrame();
       }
       return true;
     } catch (cause: unknown) {
-      setError(cause instanceof Error ? cause.message : 'Unable to load detector');
-      setStatus('Detector unavailable');
+      setError(cause instanceof Error ? cause.message : t('status.detectorLoadFailed'));
+      setStatus(t('status.detectorUnavailable'));
       setIsDetecting(false);
       detectingRef.current = false;
       return false;
     }
-  }, [loadDetector, scheduleDetectionFrame, startCamera, streamRef, videoRef]);
+  }, [loadDetector, scheduleDetectionFrame, startCamera, streamRef, t, videoRef]);
 
   useEffect(() => {
     return () => {

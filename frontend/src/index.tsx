@@ -4,6 +4,7 @@ import { MantineProvider, createTheme } from '@mantine/core';
 import '@mantine/core/styles.css';
 import './index.css';
 import App from './App';
+import { I18nProvider } from './i18n';
 import reportWebVitals from './reportWebVitals';
 
 const theme = createTheme({
@@ -25,7 +26,9 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <MantineProvider defaultColorScheme="dark" theme={theme}>
-      <App />
+      <I18nProvider>
+        <App />
+      </I18nProvider>
     </MantineProvider>
   </React.StrictMode>
 );

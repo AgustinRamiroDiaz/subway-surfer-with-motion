@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { PersonDetection, PoseKeypoint } from './aiDetector';
+import { useI18n } from './i18n';
 
 const TRACK_MIN_X = -3.15;
 const TRACK_MAX_X = 3.15;
@@ -39,8 +40,8 @@ type Obstacle = {
 type GameStats = {
   dodged: number;
   hits: number[];
-  status: 'Running' | 'Hit';
-  statusLabel: string;
+  status: 'running' | 'hit';
+  hitPlayer: number | null;
 };
 
 export type GamePhase = 'ready' | 'running' | 'paused';
@@ -579,6 +580,7 @@ export function GameScene({
   onPause,
   onStart,
 }: GameSceneProps): ReactElement {
+  const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement | null>(null);
   const playerCount = playerPositions.length;
   const playerPositionsRef = useRef(playerPositions);
@@ -587,8 +589,8 @@ export function GameScene({
   const [stats, setStats] = useState<GameStats>({
     dodged: 0,
     hits: playerPositions.map(() => 0),
-    status: 'Running',
-    statusLabel: 'Running',
+    status: 'running',
+    hitPlayer: null,
   });
 
   useEffect(() => {
@@ -603,8 +605,8 @@ export function GameScene({
     setStats({
       dodged: 0,
       hits: Array.from({ length: playerCount }, () => 0),
-      status: 'Running',
-      statusLabel: 'Running',
+      status: 'running',
+      hitPlayer: null,
     });
   }, [playerCount]);
 
@@ -695,8 +697,8 @@ export function GameScene({
           setStats((current) => ({
             dodged: current.dodged,
             hits: current.hits.map((hits, index) => index === playerIndex ? hits + 1 : hits),
-            status: 'Hit',
-            statusLabel: `P${playerIndex + 1} hit`,
+            status: 'hit',
+            hitPlayer: playerIndex + 1,
           }));
         }
 
@@ -709,7 +711,7 @@ export function GameScene({
               dodged: current.dodged + 1,
               hits: current.hits,
               status: current.status,
-              statusLabel: current.statusLabel,
+              hitPlayer: current.hitPlayer,
             }));
           }
         }
@@ -719,8 +721,8 @@ export function GameScene({
         statusResetAt = 0;
         setStats((current) => ({
           ...current,
-          status: 'Running',
-          statusLabel: 'Running',
+          status: 'running',
+          hitPlayer: null,
         }));
       }
 
@@ -741,13 +743,21 @@ export function GameScene({
   return (
     <div className="game-scene" ref={mountRef}>
       <div className="stage-heading">
-        <p className="eyebrow">Main game</p>
-        <h1>Motion runner</h1>
+        <p className="eyebrow">{t('game.heading')}</p>
+        <h1>{t('game.title')}</h1>
       </div>
-      <div className="game-hud" aria-label="Game status">
-        <span>{phase === 'ready' ? 'Ready' : phase === 'paused' ? 'Paused' : stats.statusLabel}</span>
+      <div className="game-hud" aria-label={t('game.status')}>
+        <span>
+          {phase === 'ready'
+            ? t('game.ready')
+            : phase === 'paused'
+              ? t('game.paused')
+              : stats.status === 'hit' && stats.hitPlayer !== null
+                ? t('game.playerHit', { player: stats.hitPlayer })
+                : t('game.running')}
+        </span>
       </div>
-      <div className="game-controls" aria-label="Game controls">
+      <div className="game-controls" aria-label={t('game.controls')}>
         <button
           className="primary-action"
           type="button"
@@ -757,21 +767,21 @@ export function GameScene({
           {startLabel}
         </button>
         <button type="button" disabled={phase !== 'running'} onClick={onPause}>
-          Pause
+          {t('game.pause')}
         </button>
       </div>
-      <dl className="game-stats" aria-label="Game stats">
+      <dl className="game-stats" aria-label={t('game.stats')}>
         <div>
-          <dt>Dodged</dt>
+          <dt>{t('game.dodged')}</dt>
           <dd>{stats.dodged}</dd>
         </div>
         <div>
-          <dt>Hits</dt>
+          <dt>{t('game.hits')}</dt>
           <dd>{stats.hits.reduce((total, hits) => total + hits, 0)}</dd>
         </div>
         {stats.hits.map((hits, index) => (
           <div key={`player-hits-${index + 1}`}>
-            <dt>P{index + 1} hits</dt>
+            <dt>{t('game.playerHits', { player: index + 1 })}</dt>
             <dd className={`player-${index + 1}`}>{hits}</dd>
           </div>
         ))}
