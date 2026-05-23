@@ -307,6 +307,7 @@ type MediaPipePoseResult = {
 };
 
 type MediaPipePoseLandmarker = {
+  detect?: (image: CameraFrameImage) => MediaPipePoseResult;
   detectForVideo: (image: CameraFrameImage, timestampMs: number) => MediaPipePoseResult;
   setOptions?: (options: {
     minPoseDetectionConfidence?: number;
@@ -543,8 +544,7 @@ function boxFromMediaPipeKeypoints(
 
 function decodeMediaPipePoseResult(
   result: MediaPipePoseResult,
-  image: CameraFrameImage,
-  threshold: number
+  image: CameraFrameImage
 ): PoseDetection[] {
   const landmarksByPose = result.landmarks ?? [];
   const detections: PoseDetection[] = [];
@@ -562,10 +562,6 @@ function decodeMediaPipePoseResult(
       };
     });
     const score = keypoints.reduce((sum, keypoint) => sum + keypoint.score, 0) / keypoints.length;
-
-    if (score < threshold) {
-      return;
-    }
 
     detections.push({
       label: 'person',
@@ -686,7 +682,7 @@ export async function loadMediaPipePoseDetector(options: DetectorLoadOptions): P
     const preprocessDoneAt = performance.now();
     const result = poseLandmarker.detectForVideo(frame.image, frame.capturedAtMs);
     const modelDoneAt = performance.now();
-    const detections = decodeMediaPipePoseResult(result, frame.image, detectorOptions.threshold);
+    const detections = decodeMediaPipePoseResult(result, frame.image);
     const postprocessDoneAt = performance.now();
 
     return {

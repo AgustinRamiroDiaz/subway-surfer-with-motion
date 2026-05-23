@@ -39,6 +39,7 @@ const mockFromCanvas = vi.fn<(canvas: HTMLCanvasElement) => RawImageFixture>();
 const mockFromPretrainedProcessor = vi.fn<(modelId: string, options: unknown) => Promise<typeof mockProcessor>>();
 const mockFromPretrainedModel = vi.fn<(modelId: string, options: unknown) => Promise<typeof mockModel>>();
 const mockForVisionTasks = vi.fn<(path: string, useModule?: boolean) => Promise<string>>();
+const mockDetect = vi.fn();
 const mockDetectForVideo = vi.fn();
 const mockSetOptions = vi.fn<(options: unknown) => Promise<void>>();
 const mockClose = vi.fn<() => void>();
@@ -268,11 +269,15 @@ describe('loadMediaPipePoseDetector', () => {
     vi.clearAllMocks();
 
     mockForVisionTasks.mockResolvedValue('mock-vision');
+    mockDetect.mockReturnValue({
+      landmarks: [makeMediaPipeLandmarks(0.9)],
+    });
     mockDetectForVideo.mockReturnValue({
       landmarks: [makeMediaPipeLandmarks(0.9)],
     });
     mockSetOptions.mockResolvedValue(undefined);
     mockCreateFromOptions.mockResolvedValue({
+      detect: mockDetect,
       detectForVideo: mockDetectForVideo,
       setOptions: mockSetOptions,
       close: mockClose,
@@ -339,6 +344,7 @@ describe('loadMediaPipePoseDetector', () => {
       outputSegmentationMasks: false,
       runningMode: 'VIDEO',
     });
+    expect(mockDetect).not.toHaveBeenCalled();
     expect(mockDetectForVideo).toHaveBeenCalledWith(canvas, 1234);
     expect(result.detections).toHaveLength(1);
     expect(result.detections[0].score).toBeCloseTo(0.9);
@@ -386,7 +392,7 @@ describe('loadMediaPipePoseDetector', () => {
     expect(result.detections[1].score).toBeCloseTo(0.8);
   });
 
-  test('filters MediaPipe poses below the confidence threshold', async () => {
+  test('keeps low-confidence MediaPipe poses so multi-person tracking does not drop bodies', async () => {
     mockDetectForVideo.mockReturnValue({
       landmarks: [makeMediaPipeLandmarks(0.2)],
     });
@@ -409,6 +415,7 @@ describe('loadMediaPipePoseDetector', () => {
       percentage: false,
     });
 
-    expect(result.detections).toHaveLength(0);
+    expect(result.detections).toHaveLength(1);
+    expect(result.detections[0].score).toBeCloseTo(0.2);
   });
 });
