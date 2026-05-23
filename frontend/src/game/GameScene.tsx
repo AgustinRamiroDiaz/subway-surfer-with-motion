@@ -184,7 +184,7 @@ export function GameScene({
     let lastTime = performance.now();
     let lastSpawnAt = performance.now() - SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS;
     let statusResetAt = 0;
-    const world = createTrackWorld(mount, playerPositionsRef.current);
+    const world = createTrackWorld(mount, playerPositionsRef.current, selectedGameId);
     const obstacleSystem = createObstacleSystem(
       world.scene,
       () => selectedGameIdRef.current,
@@ -376,7 +376,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [onJumpDuckGuidesChange, playerCount]);
+  }, [onJumpDuckGuidesChange, playerCount, selectedGameId]);
 
   return (
     <div className="game-scene" ref={mountRef}>

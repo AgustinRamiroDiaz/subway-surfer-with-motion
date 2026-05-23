@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PLAYER_BASE_Y, PLAYER_Z, TRACK_MAX_X, TRACK_MIN_X } from './gameConstants';
-import type { TrackWorld } from './gameTypes';
+import type { RunnerGameId, TrackWorld } from './gameTypes';
 import { createFallbackPlayer, disposeObject, loadPlayerModels } from './playerAvatar';
 
 function createRailMaterial(color: string): THREE.MeshStandardMaterial {
@@ -20,12 +20,12 @@ export function playerTrackX(index: number, playerCount: number): number {
     return 0;
   }
 
-  return THREE.MathUtils.lerp(-2.2, 2.2, index / (playerCount - 1));
+  return (index - (playerCount - 1) / 2) * 5.2;
 }
 
 function createPlayerLaneMarkers(scene: THREE.Scene, playerCount: number): () => void {
   const laneObjects: THREE.Object3D[] = [];
-  const zoneWidth = playerCount <= 1 ? 4.6 : 2.06;
+  const zoneWidth = playerCount <= 1 ? 4.6 : 3.2;
   const laneWidth = zoneWidth / 2;
   const laneDepth = 38;
   const laneColors = ['#263235', '#20292d'] as const;
@@ -82,14 +82,21 @@ function createPlayerLaneMarkers(scene: THREE.Scene, playerCount: number): () =>
   };
 }
 
-export function createTrackWorld(mount: HTMLDivElement, initialPlayerPositions: number[]): TrackWorld {
+export function createTrackWorld(
+  mount: HTMLDivElement,
+  initialPlayerPositions: number[],
+  gameId: RunnerGameId
+): TrackWorld {
   let disposed = false;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#101416');
   scene.fog = new THREE.Fog('#101416', 10, 30);
 
+  const playerCount = initialPlayerPositions.length;
+  const isJumpDuck = gameId === 'jump-duck';
+
   const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 100);
-  camera.position.set(0, 4.4, 7.2);
+  camera.position.set(0, 5.2, 9.6);
   camera.lookAt(0, 0.2, -5);
 
   const renderer = new THREE.WebGLRenderer({
@@ -111,17 +118,11 @@ export function createTrackWorld(mount: HTMLDivElement, initialPlayerPositions: 
   keyLight.shadow.mapSize.set(1024, 1024);
   scene.add(keyLight);
 
-  const floorGeometry = new THREE.PlaneGeometry(9.2, 44);
   const floorMaterial = new THREE.MeshStandardMaterial({
     color: '#171d20',
     roughness: 0.82,
     metalness: 0.05,
   });
-  const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.z = -7;
-  floor.receiveShadow = true;
-  scene.add(floor);
 
   const railMaterial = createRailMaterial('#2fffb2');
   const dividerMaterial = createRailMaterial('#dce7df');
@@ -129,36 +130,57 @@ export function createTrackWorld(mount: HTMLDivElement, initialPlayerPositions: 
     color: '#2b3337',
     roughness: 0.74,
   });
-  const disposePlayerLaneMarkers = createPlayerLaneMarkers(scene, initialPlayerPositions.length);
 
+  const disposePlayerLaneMarkers = createPlayerLaneMarkers(scene, playerCount);
+
+  const sleeperWidth = isJumpDuck ? 4.2 : 7.6;
+  const sleeperGeometry = new THREE.BoxGeometry(sleeperWidth, 0.08, 0.14);
   const sideRailGeometry = new THREE.BoxGeometry(0.18, 0.14, 42);
-  [TRACK_MIN_X - 0.54, TRACK_MAX_X + 0.54].forEach((x) => {
-    const rail = new THREE.Mesh(sideRailGeometry, railMaterial);
-    rail.position.set(x, 0.08, -7);
-    rail.castShadow = true;
-    rail.receiveShadow = true;
-    scene.add(rail);
-  });
-
   const guideGeometry = new THREE.BoxGeometry(0.035, 0.04, 42);
-  [-2.1, -1.05, 0, 1.05, 2.1].forEach((x) => {
-    const divider = new THREE.Mesh(guideGeometry, dividerMaterial);
-    divider.position.set(x, 0.08, -7);
-    divider.receiveShadow = true;
-    scene.add(divider);
-  });
+  const floorGeometry = new THREE.PlaneGeometry(isJumpDuck ? 4.8 : 9.2, 44);
 
-  const sleeperGeometry = new THREE.BoxGeometry(7.6, 0.08, 0.14);
-  for (let z = -26; z < 6; z += 1.45) {
-    const sleeper = new THREE.Mesh(sleeperGeometry, sleeperMaterial);
-    sleeper.position.set(0, 0.11, z);
-    sleeper.receiveShadow = true;
-    scene.add(sleeper);
-  }
+  const trackCenters = isJumpDuck
+    ? Array.from({ length: playerCount }, (_, i) => playerTrackX(i, playerCount))
+    : [0];
+
+  trackCenters.forEach((centerX) => {
+    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(centerX, 0, -7);
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const railOffset = sleeperWidth / 2 + 0.09;
+    [centerX - railOffset, centerX + railOffset].forEach((x) => {
+      const rail = new THREE.Mesh(sideRailGeometry, railMaterial);
+      rail.position.set(x, 0.08, -7);
+      rail.castShadow = true;
+      rail.receiveShadow = true;
+      scene.add(rail);
+    });
+
+    const dividerOffsets = isJumpDuck ? [-1.05, 0, 1.05] : [-2.1, -1.05, 0, 1.05, 2.1];
+    dividerOffsets.forEach((offset) => {
+      const divider = new THREE.Mesh(guideGeometry, dividerMaterial);
+      divider.position.set(centerX + offset, 0.08, -7);
+      divider.receiveShadow = true;
+      scene.add(divider);
+    });
+
+    for (let z = -26; z < 6; z += 1.45) {
+      const sleeper = new THREE.Mesh(sleeperGeometry, sleeperMaterial);
+      sleeper.position.set(centerX, 0.11, z);
+      sleeper.receiveShadow = true;
+      scene.add(sleeper);
+    }
+  });
 
   const players = initialPlayerPositions.map((initialPlayerPosition, index) => {
     const player = createFallbackPlayer(index);
-    player.root.position.set(positionToWorldX(initialPlayerPosition), PLAYER_BASE_Y, PLAYER_Z);
+    const targetX = isJumpDuck
+      ? playerTrackX(index, playerCount)
+      : positionToWorldX(initialPlayerPosition);
+    player.root.position.set(targetX, PLAYER_BASE_Y, PLAYER_Z);
     scene.add(player.root);
     return player;
   });
