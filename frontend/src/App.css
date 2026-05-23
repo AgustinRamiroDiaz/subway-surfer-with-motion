@@ -225,6 +225,38 @@
   background: #ff5f7a;
 }
 
+.camera-side-guide {
+  position: absolute;
+  width: 2px;
+  height: min(32%, 96px);
+  border-radius: 999px;
+  background: #66a3ff;
+  box-shadow: 0 0 10px rgba(102, 163, 255, 0.78);
+  opacity: 0.88;
+  transform: translate(-50%, -50%);
+}
+
+.camera-side-guide.left::before,
+.camera-side-guide.right::before {
+  position: absolute;
+  left: 50%;
+  color: #dce7ff;
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 4px #000;
+  top: -10px;
+  transform: translateX(-50%);
+}
+
+.camera-side-guide.left::before {
+  content: "L";
+}
+
+.camera-side-guide.right::before {
+  content: "R";
+}
+
 .game-scene {
   position: absolute;
   inset: 0;

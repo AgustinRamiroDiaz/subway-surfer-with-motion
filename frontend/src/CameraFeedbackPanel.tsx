@@ -27,6 +27,7 @@ export function CameraFeedbackPanel({
 }: CameraFeedbackPanelProps): ReactElement {
   const { t } = useI18n();
   const videoHeight = videoRef.current?.videoHeight ?? 0;
+  const videoWidth = videoRef.current?.videoWidth ?? 0;
 
   const getGuideTop = (y: number): string => {
     if (!videoHeight) {
@@ -39,6 +40,14 @@ export function CameraFeedbackPanel({
   const getGuideLeft = (playerIndex: number): string => {
     const playerPosition = playerPositions[playerIndex] ?? 0.5;
     return `${Math.max(0, Math.min(1, playerPosition)) * 100}%`;
+  };
+
+  const getGuideX = (x: number): string => {
+    if (!videoWidth) {
+      return '0%';
+    }
+
+    return `${Math.max(0, Math.min(1, x / videoWidth)) * 100}%`;
   };
 
   return (
@@ -72,6 +81,14 @@ export function CameraFeedbackPanel({
             <div
               className="camera-height-guide duck"
               style={{ left: getGuideLeft(guide.playerIndex), top: getGuideTop(guide.duckY) }}
+            />
+            <div
+              className="camera-side-guide left"
+              style={{ left: getGuideX(guide.leftX), top: getGuideTop((guide.jumpY + guide.duckY) / 2) }}
+            />
+            <div
+              className="camera-side-guide right"
+              style={{ left: getGuideX(guide.rightX), top: getGuideTop((guide.jumpY + guide.duckY) / 2) }}
             />
           </div>
         ))}

@@ -8,6 +8,16 @@ Allow to move around prior to start playing
 
 [x] Package the Python backend so that it's a binary in releases tha people can download from GitHub
 
+# New level: Dance Dance revolution with hands
+
+Using hands in different places in the screen to hit the coming notes
+
+Ideas:
+
+- add hand posture recognition to use hand forms in each position
+- use 9 positions (3 by 3 grid)
+- get inspired from beat saber https://store.steampowered.com/app/620980/Beat_Saber/
+
 # Misc
 
 ## Add full e2e test

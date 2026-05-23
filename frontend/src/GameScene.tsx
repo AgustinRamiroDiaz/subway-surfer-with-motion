@@ -38,8 +38,9 @@ type GameSceneProps = {
 type Obstacle = {
   mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
   x: number;
-  kind: 'sideways' | 'low' | 'high';
+  kind: 'sideways' | 'jump-duck';
   targetPlayerIndex: number | null;
+  blockedCells: JumpDuckCell[];
   hitBy: boolean[];
 };
 
@@ -56,14 +57,22 @@ export type JumpDuckGuide = {
   playerIndex: number;
   jumpY: number;
   duckY: number;
+  leftX: number;
+  rightX: number;
 };
 
 type RunnerGameId = 'sideways' | 'jump-duck';
+type VerticalAction = 'jump' | 'run' | 'duck';
+type HorizontalAction = 'left' | 'center' | 'right';
+type JumpDuckCell = `${VerticalAction}-${HorizontalAction}`;
 
 type PoseVerticalMetrics = {
   eyesY: number;
   shouldersY: number;
   eyeToShoulderDistance: number;
+  faceCenterX: number;
+  shoulderCenterX: number;
+  shoulderHalfWidth: number;
   armsUp: boolean;
 };
 
@@ -160,6 +169,15 @@ function averageKeypointY(keypoints: Array<PoseKeypoint | null>): number | null 
   return visibleKeypoints.reduce((sum, keypoint) => sum + keypoint.y, 0) / visibleKeypoints.length;
 }
 
+function averageKeypointX(keypoints: Array<PoseKeypoint | null>): number | null {
+  const visibleKeypoints = keypoints.filter((keypoint): keypoint is PoseKeypoint => keypoint !== null);
+  if (!visibleKeypoints.length) {
+    return null;
+  }
+
+  return visibleKeypoints.reduce((sum, keypoint) => sum + keypoint.x, 0) / visibleKeypoints.length;
+}
+
 function getPoseVerticalMetrics(detection: PersonDetection | null): PoseVerticalMetrics | null {
   const leftEye = findKeypoint(detection, 'Left Eye');
   const rightEye = findKeypoint(detection, 'Right Eye');
@@ -170,17 +188,23 @@ function getPoseVerticalMetrics(detection: PersonDetection | null): PoseVertical
   const rightWrist = findKeypoint(detection, 'Right Wrist');
   const eyesY = averageKeypointY([leftEye, rightEye]) ?? nose?.y ?? null;
   const shouldersY = averageKeypointY([leftShoulder, rightShoulder]);
+  const faceCenterX = averageKeypointX([leftEye, rightEye]) ?? nose?.x ?? null;
+  const shoulderCenterX = averageKeypointX([leftShoulder, rightShoulder]);
 
-  if (eyesY === null || shouldersY === null) {
+  if (eyesY === null || shouldersY === null || faceCenterX === null || shoulderCenterX === null || !leftShoulder || !rightShoulder) {
     return null;
   }
 
   const eyeToShoulderDistance = Math.max(1, shouldersY - eyesY);
+  const shoulderHalfWidth = Math.max(1, Math.abs(rightShoulder.x - leftShoulder.x) / 2);
 
   return {
     eyesY,
     shouldersY,
     eyeToShoulderDistance,
+    faceCenterX,
+    shoulderCenterX,
+    shoulderHalfWidth,
     armsUp: Boolean(leftWrist && rightWrist && leftWrist.y < eyesY && rightWrist.y < eyesY),
   };
 }
@@ -195,14 +219,20 @@ function averageMetrics(samples: CalibrationSample[]): PlayerCalibration | null 
       eyesY: sum.eyesY + sample.eyesY,
       shouldersY: sum.shouldersY + sample.shouldersY,
       eyeToShoulderDistance: sum.eyeToShoulderDistance + sample.eyeToShoulderDistance,
+      faceCenterX: sum.faceCenterX + sample.faceCenterX,
+      shoulderCenterX: sum.shoulderCenterX + sample.shoulderCenterX,
+      shoulderHalfWidth: sum.shoulderHalfWidth + sample.shoulderHalfWidth,
     }),
-    { eyesY: 0, shouldersY: 0, eyeToShoulderDistance: 0 }
+    { eyesY: 0, shouldersY: 0, eyeToShoulderDistance: 0, faceCenterX: 0, shoulderCenterX: 0, shoulderHalfWidth: 0 }
   );
 
   return {
     eyesY: total.eyesY / samples.length,
     shouldersY: total.shouldersY / samples.length,
     eyeToShoulderDistance: total.eyeToShoulderDistance / samples.length,
+    faceCenterX: total.faceCenterX / samples.length,
+    shoulderCenterX: total.shoulderCenterX / samples.length,
+    shoulderHalfWidth: total.shoulderHalfWidth / samples.length,
     armsUp: true,
   };
 }
@@ -220,13 +250,15 @@ function calibrationToGuides(players: PlayerCalibration[]): JumpDuckGuide[] {
     playerIndex,
     jumpY: player.eyesY - player.eyeToShoulderDistance / 2,
     duckY: player.shouldersY,
+    leftX: player.shoulderCenterX - player.shoulderHalfWidth,
+    rightX: player.shoulderCenterX + player.shoulderHalfWidth,
   }));
 }
 
-function getJumpDuckAction(
+function getVerticalAction(
   detection: PersonDetection | null,
   calibration: PlayerCalibration | undefined
-): 'run' | 'jump' | 'duck' {
+): VerticalAction {
   const metrics = getPoseVerticalMetrics(detection);
   if (!metrics || !calibration || calibration.eyeToShoulderDistance <= 0) {
     return 'run';
@@ -244,6 +276,36 @@ function getJumpDuckAction(
   }
 
   return 'run';
+}
+
+function getHorizontalAction(
+  detection: PersonDetection | null,
+  calibration: PlayerCalibration | undefined
+): HorizontalAction {
+  const metrics = getPoseVerticalMetrics(detection);
+  if (!metrics || !calibration || calibration.shoulderHalfWidth <= 0) {
+    return 'center';
+  }
+
+  const leftThreshold = calibration.shoulderCenterX - calibration.shoulderHalfWidth;
+  const rightThreshold = calibration.shoulderCenterX + calibration.shoulderHalfWidth;
+
+  if (metrics.faceCenterX <= leftThreshold) {
+    return 'left';
+  }
+
+  if (metrics.faceCenterX >= rightThreshold) {
+    return 'right';
+  }
+
+  return 'center';
+}
+
+function getJumpDuckCell(
+  detection: PersonDetection | null,
+  calibration: PlayerCalibration | undefined
+): JumpDuckCell {
+  return `${getVerticalAction(detection, calibration)}-${getHorizontalAction(detection, calibration)}`;
 }
 
 function distanceBetween(left: PoseKeypoint, right: PoseKeypoint): number {
@@ -684,6 +746,29 @@ function createObstacleSystem(
   getPlayerCount: () => number
 ): ObstacleSystem {
   const obstacles: Obstacle[] = [];
+  const allJumpDuckCells: JumpDuckCell[] = [
+    'jump-left',
+    'jump-center',
+    'jump-right',
+    'run-left',
+    'run-center',
+    'run-right',
+    'duck-left',
+    'duck-center',
+    'duck-right',
+  ];
+  const obstaclePatterns: JumpDuckCell[][] = [
+    ['run-center', 'duck-center'],
+    ['jump-center', 'run-center'],
+    ['run-left', 'run-center', 'duck-left', 'duck-center'],
+    ['run-center', 'run-right', 'duck-center', 'duck-right'],
+    ['jump-left', 'run-left', 'jump-center', 'run-center'],
+    ['jump-center', 'run-center', 'jump-right', 'run-right'],
+    allJumpDuckCells.filter((cell) => cell !== 'jump-left'),
+    allJumpDuckCells.filter((cell) => cell !== 'jump-right'),
+    allJumpDuckCells.filter((cell) => cell !== 'duck-left'),
+    allJumpDuckCells.filter((cell) => cell !== 'duck-right'),
+  ];
 
   return {
     obstacles,
@@ -691,27 +776,32 @@ function createObstacleSystem(
       const gameId = getGameId();
       const playerCount = getPlayerCount();
       const isJumpDuck = gameId === 'jump-duck';
-      const kind = isJumpDuck ? (Math.random() > 0.5 ? 'high' : 'low') : 'sideways';
+      const kind = isJumpDuck ? 'jump-duck' : 'sideways';
       const targetPlayerIndex = isJumpDuck ? Math.floor(Math.random() * Math.max(1, playerCount)) : null;
+      const blockedCells = isJumpDuck
+        ? obstaclePatterns[Math.floor(Math.random() * obstaclePatterns.length)] ?? ['run-center']
+        : [];
       const x = isJumpDuck && targetPlayerIndex !== null
         ? playerTrackX(targetPlayerIndex, playerCount)
         : TRACK_MIN_X + Math.random() * TRACK_WIDTH;
-      const geometry = kind === 'sideways'
+      const geometry = !isJumpDuck
         ? new THREE.SphereGeometry(0.74, 36, 36)
-        : new THREE.BoxGeometry(1.08, 0.28, 0.38);
+        : new THREE.BoxGeometry(1.68, 1.86, 0.34);
       const material = new THREE.MeshStandardMaterial({
-        color: kind === 'low' ? '#ffd166' : '#ff5f7a',
-        emissive: kind === 'low' ? '#6b3e00' : '#5a0b18',
+        color: isJumpDuck ? '#ff5f7a' : '#ff5f7a',
+        emissive: '#5a0b18',
         roughness: 0.42,
         metalness: 0.08,
+        transparent: isJumpDuck,
+        opacity: isJumpDuck ? 0.72 : 1,
       });
       const mesh = new THREE.Mesh(geometry, material);
-      const y = kind === 'high' ? 1.52 : kind === 'low' ? 0.38 : 0.82;
+      const y = isJumpDuck ? 0.96 : 0.82;
       mesh.position.set(x, y, OBSTACLE_SPAWN_Z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       scene.add(mesh);
-      obstacles.push({ mesh, x, kind, targetPlayerIndex, hitBy: [] });
+      obstacles.push({ mesh, x, kind, targetPlayerIndex, blockedCells, hitBy: [] });
     },
     dispose: () => {
       obstacles.forEach((obstacle) => {
@@ -743,8 +833,8 @@ export function GameScene({
   const gamePhaseRef = useRef<GamePhase>(phase);
   const calibrationRef = useRef<CalibrationRun>(createCalibrationRun(playerCount));
   const lastCalibrationProgressRef = useRef(-1);
-  const jumpDuckActionsRef = useRef<Array<'run' | 'jump' | 'duck'>>(
-    Array.from({ length: playerCount }, () => 'run')
+  const jumpDuckActionsRef = useRef<JumpDuckCell[]>(
+    Array.from({ length: playerCount }, () => 'run-center')
   );
   const [calibrationState, setCalibrationState] = useState<CalibrationState>({
     calibrated: true,
@@ -780,7 +870,7 @@ export function GameScene({
       hitPlayer: null,
     });
     calibrationRef.current = createCalibrationRun(playerCount);
-    jumpDuckActionsRef.current = Array.from({ length: playerCount }, () => 'run');
+    jumpDuckActionsRef.current = Array.from({ length: playerCount }, () => 'run-center');
     lastCalibrationProgressRef.current = -1;
     setCalibrationState({ calibrated: selectedGameId === 'sideways', progress: selectedGameId === 'sideways' ? 1 : 0 });
     onJumpDuckGuidesChange([]);
@@ -867,14 +957,15 @@ export function GameScene({
       world.players.forEach((player, index) => {
         const detection = playerDetectionsRef.current[index] ?? null;
         const poseState = getPoseAnimationState(detection);
-        const jumpDuckAction = getJumpDuckAction(detection, calibration.players?.[index]);
-        jumpDuckActionsRef.current[index] = jumpDuckAction;
+        const jumpDuckCell = getJumpDuckCell(detection, calibration.players?.[index]);
+        const [verticalAction, horizontalAction] = jumpDuckCell.split('-') as [VerticalAction, HorizontalAction];
+        jumpDuckActionsRef.current[index] = jumpDuckCell;
         const targetX = activeGameId === 'jump-duck'
-          ? playerTrackX(index, world.players.length)
+          ? playerTrackX(index, world.players.length) + (horizontalAction === 'left' ? -0.62 : horizontalAction === 'right' ? 0.62 : 0)
           : positionToWorldX(playerPositionsRef.current[index] ?? playerPositionsRef.current[0] ?? 0.5);
-        const actionOffsetY = activeGameId === 'jump-duck' && jumpDuckAction === 'jump'
+        const actionOffsetY = activeGameId === 'jump-duck' && verticalAction === 'jump'
           ? 0.72
-          : activeGameId === 'jump-duck' && jumpDuckAction === 'duck'
+          : activeGameId === 'jump-duck' && verticalAction === 'duck'
             ? -0.08
             : 0;
         player.poseEnergy = THREE.MathUtils.lerp(player.poseEnergy, poseState.energy, 0.18);
@@ -886,7 +977,7 @@ export function GameScene({
         );
         player.root.scale.y = THREE.MathUtils.lerp(
           player.root.scale.y,
-          activeGameId === 'jump-duck' && jumpDuckAction === 'duck' ? 0.72 : 1,
+          activeGameId === 'jump-duck' && verticalAction === 'duck' ? 0.72 : 1,
           0.24
         );
         player.root.rotation.z = THREE.MathUtils.lerp(player.root.rotation.z, -poseState.lean * 0.5, 0.2);
@@ -955,13 +1046,9 @@ export function GameScene({
             !obstacle.hitBy[playerIndex] &&
             Math.abs(obstacle.x - player.root.position.x) < COLLISION_RADIUS_X &&
             Math.abs(obstacle.mesh.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
-          const evadedJumpDuckObstacle =
-            obstacle.kind === 'low'
-              ? jumpDuckActionsRef.current[playerIndex] === 'jump'
-              : obstacle.kind === 'high'
-                ? jumpDuckActionsRef.current[playerIndex] === 'duck'
-                : false;
-          const isCollision = isInCollisionRange && !evadedJumpDuckObstacle;
+          const blockedJumpDuckCell =
+            obstacle.kind === 'jump-duck' && obstacle.blockedCells.includes(jumpDuckActionsRef.current[playerIndex] ?? 'run-center');
+          const isCollision = isInCollisionRange && (obstacle.kind === 'sideways' || blockedJumpDuckCell);
 
           if (!isCollision) {
             continue;
