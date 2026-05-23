@@ -16,6 +16,9 @@ const OBSTACLE_SPEED = 7.2;
 const SPAWN_INTERVAL_MS = 2000;
 const COLLISION_RADIUS_X = 0.92;
 const COLLISION_RADIUS_Z = 0.78;
+const JUMP_DUCK_SPAWN_INTERVAL_MS = 1700;
+const JUMP_DUCK_CALIBRATION_MS = 2600;
+const JUMP_DUCK_MIN_SAMPLES = 10;
 const PLAYER_COLORS = ['#2fffb2', '#66a3ff', '#ffd166', '#ff6a85'] as const;
 const PLAYER_EMISSIVE_COLORS = ['#0b5a3f', '#153766', '#6b3e00', '#5a0b1f'] as const;
 const PLAYER_MODEL_PATH = '/models/RobotExpressive.glb';
@@ -32,8 +35,10 @@ type GameSceneProps = {
 };
 
 type Obstacle = {
-  mesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>;
+  mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
   x: number;
+  kind: 'sideways' | 'low' | 'high';
+  targetPlayerIndex: number | null;
   hitBy: boolean[];
 };
 
@@ -45,6 +50,28 @@ type GameStats = {
 };
 
 export type GamePhase = 'ready' | 'running' | 'paused';
+
+type RunnerGameId = 'sideways' | 'jump-duck';
+
+type BodyMetrics = {
+  height: number;
+  centerY: number;
+};
+
+type PlayerCalibration = BodyMetrics;
+
+type CalibrationSample = BodyMetrics;
+
+type CalibrationRun = {
+  startedAt: number | null;
+  samples: CalibrationSample[][];
+  players: PlayerCalibration[] | null;
+};
+
+type CalibrationState = {
+  calibrated: boolean;
+  progress: number;
+};
 
 type PlayerRigBoneName =
   | 'Hips'
@@ -99,12 +126,86 @@ function positionToWorldX(position: number): number {
   return THREE.MathUtils.lerp(TRACK_MIN_X, TRACK_MAX_X, THREE.MathUtils.clamp(position, 0, 1));
 }
 
+function playerTrackX(index: number, playerCount: number): number {
+  if (playerCount <= 1) {
+    return 0;
+  }
+
+  return THREE.MathUtils.lerp(-2.2, 2.2, index / (playerCount - 1));
+}
+
 function findKeypoint(detection: PersonDetection | null, label: string): PoseKeypoint | null {
   const keypoint = detection?.keypoints?.find((item) => item.label === label);
   if (!keypoint || keypoint.score < KEYPOINT_CONFIDENCE) {
     return null;
   }
   return keypoint;
+}
+
+function getBodyMetrics(detection: PersonDetection | null): BodyMetrics | null {
+  if (!detection) {
+    return null;
+  }
+
+  const boxHeight = detection.box.ymax - detection.box.ymin;
+  if (!Number.isFinite(boxHeight) || boxHeight < 1) {
+    return null;
+  }
+
+  return {
+    height: boxHeight,
+    centerY: (detection.box.ymin + detection.box.ymax) / 2,
+  };
+}
+
+function averageMetrics(samples: CalibrationSample[]): PlayerCalibration | null {
+  if (!samples.length) {
+    return null;
+  }
+
+  const total = samples.reduce(
+    (sum, sample) => ({
+      height: sum.height + sample.height,
+      centerY: sum.centerY + sample.centerY,
+    }),
+    { height: 0, centerY: 0 }
+  );
+
+  return {
+    height: total.height / samples.length,
+    centerY: total.centerY / samples.length,
+  };
+}
+
+function createCalibrationRun(playerCount: number): CalibrationRun {
+  return {
+    startedAt: null,
+    samples: Array.from({ length: playerCount }, () => []),
+    players: null,
+  };
+}
+
+function getJumpDuckAction(
+  detection: PersonDetection | null,
+  calibration: PlayerCalibration | undefined
+): 'run' | 'jump' | 'duck' {
+  const metrics = getBodyMetrics(detection);
+  if (!metrics || !calibration || calibration.height <= 0) {
+    return 'run';
+  }
+
+  const heightRatio = metrics.height / calibration.height;
+  const liftRatio = (calibration.centerY - metrics.centerY) / calibration.height;
+
+  if (heightRatio < 0.78) {
+    return 'duck';
+  }
+
+  if (liftRatio > 0.08) {
+    return 'jump';
+  }
+
+  return 'run';
 }
 
 function distanceBetween(left: PoseKeypoint, right: PoseKeypoint): number {
@@ -539,34 +640,47 @@ function createTrackWorld(mount: HTMLDivElement, initialPlayerPositions: number[
   };
 }
 
-function createObstacleSystem(scene: THREE.Scene): ObstacleSystem {
+function createObstacleSystem(
+  scene: THREE.Scene,
+  getGameId: () => RunnerGameId,
+  getPlayerCount: () => number
+): ObstacleSystem {
   const obstacles: Obstacle[] = [];
-  const obstacleGeometry = new THREE.SphereGeometry(0.74, 36, 36);
-  const obstacleMaterial = new THREE.MeshStandardMaterial({
-    color: '#ff5f7a',
-    emissive: '#5a0b18',
-    roughness: 0.42,
-    metalness: 0.08,
-  });
 
   return {
     obstacles,
     spawnObstacle: () => {
-      const x = TRACK_MIN_X + Math.random() * TRACK_WIDTH;
-      const mesh = new THREE.Mesh(obstacleGeometry, obstacleMaterial.clone());
-      mesh.position.set(x, 0.82, OBSTACLE_SPAWN_Z);
+      const gameId = getGameId();
+      const playerCount = getPlayerCount();
+      const isJumpDuck = gameId === 'jump-duck';
+      const kind = isJumpDuck ? (Math.random() > 0.5 ? 'high' : 'low') : 'sideways';
+      const targetPlayerIndex = isJumpDuck ? Math.floor(Math.random() * Math.max(1, playerCount)) : null;
+      const x = isJumpDuck && targetPlayerIndex !== null
+        ? playerTrackX(targetPlayerIndex, playerCount)
+        : TRACK_MIN_X + Math.random() * TRACK_WIDTH;
+      const geometry = kind === 'sideways'
+        ? new THREE.SphereGeometry(0.74, 36, 36)
+        : new THREE.BoxGeometry(1.08, 0.28, 0.38);
+      const material = new THREE.MeshStandardMaterial({
+        color: kind === 'low' ? '#ffd166' : '#ff5f7a',
+        emissive: kind === 'low' ? '#6b3e00' : '#5a0b18',
+        roughness: 0.42,
+        metalness: 0.08,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      const y = kind === 'high' ? 1.52 : kind === 'low' ? 0.38 : 0.82;
+      mesh.position.set(x, y, OBSTACLE_SPAWN_Z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       scene.add(mesh);
-      obstacles.push({ mesh, x, hitBy: [] });
+      obstacles.push({ mesh, x, kind, targetPlayerIndex, hitBy: [] });
     },
     dispose: () => {
       obstacles.forEach((obstacle) => {
         scene.remove(obstacle.mesh);
+        obstacle.mesh.geometry.dispose();
         obstacle.mesh.material.dispose();
       });
-      obstacleGeometry.dispose();
-      obstacleMaterial.dispose();
     },
   };
 }
@@ -583,9 +697,20 @@ export function GameScene({
   const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement | null>(null);
   const playerCount = playerPositions.length;
+  const [selectedGameId, setSelectedGameId] = useState<RunnerGameId>('sideways');
+  const selectedGameIdRef = useRef<RunnerGameId>('sideways');
   const playerPositionsRef = useRef(playerPositions);
   const playerDetectionsRef = useRef(playerDetections);
   const gamePhaseRef = useRef<GamePhase>(phase);
+  const calibrationRef = useRef<CalibrationRun>(createCalibrationRun(playerCount));
+  const lastCalibrationProgressRef = useRef(-1);
+  const jumpDuckActionsRef = useRef<Array<'run' | 'jump' | 'duck'>>(
+    Array.from({ length: playerCount }, () => 'run')
+  );
+  const [calibrationState, setCalibrationState] = useState<CalibrationState>({
+    calibrated: true,
+    progress: 1,
+  });
   const [stats, setStats] = useState<GameStats>({
     dodged: 0,
     hits: playerPositions.map(() => 0),
@@ -598,6 +723,10 @@ export function GameScene({
   }, [playerPositions]);
 
   useEffect(() => {
+    selectedGameIdRef.current = selectedGameId;
+  }, [selectedGameId]);
+
+  useEffect(() => {
     playerDetectionsRef.current = playerDetections;
   }, [playerDetections]);
 
@@ -608,11 +737,40 @@ export function GameScene({
       status: 'running',
       hitPlayer: null,
     });
-  }, [playerCount]);
+    calibrationRef.current = createCalibrationRun(playerCount);
+    jumpDuckActionsRef.current = Array.from({ length: playerCount }, () => 'run');
+    lastCalibrationProgressRef.current = -1;
+    setCalibrationState({ calibrated: selectedGameId === 'sideways', progress: selectedGameId === 'sideways' ? 1 : 0 });
+  }, [playerCount, selectedGameId]);
 
   useEffect(() => {
     gamePhaseRef.current = phase;
   }, [phase]);
+
+  const handleGameSelection = (gameId: RunnerGameId): void => {
+    if (gameId === selectedGameId) {
+      return;
+    }
+
+    if (phase === 'running') {
+      onPause();
+    }
+
+    setSelectedGameId(gameId);
+  };
+
+  const isJumpDuckGame = selectedGameId === 'jump-duck';
+  const statusLabel = phase === 'ready'
+    ? isJumpDuckGame && !calibrationState.calibrated
+      ? t('game.calibrationRequired')
+      : t('game.ready')
+    : phase === 'paused'
+      ? t('game.paused')
+      : isJumpDuckGame && !calibrationState.calibrated
+        ? t('game.calibrating', { progress: Math.round(calibrationState.progress * 100) })
+        : stats.status === 'hit' && stats.hitPlayer !== null
+          ? t('game.playerHit', { player: stats.hitPlayer })
+          : t('game.running');
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -629,7 +787,11 @@ export function GameScene({
     let lastSpawnAt = performance.now() - SPAWN_INTERVAL_MS;
     let statusResetAt = 0;
     const world = createTrackWorld(mount, playerPositionsRef.current);
-    const obstacleSystem = createObstacleSystem(world.scene);
+    const obstacleSystem = createObstacleSystem(
+      world.scene,
+      () => selectedGameIdRef.current,
+      () => playerPositionsRef.current.length
+    );
 
     const resize = (): void => {
       const { clientWidth, clientHeight } = mount;
@@ -648,6 +810,7 @@ export function GameScene({
       const delta = Math.min(0.05, (now - lastTime) / 1000);
       lastTime = now;
       const isRunning = gamePhaseRef.current === 'running';
+      const activeGameId = selectedGameIdRef.current;
 
       if (!isRunning) {
         world.renderer.render(world.scene, world.camera);
@@ -655,22 +818,83 @@ export function GameScene({
         return;
       }
 
-      if (now - lastSpawnAt > SPAWN_INTERVAL_MS) {
-        obstacleSystem.spawnObstacle();
-        lastSpawnAt = now;
-      }
+      const calibration = calibrationRef.current;
+      const isCalibrating = activeGameId === 'jump-duck' && calibration.players === null;
 
       world.players.forEach((player, index) => {
-        const targetX = positionToWorldX(playerPositionsRef.current[index] ?? playerPositionsRef.current[0] ?? 0.5);
-        const poseState = getPoseAnimationState(playerDetectionsRef.current[index] ?? null);
+        const detection = playerDetectionsRef.current[index] ?? null;
+        const poseState = getPoseAnimationState(detection);
+        const jumpDuckAction = getJumpDuckAction(detection, calibration.players?.[index]);
+        jumpDuckActionsRef.current[index] = jumpDuckAction;
+        const targetX = activeGameId === 'jump-duck'
+          ? playerTrackX(index, world.players.length)
+          : positionToWorldX(playerPositionsRef.current[index] ?? playerPositionsRef.current[0] ?? 0.5);
+        const actionOffsetY = activeGameId === 'jump-duck' && jumpDuckAction === 'jump'
+          ? 0.72
+          : activeGameId === 'jump-duck' && jumpDuckAction === 'duck'
+            ? -0.08
+            : 0;
         player.poseEnergy = THREE.MathUtils.lerp(player.poseEnergy, poseState.energy, 0.18);
         player.root.position.x = THREE.MathUtils.lerp(player.root.position.x, targetX, 0.22);
-        player.root.position.y = PLAYER_BASE_Y + Math.sin(now * 0.012 + index) * 0.045 * player.poseEnergy;
+        player.root.position.y = THREE.MathUtils.lerp(
+          player.root.position.y,
+          PLAYER_BASE_Y + actionOffsetY + Math.sin(now * 0.012 + index) * 0.045 * player.poseEnergy,
+          0.28
+        );
+        player.root.scale.y = THREE.MathUtils.lerp(
+          player.root.scale.y,
+          activeGameId === 'jump-duck' && jumpDuckAction === 'duck' ? 0.72 : 1,
+          0.24
+        );
         player.root.rotation.z = THREE.MathUtils.lerp(player.root.rotation.z, -poseState.lean * 0.5, 0.2);
         player.root.rotation.y = THREE.MathUtils.lerp(player.root.rotation.y, poseState.turn * 0.45, 0.16);
         player.fallback.rotation.y += delta * (2 + index * 0.35);
-        applyMarkerPose(player, playerDetectionsRef.current[index] ?? null);
+        applyMarkerPose(player, detection);
       });
+
+      if (isCalibrating) {
+        if (calibration.startedAt === null) {
+          calibration.startedAt = now;
+        }
+
+        playerDetectionsRef.current.forEach((detection, index) => {
+          const metrics = getBodyMetrics(detection);
+          if (metrics) {
+            calibration.samples[index]?.push(metrics);
+          }
+        });
+
+        const elapsedRatio = THREE.MathUtils.clamp((now - calibration.startedAt) / JUMP_DUCK_CALIBRATION_MS, 0, 1);
+        const sampleRatio = Math.min(
+          ...calibration.samples.map((samples) => THREE.MathUtils.clamp(samples.length / JUMP_DUCK_MIN_SAMPLES, 0, 1))
+        );
+        const progress = Math.min(elapsedRatio, sampleRatio);
+        const roundedProgress = Math.round(progress * 100) / 100;
+        if (roundedProgress !== lastCalibrationProgressRef.current) {
+          lastCalibrationProgressRef.current = roundedProgress;
+          setCalibrationState({ calibrated: false, progress });
+        }
+
+        const hasSamples = calibration.samples.every((samples) => samples.length >= JUMP_DUCK_MIN_SAMPLES);
+        if (elapsedRatio >= 1 && hasSamples) {
+          const players = calibration.samples.map((samples) => averageMetrics(samples));
+          if (players.every((player): player is PlayerCalibration => player !== null)) {
+            calibration.players = players;
+            setCalibrationState({ calibrated: true, progress: 1 });
+            lastSpawnAt = now;
+          }
+        }
+
+        world.renderer.render(world.scene, world.camera);
+        animationFrame = window.requestAnimationFrame(animate);
+        return;
+      }
+
+      const spawnInterval = activeGameId === 'jump-duck' ? JUMP_DUCK_SPAWN_INTERVAL_MS : SPAWN_INTERVAL_MS;
+      if (now - lastSpawnAt > spawnInterval) {
+        obstacleSystem.spawnObstacle();
+        lastSpawnAt = now;
+      }
 
       for (let index = obstacleSystem.obstacles.length - 1; index >= 0; index -= 1) {
         const obstacle = obstacleSystem.obstacles[index];
@@ -678,12 +902,22 @@ export function GameScene({
         obstacle.mesh.rotation.x += delta * 2.8;
         obstacle.mesh.rotation.z += delta * 1.5;
 
-        for (let playerIndex = 0; playerIndex < world.players.length; playerIndex += 1) {
+        const firstPlayerIndex = obstacle.targetPlayerIndex ?? 0;
+        const lastPlayerIndex = obstacle.targetPlayerIndex ?? world.players.length - 1;
+
+        for (let playerIndex = firstPlayerIndex; playerIndex <= lastPlayerIndex; playerIndex += 1) {
           const player = world.players[playerIndex];
-          const isCollision =
+          const isInCollisionRange =
             !obstacle.hitBy[playerIndex] &&
             Math.abs(obstacle.x - player.root.position.x) < COLLISION_RADIUS_X &&
             Math.abs(obstacle.mesh.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
+          const evadedJumpDuckObstacle =
+            obstacle.kind === 'low'
+              ? jumpDuckActionsRef.current[playerIndex] === 'jump'
+              : obstacle.kind === 'high'
+                ? jumpDuckActionsRef.current[playerIndex] === 'duck'
+                : false;
+          const isCollision = isInCollisionRange && !evadedJumpDuckObstacle;
 
           if (!isCollision) {
             continue;
@@ -704,6 +938,7 @@ export function GameScene({
 
         if (obstacle.mesh.position.z > OBSTACLE_DESPAWN_Z) {
           world.scene.remove(obstacle.mesh);
+          obstacle.mesh.geometry.dispose();
           obstacle.mesh.material.dispose();
           obstacleSystem.obstacles.splice(index, 1);
           if (!obstacle.hitBy.some(Boolean)) {
@@ -744,18 +979,28 @@ export function GameScene({
     <div className="game-scene" ref={mountRef}>
       <div className="stage-heading">
         <p className="eyebrow">{t('game.heading')}</p>
-        <h1>{t('game.title')}</h1>
+        <h1>{selectedGameId === 'sideways' ? t('game.sidewaysTitle') : t('game.jumpDuckTitle')}</h1>
+        <div className="game-mode-selector" aria-label={t('game.modeSelector')}>
+          <button
+            type="button"
+            className={selectedGameId === 'sideways' ? 'active' : ''}
+            aria-pressed={selectedGameId === 'sideways'}
+            onClick={() => handleGameSelection('sideways')}
+          >
+            {t('game.sidewaysMode')}
+          </button>
+          <button
+            type="button"
+            className={selectedGameId === 'jump-duck' ? 'active' : ''}
+            aria-pressed={selectedGameId === 'jump-duck'}
+            onClick={() => handleGameSelection('jump-duck')}
+          >
+            {t('game.jumpDuckMode')}
+          </button>
+        </div>
       </div>
       <div className="game-hud" aria-label={t('game.status')}>
-        <span>
-          {phase === 'ready'
-            ? t('game.ready')
-            : phase === 'paused'
-              ? t('game.paused')
-              : stats.status === 'hit' && stats.hitPlayer !== null
-                ? t('game.playerHit', { player: stats.hitPlayer })
-                : t('game.running')}
-        </span>
+        <span>{statusLabel}</span>
       </div>
       <div className="game-controls" aria-label={t('game.controls')}>
         <button

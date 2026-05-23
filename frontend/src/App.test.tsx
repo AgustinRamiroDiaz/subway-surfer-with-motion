@@ -45,7 +45,9 @@ afterEach(() => {
 
 test('renders the motion game shell', () => {
   renderApp();
-  expect(screen.getByRole('heading', { name: /corredor con movimiento/i })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /carrera lateral/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /carrera lateral/i })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByRole('button', { name: /saltar y agacharse/i })).toHaveAttribute('aria-pressed', 'false');
   expect(screen.getByLabelText(/juego principal/i)).toBeInTheDocument();
   expect(screen.getByLabelText(/vista de cámara/i)).toBeInTheDocument();
   expect(within(screen.getByLabelText(/controles del juego/i)).getByRole('button', { name: /activar cámara/i })).toBeEnabled();
