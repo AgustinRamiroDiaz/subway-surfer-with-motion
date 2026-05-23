@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 import {
   loadMediaPipePoseDetector,
   loadYoloDetector,
@@ -5,8 +6,8 @@ import {
   type DetectorLoadOptions,
   type DetectorLoadResult,
   type DetectorResult,
-} from './aiDetector';
-import { createCameraFrame, type TransferredCameraFrame } from './detectionSchema';
+} from '../pose-detection/aiDetector';
+import { createCameraFrame, type TransferredCameraFrame } from '../pose-detection/detectionSchema';
 
 type WorkerLoadMessage = {
   type: 'load';

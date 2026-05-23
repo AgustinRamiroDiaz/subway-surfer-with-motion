@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import type { PersonDetection } from './aiDetector';
-import { DEFAULT_PLAYER_POSITIONS, getDefaultPlayerPositions, getPlayerPositions } from './poseOverlay';
+import type { PersonDetection } from '../pose-detection/detectionSchema';
+import { DEFAULT_PLAYER_POSITIONS, getDefaultPlayerPositions, getPlayerPositions } from './playerPositions';
 
 function makeDetection(xmin: number, xmax: number, score: number): PersonDetection {
   return {

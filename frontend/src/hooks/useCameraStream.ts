@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import type { CameraFacingMode } from './appPreferences';
+import type { CameraFacingMode } from '../app/appPreferences';
 
 export type CameraDeviceOption = {
   deviceId: string;
@@ -45,15 +45,15 @@ function waitForVideoMetadata(video: HTMLVideoElement): Promise<void> {
   }
 
   return new Promise((resolve, reject) => {
-    const handleLoadedMetadata = () => {
+    const handleLoadedMetadata = (): void => {
       cleanup();
       resolve();
     };
-    const handleError = () => {
+    const handleError = (): void => {
       cleanup();
       reject(new Error('Unable to read camera metadata for the developer camera multiplier.'));
     };
-    const cleanup = () => {
+    const cleanup = (): void => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('error', handleError);
     };
@@ -78,7 +78,7 @@ async function createSideBySideStream(sourceStream: MediaStream): Promise<Stream
   try {
     await sourceVideo.play();
     await waitForVideoMetadata(sourceVideo);
-  } catch (cause) {
+  } catch (cause: unknown) {
     sourceStream.getTracks().forEach((track) => track.stop());
     sourceVideo.srcObject = null;
     throw cause;
@@ -91,7 +91,7 @@ async function createSideBySideStream(sourceStream: MediaStream): Promise<Stream
   let videoFrameCallbackId: number | null = null;
   let stopped = false;
 
-  const drawFrame = () => {
+  const drawFrame = (): void => {
     if (stopped || !sourceVideo.videoWidth || !sourceVideo.videoHeight) {
       return;
     }
@@ -100,7 +100,7 @@ async function createSideBySideStream(sourceStream: MediaStream): Promise<Stream
     context.drawImage(sourceVideo, sourceVideo.videoWidth, 0, sourceVideo.videoWidth, sourceVideo.videoHeight);
   };
 
-  const scheduleDraw = () => {
+  const scheduleDraw = (): void => {
     if (stopped) {
       return;
     }
@@ -227,7 +227,7 @@ export function useCameraStream(): CameraStreamControls {
               stream.getTracks().forEach((track) => track.stop());
             },
           };
-    } catch (cause) {
+  } catch (cause: unknown) {
       stream.getTracks().forEach((track) => track.stop());
       throw cause;
     }

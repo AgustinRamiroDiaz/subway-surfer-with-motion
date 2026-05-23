@@ -15,13 +15,13 @@ import {
   type YoloModelId,
   getAvailableQuantizations,
   getQuantizationOption,
-} from './aiDetector';
-import type { AppPreferences } from './appPreferences';
-import type { CameraControlOption } from './useCameraController';
-import { formatMs, formatPercent } from './formatters';
-import { LANGUAGES, type LanguageId, type TranslationKey, useI18n } from './i18n';
-import { MAX_PLAYERS, MIN_PLAYERS } from './poseOverlay';
-import type { FrameTimings } from './useMotionDetector';
+} from '../pose-detection/aiDetector';
+import type { AppPreferences } from '../app/appPreferences';
+import type { CameraControlOption } from '../hooks/useCameraController';
+import { formatMs, formatPercent } from '../formatters';
+import { LANGUAGES, type TranslationKey, useI18n } from '../app/i18n';
+import { MAX_PLAYERS, MIN_PLAYERS } from '../motion-mapping/playerPositions';
+import type { FrameTimings } from '../hooks/useMotionDetector';
 
 type HelpLabelProps = {
   children: string;
@@ -169,7 +169,7 @@ export function DetectionControls({
           value={language}
           onChange={(value) => {
             if (value) {
-              setLanguage(value as LanguageId);
+              setLanguage(value);
             }
           }}
         />

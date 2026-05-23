@@ -1,6 +1,6 @@
 import type { ReactElement, RefObject } from 'react';
-import type { JumpDuckGuide } from './GameScene';
-import { useI18n } from './i18n';
+import type { JumpDuckGuide } from '../motion-mapping/jumpDuckActions';
+import { useI18n } from '../app/i18n';
 
 type CameraFeedbackPanelProps = {
   cameraEnabled: boolean;

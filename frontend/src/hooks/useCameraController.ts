@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import type { AppPreferences } from './appPreferences';
-import { useI18n } from './i18n';
+import type { AppPreferences } from '../app/appPreferences';
+import { useI18n } from '../app/i18n';
 import { useCameraStream } from './useCameraStream';
 
 export type CameraControlOption = {

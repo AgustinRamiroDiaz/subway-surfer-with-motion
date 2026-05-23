@@ -10,20 +10,21 @@ import {
   type YoloModelId,
   getAvailableQuantizations,
   getDefaultQuantizationForRuntime,
-} from './aiDetector';
+} from '../pose-detection/aiDetector';
 import {
   type AppPreferences,
   readStoredAppPreferences,
   writeStoredAppPreferences,
 } from './appPreferences';
-import { CameraFeedbackPanel } from './CameraFeedbackPanel';
-import { DetectionControls } from './DetectionControls';
-import { GameScene, type GamePhase, type JumpDuckGuide } from './GameScene';
+import type { JumpDuckGuide } from '../motion-mapping/jumpDuckActions';
+import { CameraFeedbackPanel } from '../ui/CameraFeedbackPanel';
+import { DetectionControls } from '../ui/DetectionControls';
+import { GameScene, type GamePhase } from '../game/GameScene';
 import { useI18n } from './i18n';
-import { TrackingInternalsDocs } from './TrackingInternalsDocs';
-import { useCameraController } from './useCameraController';
-import { useMotionDetector } from './useMotionDetector';
-import './App.css';
+import { TrackingInternalsDocs } from '../ui/TrackingInternalsDocs';
+import { useCameraController } from '../hooks/useCameraController';
+import { useMotionDetector } from '../hooks/useMotionDetector';
+import '../App.css';
 
 function App(): ReactElement {
   if (window.location.pathname === '/docs/tracking-internals') {

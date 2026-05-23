@@ -3,8 +3,8 @@ import {
   type DetectorLoadOptions,
   type DetectorLoadResult,
   type DetectorResult,
-} from './aiDetector';
-import { createFrameDescriptor, type TransferredCameraFrame } from './detectionSchema';
+} from '../pose-detection/aiDetector';
+import { createFrameDescriptor, type TransferredCameraFrame } from '../pose-detection/detectionSchema';
 
 const DETECTOR_LOAD_TIMEOUT_MS = 120_000;
 

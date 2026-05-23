@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Button } from '@mantine/core';
-import { useI18n } from './i18n';
+import { useI18n } from '../app/i18n';
 
 interface DocSection {
   eyebrow: string;

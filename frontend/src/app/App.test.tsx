@@ -3,10 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { afterEach, beforeEach, expect, test, vi, type MockInstance } from 'vitest';
 import App from './App';
-import { GAME_SELECTION_STORAGE_KEY } from './GameScene';
+import { GAME_SELECTION_STORAGE_KEY } from '../game/GameScene';
 import { I18nProvider } from './i18n';
 
-vi.mock('./detectorClient', () => ({
+vi.mock('../pose-detection/detectorClient', () => ({
   loadDetectorClient: vi.fn(),
 }));
 
@@ -26,7 +26,7 @@ function renderApp(): ReturnType<typeof render> {
 function chooseOption(currentValue: RegExp, optionName: RegExp): void {
   const input = screen.getAllByDisplayValue(currentValue).find((element) => element.getAttribute('role') === 'combobox');
   if (!input) {
-    throw new Error(`Unable to find combobox with display value ${currentValue}`);
+    throw new Error(`Unable to find combobox with display value ${currentValue.toString()}`);
   }
   userEvent.click(input);
   userEvent.click(screen.getByRole('option', { name: optionName }));

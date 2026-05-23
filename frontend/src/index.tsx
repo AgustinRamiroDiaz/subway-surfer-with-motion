@@ -3,8 +3,8 @@ import ReactDOM from 'react-dom/client';
 import { MantineProvider, createTheme } from '@mantine/core';
 import '@mantine/core/styles.css';
 import './index.css';
-import App from './App';
-import { I18nProvider } from './i18n';
+import App from './app/App';
+import { I18nProvider } from './app/i18n';
 import reportWebVitals from './reportWebVitals';
 
 const theme = createTheme({

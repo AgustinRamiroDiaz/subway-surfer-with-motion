@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import type { Detector, DetectorLoadResult, DetectorResult, DetectorTimings, PersonDetection } from './aiDetector';
-import { createCameraFrame } from './detectionSchema';
-import { loadDetectorClient } from './detectorClient';
-import type { AppPreferences } from './appPreferences';
-import { translateDetectorStatus, useI18n } from './i18n';
-import { drawDetections, getDefaultPlayerPositions, getPlayerPositions, getPersonPosition } from './poseOverlay';
+import type { Detector, DetectorLoadResult, DetectorResult, DetectorTimings } from '../pose-detection/aiDetector';
+import type { PersonDetection } from '../pose-detection/detectionSchema';
+import { createCameraFrame } from '../pose-detection/detectionSchema';
+import { loadDetectorClient } from '../pose-detection/detectorClient';
+import type { AppPreferences } from '../app/appPreferences';
+import { translateDetectorStatus, useI18n } from '../app/i18n';
+import { getDefaultPlayerPositions, getPlayerPositions, getPersonPosition } from '../motion-mapping/playerPositions';
+import { drawDetections } from '../motion-mapping/poseOverlay';
 import { useLatest } from './useLatest';
 
 function createEmptyTrackIds(playerCount: number): Array<number | null> {
@@ -257,7 +259,7 @@ export function useMotionDetector({
       drawMs: drawDoneAt - drawStartedAt,
       loopMs,
     });
-  }, [overlayRef, playerPositionsRef, preferencesRef]);
+  }, [overlayRef, playerPositionsRef, preferencesRef, t, tn]);
 
   const stopDetection = useCallback(() => {
     detectingRef.current = false;

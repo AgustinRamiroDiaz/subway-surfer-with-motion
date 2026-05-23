@@ -19,8 +19,8 @@ import {
   getAvailableQuantizations,
   getDefaultQuantizationForRuntime,
   getQuantizationOption,
-} from './aiDetector';
-import { DEFAULT_PLAYER_COUNT, normalizePlayerCount } from './poseOverlay';
+} from '../pose-detection/aiDetector';
+import { DEFAULT_PLAYER_COUNT, normalizePlayerCount } from '../motion-mapping/playerPositions';
 
 export const DEFAULT_THRESHOLD = 0.45;
 export const DEFAULT_CAMERA_MIRRORED = true;

@@ -2,8 +2,21 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
-import type { PersonDetection, PoseKeypoint } from './aiDetector';
-import { useI18n } from './i18n';
+import {
+  averageMetrics,
+  calibrationToGuides,
+  createCalibrationRun,
+  getJumpDuckCell,
+  getPoseVerticalMetrics,
+  type CalibrationRun,
+  type HorizontalAction,
+  type JumpDuckCell,
+  type JumpDuckGuide,
+  type PlayerCalibration,
+  type VerticalAction,
+} from '../motion-mapping/jumpDuckActions';
+import type { PersonDetection, PoseKeypoint } from '../pose-detection/detectionSchema';
+import { useI18n } from '../app/i18n';
 
 const TRACK_MIN_X = -3.15;
 const TRACK_MAX_X = 3.15;
@@ -54,38 +67,7 @@ type GameStats = {
 
 export type GamePhase = 'ready' | 'running' | 'paused';
 
-export type JumpDuckGuide = {
-  playerIndex: number;
-  jumpY: number;
-  duckY: number;
-  leftX: number;
-  rightX: number;
-};
-
 type RunnerGameId = 'sideways' | 'jump-duck';
-type VerticalAction = 'jump' | 'run' | 'duck';
-type HorizontalAction = 'left' | 'center' | 'right';
-type JumpDuckCell = `${VerticalAction}-${HorizontalAction}`;
-
-type PoseVerticalMetrics = {
-  eyesY: number;
-  shouldersY: number;
-  eyeToShoulderDistance: number;
-  faceCenterX: number;
-  shoulderCenterX: number;
-  shoulderHalfWidth: number;
-  armsUp: boolean;
-};
-
-type PlayerCalibration = PoseVerticalMetrics;
-
-type CalibrationSample = PoseVerticalMetrics;
-
-type CalibrationRun = {
-  startedAt: number | null;
-  samples: CalibrationSample[][];
-  players: PlayerCalibration[] | null;
-};
 
 type CalibrationState = {
   calibrated: boolean;
@@ -184,154 +166,6 @@ function findKeypoint(detection: PersonDetection | null, label: string): PoseKey
     return null;
   }
   return keypoint;
-}
-
-function averageKeypointY(keypoints: Array<PoseKeypoint | null>): number | null {
-  const visibleKeypoints = keypoints.filter((keypoint): keypoint is PoseKeypoint => keypoint !== null);
-  if (!visibleKeypoints.length) {
-    return null;
-  }
-
-  return visibleKeypoints.reduce((sum, keypoint) => sum + keypoint.y, 0) / visibleKeypoints.length;
-}
-
-function averageKeypointX(keypoints: Array<PoseKeypoint | null>): number | null {
-  const visibleKeypoints = keypoints.filter((keypoint): keypoint is PoseKeypoint => keypoint !== null);
-  if (!visibleKeypoints.length) {
-    return null;
-  }
-
-  return visibleKeypoints.reduce((sum, keypoint) => sum + keypoint.x, 0) / visibleKeypoints.length;
-}
-
-function getPoseVerticalMetrics(detection: PersonDetection | null): PoseVerticalMetrics | null {
-  const leftEye = findKeypoint(detection, 'Left Eye');
-  const rightEye = findKeypoint(detection, 'Right Eye');
-  const nose = findKeypoint(detection, 'Nose');
-  const leftShoulder = findKeypoint(detection, 'Left Shoulder');
-  const rightShoulder = findKeypoint(detection, 'Right Shoulder');
-  const leftWrist = findKeypoint(detection, 'Left Wrist');
-  const rightWrist = findKeypoint(detection, 'Right Wrist');
-  const eyesY = averageKeypointY([leftEye, rightEye]) ?? nose?.y ?? null;
-  const shouldersY = averageKeypointY([leftShoulder, rightShoulder]);
-  const faceCenterX = averageKeypointX([leftEye, rightEye]) ?? nose?.x ?? null;
-  const shoulderCenterX = averageKeypointX([leftShoulder, rightShoulder]);
-
-  if (eyesY === null || shouldersY === null || faceCenterX === null || shoulderCenterX === null || !leftShoulder || !rightShoulder) {
-    return null;
-  }
-
-  const eyeToShoulderDistance = Math.max(1, shouldersY - eyesY);
-  const shoulderHalfWidth = Math.max(1, Math.abs(rightShoulder.x - leftShoulder.x) / 2);
-
-  return {
-    eyesY,
-    shouldersY,
-    eyeToShoulderDistance,
-    faceCenterX,
-    shoulderCenterX,
-    shoulderHalfWidth,
-    armsUp: Boolean(leftWrist && rightWrist && leftWrist.y < eyesY && rightWrist.y < eyesY),
-  };
-}
-
-function averageMetrics(samples: CalibrationSample[]): PlayerCalibration | null {
-  if (!samples.length) {
-    return null;
-  }
-
-  const total = samples.reduce(
-    (sum, sample) => ({
-      eyesY: sum.eyesY + sample.eyesY,
-      shouldersY: sum.shouldersY + sample.shouldersY,
-      eyeToShoulderDistance: sum.eyeToShoulderDistance + sample.eyeToShoulderDistance,
-      faceCenterX: sum.faceCenterX + sample.faceCenterX,
-      shoulderCenterX: sum.shoulderCenterX + sample.shoulderCenterX,
-      shoulderHalfWidth: sum.shoulderHalfWidth + sample.shoulderHalfWidth,
-    }),
-    { eyesY: 0, shouldersY: 0, eyeToShoulderDistance: 0, faceCenterX: 0, shoulderCenterX: 0, shoulderHalfWidth: 0 }
-  );
-
-  return {
-    eyesY: total.eyesY / samples.length,
-    shouldersY: total.shouldersY / samples.length,
-    eyeToShoulderDistance: total.eyeToShoulderDistance / samples.length,
-    faceCenterX: total.faceCenterX / samples.length,
-    shoulderCenterX: total.shoulderCenterX / samples.length,
-    shoulderHalfWidth: total.shoulderHalfWidth / samples.length,
-    armsUp: true,
-  };
-}
-
-function createCalibrationRun(playerCount: number): CalibrationRun {
-  return {
-    startedAt: null,
-    samples: Array.from({ length: playerCount }, () => []),
-    players: null,
-  };
-}
-
-function calibrationToGuides(players: PlayerCalibration[]): JumpDuckGuide[] {
-  return players.map((player, playerIndex) => ({
-    playerIndex,
-    jumpY: player.eyesY - player.eyeToShoulderDistance / 2,
-    duckY: player.shouldersY,
-    leftX: player.shoulderCenterX - player.shoulderHalfWidth,
-    rightX: player.shoulderCenterX + player.shoulderHalfWidth,
-  }));
-}
-
-function getVerticalAction(
-  detection: PersonDetection | null,
-  calibration: PlayerCalibration | undefined
-): VerticalAction {
-  const metrics = getPoseVerticalMetrics(detection);
-  if (!metrics || !calibration || calibration.eyeToShoulderDistance <= 0) {
-    return 'run';
-  }
-
-  const jumpTargetY = calibration.eyesY - calibration.eyeToShoulderDistance / 2;
-  const duckTargetY = calibration.shouldersY;
-
-  if (metrics.eyesY <= jumpTargetY) {
-    return 'jump';
-  }
-
-  if (metrics.eyesY >= duckTargetY) {
-    return 'duck';
-  }
-
-  return 'run';
-}
-
-function getHorizontalAction(
-  detection: PersonDetection | null,
-  calibration: PlayerCalibration | undefined
-): HorizontalAction {
-  const metrics = getPoseVerticalMetrics(detection);
-  if (!metrics || !calibration || calibration.shoulderHalfWidth <= 0) {
-    return 'center';
-  }
-
-  const leftThreshold = calibration.shoulderCenterX - calibration.shoulderHalfWidth;
-  const rightThreshold = calibration.shoulderCenterX + calibration.shoulderHalfWidth;
-
-  if (metrics.faceCenterX <= leftThreshold) {
-    return 'left';
-  }
-
-  if (metrics.faceCenterX >= rightThreshold) {
-    return 'right';
-  }
-
-  return 'center';
-}
-
-function getJumpDuckCell(
-  detection: PersonDetection | null,
-  calibration: PlayerCalibration | undefined
-): JumpDuckCell {
-  return `${getVerticalAction(detection, calibration)}-${getHorizontalAction(detection, calibration)}`;
 }
 
 function distanceBetween(left: PoseKeypoint, right: PoseKeypoint): number {
@@ -1131,7 +965,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [playerCount]);
+  }, [onJumpDuckGuidesChange, playerCount]);
 
   return (
     <div className="game-scene" ref={mountRef}>
