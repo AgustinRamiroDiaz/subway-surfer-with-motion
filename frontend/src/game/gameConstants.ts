@@ -1,0 +1,15 @@
+export const TRACK_MIN_X = -3.15;
+export const TRACK_MAX_X = 3.15;
+export const TRACK_WIDTH = TRACK_MAX_X - TRACK_MIN_X;
+export const PLAYER_Z = 2.6;
+export const PLAYER_BASE_Y = 0.05;
+export const OBSTACLE_SPAWN_Z = -18;
+export const OBSTACLE_DESPAWN_Z = 5.2;
+export const OBSTACLE_SPEED = 7.2;
+export const SPAWN_INTERVAL_MS = 2000;
+export const COLLISION_RADIUS_X = 0.92;
+export const COLLISION_RADIUS_Z = 0.78;
+export const PLAYER_COLORS = ['#2fffb2', '#66a3ff', '#ffd166', '#ff6a85'] as const;
+export const PLAYER_EMISSIVE_COLORS = ['#0b5a3f', '#153766', '#6b3e00', '#5a0b1f'] as const;
+export const PLAYER_MODEL_PATH = '/models/RobotExpressive.glb';
+export const KEYPOINT_CONFIDENCE = 0.2;
