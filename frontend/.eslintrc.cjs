@@ -47,6 +47,7 @@ module.exports = {
       },
     ],
     'eqeqeq': ['error', 'always'],
+    'max-lines': ['error', { max: 500, skipBlankLines: true, skipComments: true }],
     'no-console': ['error', { allow: ['warn', 'error'] }],
     'no-else-return': 'error',
     'no-implicit-coercion': 'error',
