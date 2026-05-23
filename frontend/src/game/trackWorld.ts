@@ -1,10 +1,5 @@
 import * as THREE from 'three';
-import {
-  PLAYER_BASE_Y,
-  PLAYER_Z,
-  TRACK_MAX_X,
-  TRACK_MIN_X,
-} from './gameConstants';
+import { PLAYER_BASE_Y, PLAYER_Z, TRACK_MAX_X, TRACK_MIN_X } from './gameConstants';
 import type { TrackWorld } from './gameTypes';
 import { createFallbackPlayer, disposeObject, loadPlayerModels } from './playerAvatar';
 
@@ -26,6 +21,65 @@ export function playerTrackX(index: number, playerCount: number): number {
   }
 
   return THREE.MathUtils.lerp(-2.2, 2.2, index / (playerCount - 1));
+}
+
+function createPlayerLaneMarkers(scene: THREE.Scene, playerCount: number): () => void {
+  const laneObjects: THREE.Object3D[] = [];
+  const zoneWidth = playerCount <= 1 ? 4.6 : 2.06;
+  const laneWidth = zoneWidth / 2;
+  const laneDepth = 38;
+  const laneColors = ['#263235', '#20292d'] as const;
+  const boundaryMaterial = new THREE.MeshStandardMaterial({
+    color: '#e6f3ea',
+    emissive: '#2b5d47',
+    roughness: 0.58,
+    transparent: true,
+    opacity: 0.58,
+  });
+
+  for (let playerIndex = 0; playerIndex < playerCount; playerIndex += 1) {
+    const centerX = playerTrackX(playerIndex, playerCount);
+
+    [-0.5, 0.5].forEach((laneOffset, laneIndex) => {
+      const laneMaterial = new THREE.MeshStandardMaterial({
+        color: laneColors[laneIndex],
+        roughness: 0.86,
+        metalness: 0.03,
+        transparent: true,
+        opacity: 0.72,
+      });
+      const lane = new THREE.Mesh(new THREE.PlaneGeometry(laneWidth - 0.06, laneDepth), laneMaterial);
+      lane.rotation.x = -Math.PI / 2;
+      lane.position.set(centerX + laneOffset * laneWidth, 0.014, -7);
+      lane.receiveShadow = true;
+      scene.add(lane);
+      laneObjects.push(lane);
+    });
+
+    [-zoneWidth / 2, 0, zoneWidth / 2].forEach((offset, boundaryIndex) => {
+      const boundary = new THREE.Mesh(
+        new THREE.BoxGeometry(boundaryIndex === 1 ? 0.035 : 0.055, 0.035, laneDepth),
+        boundaryMaterial.clone()
+      );
+      boundary.position.set(centerX + offset, 0.05, -7);
+      boundary.receiveShadow = true;
+      scene.add(boundary);
+      laneObjects.push(boundary);
+    });
+  }
+
+  return () => {
+    laneObjects.forEach((object) => {
+      scene.remove(object);
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) {
+        return;
+      }
+      mesh.geometry.dispose();
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      materials.forEach((material) => material.dispose());
+    });
+  };
 }
 
 export function createTrackWorld(mount: HTMLDivElement, initialPlayerPositions: number[]): TrackWorld {
@@ -75,6 +129,7 @@ export function createTrackWorld(mount: HTMLDivElement, initialPlayerPositions: 
     color: '#2b3337',
     roughness: 0.74,
   });
+  const disposePlayerLaneMarkers = createPlayerLaneMarkers(scene, initialPlayerPositions.length);
 
   const sideRailGeometry = new THREE.BoxGeometry(0.18, 0.14, 42);
   [TRACK_MIN_X - 0.54, TRACK_MAX_X + 0.54].forEach((x) => {
@@ -129,6 +184,7 @@ export function createTrackWorld(mount: HTMLDivElement, initialPlayerPositions: 
       sleeperMaterial.dispose();
       sideRailGeometry.dispose();
       guideGeometry.dispose();
+      disposePlayerLaneMarkers();
       players.forEach((player) => {
         disposeObject(player.root);
       });

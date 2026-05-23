@@ -247,9 +247,19 @@ export function GameScene({
 
       for (let index = obstacleSystem.obstacles.length - 1; index >= 0; index -= 1) {
         const obstacle = obstacleSystem.obstacles[index];
-        obstacle.mesh.position.z += OBSTACLE_SPEED * delta;
-        obstacle.mesh.rotation.x += delta * 2.8;
-        obstacle.mesh.rotation.z += delta * 1.5;
+        obstacle.root.position.z += OBSTACLE_SPEED * delta;
+        if (obstacle.kind === 'sideways') {
+          obstacle.root.rotation.x += delta * 2.8;
+          obstacle.root.rotation.z += delta * 1.5;
+        } else {
+          obstacle.root.children.forEach((child, childIndex) => {
+            if (child.position.y < 1) {
+              child.rotation.x += delta * 4.2;
+            } else {
+              child.rotation.z = Math.sin(now * 0.014 + childIndex) * 0.28;
+            }
+          });
+        }
 
         const firstPlayerIndex = obstacle.targetPlayerIndex ?? 0;
         const lastPlayerIndex = obstacle.targetPlayerIndex ?? world.players.length - 1;
@@ -259,7 +269,7 @@ export function GameScene({
           const isInCollisionRange =
             !obstacle.hitBy[playerIndex] &&
             Math.abs(obstacle.x - player.root.position.x) < COLLISION_RADIUS_X &&
-            Math.abs(obstacle.mesh.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
+            Math.abs(obstacle.root.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
           const blockedJumpDuckCell =
             obstacle.kind === 'jump-duck' && obstacle.blockedCells.includes(jumpDuckActionsRef.current[playerIndex] ?? 'run-center');
           const isCollision = isInCollisionRange && (obstacle.kind === 'sideways' || blockedJumpDuckCell);
@@ -269,9 +279,11 @@ export function GameScene({
           }
 
           obstacle.hitBy[playerIndex] = true;
-          obstacle.mesh.material.color.set('#ffd166');
-          obstacle.mesh.material.emissive.set('#6b3e00');
-          obstacle.mesh.material.roughness = 0.34;
+          obstacle.hitMaterials.forEach((material) => {
+            material.color.set('#ffd166');
+            material.emissive.set('#6b3e00');
+            material.roughness = 0.34;
+          });
           statusResetAt = now + 650;
           setStats((current) => ({
             dodged: current.dodged,
@@ -281,10 +293,17 @@ export function GameScene({
           }));
         }
 
-        if (obstacle.mesh.position.z > OBSTACLE_DESPAWN_Z) {
-          world.scene.remove(obstacle.mesh);
-          obstacle.mesh.geometry.dispose();
-          obstacle.mesh.material.dispose();
+        if (obstacle.root.position.z > OBSTACLE_DESPAWN_Z) {
+          world.scene.remove(obstacle.root);
+          obstacle.root.traverse((child) => {
+            const mesh = child as THREE.Mesh;
+            if (!mesh.isMesh) {
+              return;
+            }
+            mesh.geometry.dispose();
+            const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            materials.forEach((material) => material.dispose());
+          });
           obstacleSystem.obstacles.splice(index, 1);
           if (!obstacle.hitBy.some(Boolean)) {
             setStats((current) => ({

@@ -6,12 +6,13 @@ export type GamePhase = 'ready' | 'running' | 'paused';
 export type RunnerGameId = 'sideways' | 'jump-duck';
 
 export type Obstacle = {
-  mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+  root: THREE.Group;
   x: number;
   kind: RunnerGameId;
   targetPlayerIndex: number | null;
   blockedCells: JumpDuckCell[];
   hitBy: boolean[];
+  hitMaterials: THREE.MeshStandardMaterial[];
 };
 
 export type GameStats = {

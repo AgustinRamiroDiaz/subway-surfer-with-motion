@@ -18,6 +18,16 @@ Ideas:
 - use 9 positions (3 by 3 grid)
 - get inspired from beat saber https://store.steampowered.com/app/620980/Beat_Saber/
 
+# Review jumpDuckLevel
+
+It currently uses a 2x3 position grid
+
+I think it would be more intuitive for it to just be a 2x2 grid
+
+# Improve camera handling
+
+Currently it's cropping it, which is not taking advantage of the wider camera of my laptop
+
 # Misc
 
 ## Add full e2e test
