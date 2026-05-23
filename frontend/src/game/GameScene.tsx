@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import * as THREE from 'three';
 import { useI18n } from '../app/i18n';
-import { createCalibrationRun, type CalibrationRun, type JumpDuckGuide } from '../motion-mapping/jumpDuckActions';
+import {
+  createCalibrationRun,
+  type CalibrationRun,
+  type HorizontalAction,
+  type JumpDuckCell,
+  type JumpDuckGuide,
+  type VerticalAction,
+} from '../motion-mapping/jumpDuckActions';
 import type { PersonDetection } from '../pose-detection/detectionSchema';
 import {
   COLLISION_RADIUS_X,
@@ -16,7 +23,7 @@ import {
   readStoredRunnerGameId,
   writeStoredRunnerGameId,
 } from './gameStorage';
-import type { GamePhase, GameStats, RunnerGameId } from './gameTypes';
+import type { GamePhase, GameStats, Obstacle, RunnerGameId } from './gameTypes';
 import { SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS, getSidewaysPlayerTargetX } from './levels/sidewaysLevel';
 import {
   JUMP_DUCK_SPAWN_INTERVAL_MS,
@@ -50,6 +57,33 @@ function createDefaultStats(playerCount: number): GameStats {
     status: 'running',
     hitPlayer: null,
   };
+}
+
+function getJumpDuckPieceHitCount(obstacle: Obstacle, playerIndex: number, cell: JumpDuckCell): number {
+  const [verticalAction, horizontalAction] = cell.split('-') as [VerticalAction, HorizontalAction];
+  let hitCount = 0;
+
+  obstacle.pieces.forEach((piece) => {
+    const hitKey = `${playerIndex}:${piece.cell}`;
+    const isHit =
+      !obstacle.hitPieces.has(hitKey) &&
+      piece.blockedVerticals.includes(verticalAction) &&
+      piece.blockedHorizontals.includes(horizontalAction);
+
+    if (!isHit) {
+      return;
+    }
+
+    obstacle.hitPieces.add(hitKey);
+    piece.materials.forEach((material) => {
+      material.color.set('#ffd166');
+      material.emissive.set('#6b3e00');
+      material.roughness = 0.34;
+    });
+    hitCount += 1;
+  });
+
+  return hitCount;
 }
 
 export function GameScene({
@@ -266,28 +300,33 @@ export function GameScene({
 
         for (let playerIndex = firstPlayerIndex; playerIndex <= lastPlayerIndex; playerIndex += 1) {
           const player = world.players[playerIndex];
+          const canHitPlayer = obstacle.kind === 'jump-duck' || !obstacle.hitBy[playerIndex];
           const isInCollisionRange =
-            !obstacle.hitBy[playerIndex] &&
+            canHitPlayer &&
             Math.abs(obstacle.x - player.root.position.x) < COLLISION_RADIUS_X &&
             Math.abs(obstacle.root.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
-          const blockedJumpDuckCell =
-            obstacle.kind === 'jump-duck' && obstacle.blockedCells.includes(jumpDuckActionsRef.current[playerIndex] ?? 'run-center');
-          const isCollision = isInCollisionRange && (obstacle.kind === 'sideways' || blockedJumpDuckCell);
+          const hitCount = obstacle.kind === 'jump-duck' && isInCollisionRange
+            ? getJumpDuckPieceHitCount(obstacle, playerIndex, jumpDuckActionsRef.current[playerIndex] ?? 'run-center')
+            : isInCollisionRange && obstacle.kind === 'sideways'
+              ? 1
+              : 0;
 
-          if (!isCollision) {
+          if (!hitCount) {
             continue;
           }
 
           obstacle.hitBy[playerIndex] = true;
-          obstacle.hitMaterials.forEach((material) => {
-            material.color.set('#ffd166');
-            material.emissive.set('#6b3e00');
-            material.roughness = 0.34;
-          });
+          if (obstacle.kind === 'sideways') {
+            obstacle.hitMaterials.forEach((material) => {
+              material.color.set('#ffd166');
+              material.emissive.set('#6b3e00');
+              material.roughness = 0.34;
+            });
+          }
           statusResetAt = now + 650;
           setStats((current) => ({
             dodged: current.dodged,
-            hits: current.hits.map((hits, index) => index === playerIndex ? hits + 1 : hits),
+            hits: current.hits.map((hits, index) => index === playerIndex ? hits + hitCount : hits),
             status: 'hit',
             hitPlayer: playerIndex + 1,
           }));
@@ -305,7 +344,7 @@ export function GameScene({
             materials.forEach((material) => material.dispose());
           });
           obstacleSystem.obstacles.splice(index, 1);
-          if (!obstacle.hitBy.some(Boolean)) {
+          if (!obstacle.hitBy.some(Boolean) && obstacle.hitPieces.size === 0) {
             setStats((current) => ({
               dodged: current.dodged + 1,
               hits: current.hits,

@@ -5,24 +5,49 @@ import {
   TRACK_MIN_X,
   TRACK_WIDTH,
 } from './gameConstants';
-import type { ObstacleSystem, RunnerGameId } from './gameTypes';
+import type {
+  JumpDuckObstacleCell,
+  JumpDuckObstacleColumn,
+  JumpDuckObstaclePiece,
+  JumpDuckObstacleRow,
+  ObstacleSystem,
+  RunnerGameId,
+} from './gameTypes';
 import { playerTrackX } from './trackWorld';
 
-const JUMP_DUCK_LANE_OFFSETS: Record<HorizontalAction, number> = {
+const JUMP_DUCK_LANE_OFFSETS: Record<JumpDuckObstacleColumn, number> = {
   left: -0.48,
-  center: 0,
   right: 0.48,
 };
 
-function getBlockedVerticalActions(blockedCells: JumpDuckCell[], horizontalAction: HorizontalAction): Set<VerticalAction> {
-  const actions = new Set<VerticalAction>();
-  blockedCells.forEach((cell) => {
-    const [verticalAction, cellHorizontalAction] = cell.split('-') as [VerticalAction, HorizontalAction];
-    if (cellHorizontalAction === horizontalAction) {
-      actions.add(verticalAction);
-    }
+const JUMP_DUCK_OBSTACLE_CELLS: JumpDuckObstacleCell[] = [
+  'top-left',
+  'top-right',
+  'bottom-left',
+  'bottom-right',
+];
+
+function getBlockedPlayerHorizontals(column: JumpDuckObstacleColumn): HorizontalAction[] {
+  return column === 'left' ? ['left', 'center'] : ['center', 'right'];
+}
+
+function getBlockedPlayerVerticals(row: JumpDuckObstacleRow): VerticalAction[] {
+  return row === 'top' ? ['jump', 'run'] : ['run', 'duck'];
+}
+
+function toBlockedPlayerCells(obstacleCells: JumpDuckObstacleCell[]): JumpDuckCell[] {
+  const blockedCells = new Set<JumpDuckCell>();
+
+  obstacleCells.forEach((cell) => {
+    const [row, column] = cell.split('-') as [JumpDuckObstacleRow, JumpDuckObstacleColumn];
+    getBlockedPlayerVerticals(row).forEach((verticalAction) => {
+      getBlockedPlayerHorizontals(column).forEach((horizontalAction) => {
+        blockedCells.add(`${verticalAction}-${horizontalAction}`);
+      });
+    });
   });
-  return actions;
+
+  return [...blockedCells];
 }
 
 function createLogMesh(): THREE.Mesh<THREE.CylinderGeometry, THREE.MeshStandardMaterial> {
@@ -93,25 +118,28 @@ function disposeObject(object: THREE.Object3D): void {
   });
 }
 
-function createJumpDuckObstacleRoot(blockedCells: JumpDuckCell[]): THREE.Group {
+function createJumpDuckObstacleRoot(obstacleCells: JumpDuckObstacleCell[]): {
+  root: THREE.Group;
+  pieces: JumpDuckObstaclePiece[];
+} {
   const root = new THREE.Group();
-  (['left', 'center', 'right'] as const).forEach((horizontalAction) => {
-    const verticalActions = getBlockedVerticalActions(blockedCells, horizontalAction);
-    const laneOffset = JUMP_DUCK_LANE_OFFSETS[horizontalAction];
-    const hasLowObstacle = verticalActions.has('run') && verticalActions.has('duck');
-    const hasHighObstacle = verticalActions.has('jump') && verticalActions.has('run');
+  const pieces: JumpDuckObstaclePiece[] = [];
 
-    if (hasLowObstacle) {
-      const log = createLogMesh();
-      log.position.set(laneOffset, 0.32, 0);
-      root.add(log);
-    }
+  obstacleCells.forEach((cell) => {
+    const [row, column] = cell.split('-') as [JumpDuckObstacleRow, JumpDuckObstacleColumn];
+    const laneOffset = JUMP_DUCK_LANE_OFFSETS[column];
+    const visual = row === 'bottom' ? createLogMesh() : createBirdMesh();
 
-    if (hasHighObstacle) {
-      const bird = createBirdMesh();
-      bird.position.set(laneOffset, 1.54, 0);
-      root.add(bird);
-    }
+    visual.position.set(laneOffset, row === 'bottom' ? 0.32 : 1.54, 0);
+    root.add(visual);
+    pieces.push({
+      cell,
+      row,
+      column,
+      blockedVerticals: getBlockedPlayerVerticals(row),
+      blockedHorizontals: getBlockedPlayerHorizontals(column),
+      materials: collectMaterials(visual),
+    });
   });
 
   if (!root.children.length) {
@@ -120,7 +148,7 @@ function createJumpDuckObstacleRoot(blockedCells: JumpDuckCell[]): THREE.Group {
     root.add(fallback);
   }
 
-  return root;
+  return { root, pieces };
 }
 
 function createSidewaysObstacleRoot(): THREE.Group {
@@ -144,28 +172,19 @@ export function createObstacleSystem(
   getPlayerCount: () => number
 ): ObstacleSystem {
   const obstacles: ObstacleSystem['obstacles'] = [];
-  const allJumpDuckCells: JumpDuckCell[] = [
-    'jump-left',
-    'jump-center',
-    'jump-right',
-    'run-left',
-    'run-center',
-    'run-right',
-    'duck-left',
-    'duck-center',
-    'duck-right',
-  ];
-  const obstaclePatterns: JumpDuckCell[][] = [
-    ['run-center', 'duck-center'],
-    ['jump-center', 'run-center'],
-    ['run-left', 'run-center', 'duck-left', 'duck-center'],
-    ['run-center', 'run-right', 'duck-center', 'duck-right'],
-    ['jump-left', 'run-left', 'jump-center', 'run-center'],
-    ['jump-center', 'run-center', 'jump-right', 'run-right'],
-    allJumpDuckCells.filter((cell) => cell !== 'jump-left'),
-    allJumpDuckCells.filter((cell) => cell !== 'jump-right'),
-    allJumpDuckCells.filter((cell) => cell !== 'duck-left'),
-    allJumpDuckCells.filter((cell) => cell !== 'duck-right'),
+  const obstaclePatterns: JumpDuckObstacleCell[][] = [
+    ['bottom-left'],
+    ['bottom-right'],
+    ['top-left'],
+    ['top-right'],
+    ['bottom-left', 'bottom-right'],
+    ['top-left', 'top-right'],
+    ['bottom-left', 'top-left'],
+    ['bottom-right', 'top-right'],
+    JUMP_DUCK_OBSTACLE_CELLS.filter((cell) => cell !== 'top-left'),
+    JUMP_DUCK_OBSTACLE_CELLS.filter((cell) => cell !== 'top-right'),
+    JUMP_DUCK_OBSTACLE_CELLS.filter((cell) => cell !== 'bottom-left'),
+    JUMP_DUCK_OBSTACLE_CELLS.filter((cell) => cell !== 'bottom-right'),
   ];
 
   return {
@@ -176,17 +195,29 @@ export function createObstacleSystem(
       const isJumpDuck = gameId === 'jump-duck';
       const kind = isJumpDuck ? 'jump-duck' : 'sideways';
       const targetPlayerIndex = isJumpDuck ? Math.floor(Math.random() * Math.max(1, playerCount)) : null;
+      const obstacleCells = obstaclePatterns[Math.floor(Math.random() * obstaclePatterns.length)] ?? ['bottom-left'];
       const blockedCells = isJumpDuck
-        ? obstaclePatterns[Math.floor(Math.random() * obstaclePatterns.length)] ?? ['run-center']
+        ? toBlockedPlayerCells(obstacleCells)
         : [];
       const x = isJumpDuck && targetPlayerIndex !== null
         ? playerTrackX(targetPlayerIndex, playerCount)
         : TRACK_MIN_X + Math.random() * TRACK_WIDTH;
-      const root = isJumpDuck ? createJumpDuckObstacleRoot(blockedCells) : createSidewaysObstacleRoot();
+      const jumpDuckObstacle = isJumpDuck ? createJumpDuckObstacleRoot(obstacleCells) : null;
+      const root = jumpDuckObstacle?.root ?? createSidewaysObstacleRoot();
       const y = isJumpDuck ? 0 : 0.82;
       root.position.set(x, y, OBSTACLE_SPAWN_Z);
       scene.add(root);
-      obstacles.push({ root, x, kind, targetPlayerIndex, blockedCells, hitBy: [], hitMaterials: collectMaterials(root) });
+      obstacles.push({
+        root,
+        x,
+        kind,
+        targetPlayerIndex,
+        blockedCells,
+        hitBy: [],
+        hitPieces: new Set<string>(),
+        hitMaterials: collectMaterials(root),
+        pieces: jumpDuckObstacle?.pieces ?? [],
+      });
     },
     dispose: () => {
       obstacles.forEach((obstacle) => {

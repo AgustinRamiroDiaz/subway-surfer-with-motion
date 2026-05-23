@@ -1,9 +1,22 @@
 import type * as THREE from 'three';
-import type { JumpDuckCell } from '../motion-mapping/jumpDuckActions';
+import type { HorizontalAction, JumpDuckCell, VerticalAction } from '../motion-mapping/jumpDuckActions';
 
 export type GamePhase = 'ready' | 'running' | 'paused';
 
 export type RunnerGameId = 'sideways' | 'jump-duck';
+
+export type JumpDuckObstacleRow = 'top' | 'bottom';
+export type JumpDuckObstacleColumn = 'left' | 'right';
+export type JumpDuckObstacleCell = `${JumpDuckObstacleRow}-${JumpDuckObstacleColumn}`;
+
+export type JumpDuckObstaclePiece = {
+  cell: JumpDuckObstacleCell;
+  row: JumpDuckObstacleRow;
+  column: JumpDuckObstacleColumn;
+  blockedVerticals: VerticalAction[];
+  blockedHorizontals: HorizontalAction[];
+  materials: THREE.MeshStandardMaterial[];
+};
 
 export type Obstacle = {
   root: THREE.Group;
@@ -12,7 +25,9 @@ export type Obstacle = {
   targetPlayerIndex: number | null;
   blockedCells: JumpDuckCell[];
   hitBy: boolean[];
+  hitPieces: Set<string>;
   hitMaterials: THREE.MeshStandardMaterial[];
+  pieces: JumpDuckObstaclePiece[];
 };
 
 export type GameStats = {
