@@ -7,11 +7,13 @@ import {
   type DetectorLoadResult,
   type DetectorResult,
 } from '../pose-detection/aiDetector';
+import { loadMediaPipeGestureDetector } from '../pose-detection/gestureDetector';
 import { createCameraFrame, type TransferredCameraFrame } from '../pose-detection/detectionSchema';
 
 type WorkerLoadMessage = {
   type: 'load';
   requestId: number;
+  task: DetectorLoadOptions['task'];
   backend: DetectorLoadOptions['backend'];
   modelId: DetectorLoadOptions['modelId'];
   runtime: DetectorLoadOptions['runtime'];
@@ -84,6 +86,7 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
   try {
     if (message.type === 'load') {
       const loadOptions: DetectorLoadOptions = {
+        task: message.task,
         backend: message.backend,
         modelId: message.modelId,
         runtime: message.runtime,
@@ -101,9 +104,11 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
         },
       };
       const result: DetectorLoadResult =
-        message.backend === 'mediapipe'
-          ? await loadMediaPipePoseDetector(loadOptions)
-          : await loadYoloDetector(loadOptions);
+        message.task === 'gesture'
+          ? await loadMediaPipeGestureDetector(loadOptions)
+          : message.backend === 'mediapipe'
+            ? await loadMediaPipePoseDetector(loadOptions)
+            : await loadYoloDetector(loadOptions);
 
       disposeDetector?.();
       detector = result.detector;
@@ -124,7 +129,7 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
 
     const { bitmap } = message.frame;
     const directFrame =
-      activeBackend === 'mediapipe'
+      activeBackend === 'mediapipe' || activeBackend === 'mediapipe-gesture'
         ? createCameraFrame(bitmap, message.frame.frameId, message.frame.capturedAtMs)
         : null;
 

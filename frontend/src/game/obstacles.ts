@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { HorizontalAction, JumpDuckCell, VerticalAction } from '../motion-mapping/jumpDuckActions';
+import { GESTURE_TO_EMOJI, HAND_RHYTHM_GESTURES } from './levels/handRhythmLevel';
 import {
   OBSTACLE_SPAWN_Z,
   TRACK_MIN_X,
@@ -166,6 +167,55 @@ function createSidewaysObstacleRoot(): THREE.Group {
   return root;
 }
 
+function createEmojiSprite(emoji: string): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext('2d');
+  if (context) {
+    context.font = '84px Inter, system-ui, sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(emoji, 64, 64);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(1.5, 1.5, 1);
+  return sprite;
+}
+
+function createGestureObstacleRoot(gesture: string): THREE.Group {
+  const root = new THREE.Group();
+  const emoji = GESTURE_TO_EMOJI[gesture] ?? '❓';
+  const sprite = createEmojiSprite(emoji);
+  sprite.position.y = 0.5;
+  root.add(sprite);
+
+  // Background glow
+  const colors: Record<string, string> = {
+    Victory: '#66a3ff',
+    Open_Palm: '#2fffb2',
+    Thumb_Up: '#ffd166',
+    Closed_Fist: '#ff6a85',
+  };
+  const color = colors[gesture] ?? '#ffffff';
+  const material = new THREE.MeshStandardMaterial({
+    color,
+    emissive: color,
+    emissiveIntensity: 0.8,
+    transparent: true,
+    opacity: 0.4,
+  });
+  const glow = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.05, 16, 32), material);
+  glow.position.y = 0.5;
+  glow.rotation.x = Math.PI / 2;
+  root.add(glow);
+
+  return root;
+}
+
 export function createObstacleSystem(
   scene: THREE.Scene,
   getGameId: () => RunnerGameId,
@@ -193,18 +243,34 @@ export function createObstacleSystem(
       const gameId = getGameId();
       const playerCount = getPlayerCount();
       const isJumpDuck = gameId === 'jump-duck';
-      const kind = isJumpDuck ? 'jump-duck' : 'sideways';
-      const targetPlayerIndex = isJumpDuck ? Math.floor(Math.random() * Math.max(1, playerCount)) : null;
+      const isHandRhythm = gameId === 'hand-rhythm';
+      const kind = isHandRhythm ? 'hand-rhythm' : isJumpDuck ? 'jump-duck' : 'sideways';
       const obstacleCells = obstaclePatterns[Math.floor(Math.random() * obstaclePatterns.length)] ?? ['bottom-left'];
       const blockedCells = isJumpDuck
         ? toBlockedPlayerCells(obstacleCells)
         : [];
-      const x = isJumpDuck && targetPlayerIndex !== null
+      const gesture = isHandRhythm ? HAND_RHYTHM_GESTURES[Math.floor(Math.random() * HAND_RHYTHM_GESTURES.length)] : undefined;
+      
+      const targetPlayerIndex = isJumpDuck 
+        ? Math.floor(Math.random() * Math.max(1, playerCount)) 
+        : isHandRhythm 
+          ? Math.floor(Math.random() * playerCount) 
+          : null;
+
+      if (isHandRhythm && targetPlayerIndex !== null) {
+        const existingForPlayer = obstacles.find(o => o.kind === 'hand-rhythm' && o.targetPlayerIndex === targetPlayerIndex);
+        if (existingForPlayer) {
+          return;
+        }
+      }
+
+      const x = (isJumpDuck || isHandRhythm) && targetPlayerIndex !== null
         ? playerTrackX(targetPlayerIndex, playerCount)
         : TRACK_MIN_X + Math.random() * TRACK_WIDTH;
       const jumpDuckObstacle = isJumpDuck ? createJumpDuckObstacleRoot(obstacleCells) : null;
-      const root = jumpDuckObstacle?.root ?? createSidewaysObstacleRoot();
-      const y = isJumpDuck ? 0 : 0.82;
+      const gestureObstacle = isHandRhythm && gesture ? createGestureObstacleRoot(gesture) : null;
+      const root = jumpDuckObstacle?.root ?? gestureObstacle ?? createSidewaysObstacleRoot();
+      const y = isJumpDuck ? 0 : isHandRhythm ? 0.8 : 0.82;
       root.position.set(x, y, OBSTACLE_SPAWN_Z);
       scene.add(root);
       obstacles.push({
@@ -213,6 +279,7 @@ export function createObstacleSystem(
         kind,
         targetPlayerIndex,
         blockedCells,
+        gesture,
         hitBy: [],
         hitPieces: new Set<string>(),
         hitMaterials: collectMaterials(root),

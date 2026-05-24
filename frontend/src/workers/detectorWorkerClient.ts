@@ -170,6 +170,7 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
     worker.postMessage({
       type: 'load',
       requestId: id,
+      task: options.task,
       backend: options.backend,
       modelId: options.modelId,
       runtime: options.runtime,

@@ -32,8 +32,13 @@ import {
   updateJumpDuckCalibration,
   type JumpDuckCalibrationState,
 } from './levels/jumpDuckLevel';
+import {
+  HAND_RHYTHM_SPAWN_INTERVAL_MS,
+  getHandRhythmPlayerMotion,
+  GESTURE_TO_EMOJI,
+} from './levels/handRhythmLevel';
 import { createObstacleSystem } from './obstacles';
-import { applyMarkerPose, getPoseAnimationState } from './playerAvatar';
+import { applyMarkerPose, getPoseAnimationState, updatePlayerGestureEmoji } from './playerAvatar';
 import { createTrackWorld } from './trackWorld';
 
 export { GAME_SELECTION_STORAGE_KEY };
@@ -48,6 +53,8 @@ type GameSceneProps = {
   onPause: () => void;
   onStart: () => void;
   onJumpDuckGuidesChange: (guides: JumpDuckGuide[]) => void;
+  onGameIdChange?: (gameId: RunnerGameId) => void;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
 };
 
 function createDefaultStats(playerCount: number): GameStats {
@@ -85,7 +92,6 @@ function getJumpDuckPieceHitCount(obstacle: Obstacle, playerIndex: number, cell:
 
   return hitCount;
 }
-
 export function GameScene({
   canStart,
   phase,
@@ -95,6 +101,8 @@ export function GameScene({
   onPause,
   onStart,
   onJumpDuckGuidesChange,
+  onGameIdChange,
+  videoRef,
 }: GameSceneProps): ReactElement {
   const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -134,8 +142,8 @@ export function GameScene({
     jumpDuckActionsRef.current = getInitialJumpDuckActions(playerCount);
     lastCalibrationProgressRef.current = -1;
     setCalibrationState({
-      calibrated: selectedGameId === 'sideways',
-      progress: selectedGameId === 'sideways' ? 1 : 0,
+      calibrated: selectedGameId !== 'jump-duck',
+      progress: selectedGameId !== 'jump-duck' ? 1 : 0,
     });
     onJumpDuckGuidesChange([]);
   }, [onJumpDuckGuidesChange, playerCount, selectedGameId]);
@@ -155,9 +163,12 @@ export function GameScene({
 
     setSelectedGameId(gameId);
     writeStoredRunnerGameId(gameId);
+    onGameIdChange?.(gameId);
   };
 
   const isJumpDuckGame = selectedGameId === 'jump-duck';
+  const isHandRhythmGame = selectedGameId === 'hand-rhythm';
+  
   const statusLabel = phase === 'ready'
     ? isJumpDuckGame && !calibrationState.calibrated
       ? t('game.calibrationRequired')
@@ -166,9 +177,11 @@ export function GameScene({
       ? t('game.paused')
       : isJumpDuckGame && !calibrationState.calibrated
         ? t('game.calibrating', { progress: Math.round(calibrationState.progress * 100) })
-        : stats.status === 'hit' && stats.hitPlayer !== null
-          ? t('game.playerHit', { player: stats.hitPlayer })
-          : t('game.running');
+        : isHandRhythmGame
+          ? t('game.running')
+          : stats.status === 'hit' && stats.hitPlayer !== null
+            ? t('game.playerHit', { player: stats.hitPlayer })
+            : t('game.running');
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -221,6 +234,22 @@ export function GameScene({
 
       world.players.forEach((player, index) => {
         const detection = playerDetectionsRef.current[index] ?? null;
+        const isHandRhythm = activeGameId === 'hand-rhythm';
+
+        // Toggle visibility based on game mode
+        if (player.gestureSprite) {
+          player.gestureSprite.visible = isHandRhythm;
+        }
+        player.fallback.visible = !isHandRhythm && !player.rig;
+        if (player.rig) {
+          // Find the 3D model (children with pose-driven-player prefix)
+          player.root.children.forEach((child) => {
+            if (child.name.startsWith('pose-driven-player')) {
+              child.visible = !isHandRhythm;
+            }
+          });
+        }
+
         const poseState = getPoseAnimationState(detection);
         const jumpDuckMotion = getJumpDuckPlayerMotion(
           detection,
@@ -228,25 +257,45 @@ export function GameScene({
           index,
           world.players.length
         );
+        const handRhythmMotion = getHandRhythmPlayerMotion(
+          detection as any,
+          index,
+          world.players.length,
+          videoRef.current?.videoWidth || 640,
+          videoRef.current?.videoHeight || 480
+        );
         jumpDuckActionsRef.current[index] = jumpDuckMotion.cell;
-        const targetX = activeGameId === 'jump-duck'
-          ? jumpDuckMotion.targetX
-          : getSidewaysPlayerTargetX(playerPositionsRef.current[index] ?? playerPositionsRef.current[0] ?? 0.5);
-        const actionOffsetY = activeGameId === 'jump-duck' ? jumpDuckMotion.actionOffsetY : 0;
+
+        const targetX = isHandRhythm
+          ? handRhythmMotion.targetX
+          : activeGameId === 'jump-duck'
+            ? jumpDuckMotion.targetX
+            : getSidewaysPlayerTargetX(playerPositionsRef.current[index] ?? playerPositionsRef.current[0] ?? 0.5);
+        const targetY = isHandRhythm
+          ? handRhythmMotion.targetY
+          : PLAYER_BASE_Y + (activeGameId === 'jump-duck' ? jumpDuckMotion.actionOffsetY : 0);
         const targetScaleY = activeGameId === 'jump-duck' ? jumpDuckMotion.scaleY : 1;
+
+        if (isHandRhythm) {
+          const emoji = GESTURE_TO_EMOJI[handRhythmMotion.gesture] ?? GESTURE_TO_EMOJI['None'];
+          updatePlayerGestureEmoji(player, emoji);
+        }
 
         player.poseEnergy = THREE.MathUtils.lerp(player.poseEnergy, poseState.energy, 0.18);
         player.root.position.x = THREE.MathUtils.lerp(player.root.position.x, targetX, 0.22);
         player.root.position.y = THREE.MathUtils.lerp(
           player.root.position.y,
-          PLAYER_BASE_Y + actionOffsetY + Math.sin(now * 0.012 + index) * 0.045 * player.poseEnergy,
+          targetY + (isHandRhythm ? 0 : Math.sin(now * 0.012 + index) * 0.045 * player.poseEnergy),
           0.28
         );
         player.root.scale.y = THREE.MathUtils.lerp(player.root.scale.y, targetScaleY, 0.24);
         player.root.rotation.z = THREE.MathUtils.lerp(player.root.rotation.z, -poseState.lean * 0.5, 0.2);
         player.root.rotation.y = THREE.MathUtils.lerp(player.root.rotation.y, poseState.turn * 0.45, 0.16);
         player.fallback.rotation.y += delta * (2 + index * 0.35);
-        applyMarkerPose(player, detection);
+        
+        if (!isHandRhythm) {
+          applyMarkerPose(player, detection);
+        }
       });
 
       if (isCalibrating) {
@@ -271,9 +320,11 @@ export function GameScene({
         return;
       }
 
-      const spawnInterval = activeGameId === 'jump-duck'
-        ? JUMP_DUCK_SPAWN_INTERVAL_MS
-        : SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS;
+      const spawnInterval = activeGameId === 'hand-rhythm'
+        ? HAND_RHYTHM_SPAWN_INTERVAL_MS
+        : activeGameId === 'jump-duck'
+          ? JUMP_DUCK_SPAWN_INTERVAL_MS
+          : SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS;
       if (now - lastSpawnAt > spawnInterval) {
         obstacleSystem.spawnObstacle();
         lastSpawnAt = now;
@@ -300,23 +351,34 @@ export function GameScene({
 
         for (let playerIndex = firstPlayerIndex; playerIndex <= lastPlayerIndex; playerIndex += 1) {
           const player = world.players[playerIndex];
-          const canHitPlayer = obstacle.kind === 'jump-duck' || !obstacle.hitBy[playerIndex];
+          const canHitPlayer = obstacle.kind === 'jump-duck' || obstacle.kind === 'hand-rhythm' || !obstacle.hitBy[playerIndex];
           const isInCollisionRange =
             canHitPlayer &&
-            Math.abs(obstacle.x - player.root.position.x) < COLLISION_RADIUS_X &&
+            Math.abs(obstacle.x - player.root.position.x) < (obstacle.kind === 'hand-rhythm' ? 0.6 : COLLISION_RADIUS_X) &&
+            Math.abs(obstacle.root.position.y - player.root.position.y) < (obstacle.kind === 'hand-rhythm' ? 0.6 : 100) &&
             Math.abs(obstacle.root.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
-          const hitCount = obstacle.kind === 'jump-duck' && isInCollisionRange
-            ? getJumpDuckPieceHitCount(obstacle, playerIndex, jumpDuckActionsRef.current[playerIndex] ?? 'run-center')
-            : isInCollisionRange && obstacle.kind === 'sideways'
-              ? 1
-              : 0;
+          
+          let hitCount = 0;
+          if (isInCollisionRange) {
+            if (obstacle.kind === 'hand-rhythm') {
+              const detection = playerDetectionsRef.current[playerIndex] as any;
+              // Only check if it's the target player
+              if (obstacle.targetPlayerIndex === playerIndex && detection?.gesture === obstacle.gesture) {
+                hitCount = 1;
+              }
+            } else if (obstacle.kind === 'jump-duck') {
+              hitCount = getJumpDuckPieceHitCount(obstacle, playerIndex, jumpDuckActionsRef.current[playerIndex] ?? 'run-center');
+            } else if (obstacle.kind === 'sideways') {
+              hitCount = 1;
+            }
+          }
 
           if (!hitCount) {
             continue;
           }
 
           obstacle.hitBy[playerIndex] = true;
-          if (obstacle.kind === 'sideways') {
+          if (obstacle.kind === 'sideways' || obstacle.kind === 'hand-rhythm') {
             obstacle.hitMaterials.forEach((material) => {
               material.color.set('#ffd166');
               material.emissive.set('#6b3e00');
@@ -382,7 +444,13 @@ export function GameScene({
     <div className="game-scene" ref={mountRef}>
       <div className="stage-heading">
         <p className="eyebrow">{t('game.heading')}</p>
-        <h1>{selectedGameId === 'sideways' ? t('game.sidewaysTitle') : t('game.jumpDuckTitle')}</h1>
+        <h1>
+          {selectedGameId === 'sideways'
+            ? t('game.sidewaysTitle')
+            : selectedGameId === 'hand-rhythm'
+              ? t('game.handRhythmTitle')
+              : t('game.jumpDuckTitle')}
+        </h1>
         <div className="game-mode-selector" aria-label={t('game.modeSelector')}>
           <button
             type="button"
@@ -399,6 +467,14 @@ export function GameScene({
             onClick={() => handleGameSelection('jump-duck')}
           >
             {t('game.jumpDuckMode')}
+          </button>
+          <button
+            type="button"
+            className={selectedGameId === 'hand-rhythm' ? 'active' : ''}
+            aria-pressed={selectedGameId === 'hand-rhythm'}
+            onClick={() => handleGameSelection('hand-rhythm')}
+          >
+            {t('game.handRhythmMode')}
           </button>
         </div>
       </div>

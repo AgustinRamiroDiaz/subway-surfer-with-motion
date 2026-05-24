@@ -3,7 +3,7 @@ import type { RunnerGameId } from './gameTypes';
 export const GAME_SELECTION_STORAGE_KEY = 'motion-runner:selected-game:v1';
 
 function isRunnerGameId(value: unknown): value is RunnerGameId {
-  return value === 'sideways' || value === 'jump-duck';
+  return value === 'sideways' || value === 'jump-duck' || value === 'hand-rhythm';
 }
 
 export function readStoredRunnerGameId(): RunnerGameId {

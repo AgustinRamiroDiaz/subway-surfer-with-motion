@@ -22,15 +22,24 @@ export type QuantizedModelFile = {
   sizeMb: number;
 };
 
-export const DETECTOR_BACKENDS = [
+export const POSE_BACKENDS = [
   { id: 'yolo', label: 'YOLO', description: 'Object and pose detection' },
   { id: 'mediapipe', label: 'MediaPipe', description: 'Pose landmark tracking' },
   { id: 'python-webrtc', label: 'Python WebRTC', description: 'Remote low-latency pose tracking' },
 ] as const;
 
-export type DetectorBackendId = (typeof DETECTOR_BACKENDS)[number]['id'];
+export const GESTURE_BACKENDS = [
+  { id: 'mediapipe-gesture', label: 'MediaPipe Gesture', description: 'Hand gesture recognition' },
+] as const;
 
-export const DEFAULT_DETECTOR_BACKEND_ID: DetectorBackendId = 'mediapipe';
+export type PoseBackendId = (typeof POSE_BACKENDS)[number]['id'];
+export type GestureBackendId = (typeof GESTURE_BACKENDS)[number]['id'];
+export type DetectorBackendId = PoseBackendId | GestureBackendId;
+
+export const DEFAULT_POSE_BACKEND_ID: PoseBackendId = 'mediapipe';
+export const DEFAULT_GESTURE_BACKEND_ID: GestureBackendId = 'mediapipe-gesture';
+
+export const DEFAULT_DETECTOR_BACKEND_ID: DetectorBackendId = DEFAULT_POSE_BACKEND_ID;
 
 const NANO_DETECTION_QUANTIZATIONS = [
   { dtype: 'fp16', sizeMb: 4.98 },
@@ -176,7 +185,10 @@ type DetectorRuntime = 'WebGPU' | 'WASM';
 type MediaPipeRuntime = 'MediaPipe GPU' | 'MediaPipe CPU';
 type PythonWebRtcRuntime = 'Python WebRTC';
 
+export type DetectorTask = 'pose' | 'gesture';
+
 export type DetectorLoadOptions = {
+  task: DetectorTask;
   backend: DetectorBackendId;
   modelId: YoloModelId;
   runtime: DetectorRuntimeId;

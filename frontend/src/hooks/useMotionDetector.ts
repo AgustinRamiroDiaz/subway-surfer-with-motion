@@ -3,6 +3,7 @@ import type { Detector, DetectorLoadResult, DetectorResult, DetectorTimings } fr
 import type { PersonDetection } from '../pose-detection/detectionSchema';
 import { createCameraFrame } from '../pose-detection/detectionSchema';
 import { loadDetectorClient } from '../pose-detection/detectorClient';
+import type { DetectorTask } from '../pose-detection/detectorConfig';
 import type { AppPreferences } from '../app/appPreferences';
 import { translateDetectorStatus, useI18n } from '../app/i18n';
 import { getDefaultPlayerPositions, getPlayerPositions, getPersonPosition } from '../motion-mapping/playerPositions';
@@ -35,6 +36,7 @@ export type FrameTimings = DetectorTimings & {
 };
 
 type UseMotionDetectorOptions = {
+  task: DetectorTask;
   preferences: AppPreferences;
   cameraEnabled: boolean;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -64,6 +66,7 @@ type MotionDetectorControls = {
 };
 
 export function useMotionDetector({
+  task,
   preferences,
   cameraEnabled,
   videoRef,
@@ -145,6 +148,30 @@ export function useMotionDetector({
     const frameWidth = result.frame.width;
     const sorted = [...result.detections].sort((a, b) => b.score - a.score);
     setDetections(sorted);
+
+    // Skip player assignment for hand gestures for now, or handle it differently
+    if (sorted.length > 0 && sorted[0].label === 'hand') {
+      const handDetections = sorted as any[];
+      setPlayerDetections(handDetections.slice(0, activePreferences.playerCount));
+      
+      const drawStartedAt = performance.now();
+      const overlay = overlayRef.current;
+      if (overlay) {
+        drawDetections(overlay, sorted as any);
+      }
+      const drawDoneAt = performance.now();
+
+      const loopMs = loopStartedAt === null ? result.timings.totalMs + (drawDoneAt - drawStartedAt) : drawDoneAt - loopStartedAt;
+      setLastInferenceMs(Math.round(result.timings.totalMs));
+      setFrameTimings({
+        ...result.timings,
+        captureMs,
+        drawMs: drawDoneAt - drawStartedAt,
+        loopMs,
+      });
+      return;
+    }
+
     const playerCount = activePreferences.playerCount;
     const fallbackPositions = getDefaultPlayerPositions(playerCount);
     if (playerTrackIdsRef.current.length !== playerCount) {
@@ -334,6 +361,7 @@ export function useMotionDetector({
 
     try {
       const { detector, runtime, fallbackReason, dispose, mode } = await loadDetectorClient({
+        task,
         backend: activePreferences.selectedBackendId,
         modelId: activePreferences.selectedModelId,
         runtime: activePreferences.selectedRuntimeId,

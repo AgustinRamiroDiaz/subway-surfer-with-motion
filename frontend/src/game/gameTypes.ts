@@ -3,7 +3,7 @@ import type { HorizontalAction, JumpDuckCell, VerticalAction } from '../motion-m
 
 export type GamePhase = 'ready' | 'running' | 'paused';
 
-export type RunnerGameId = 'sideways' | 'jump-duck';
+export type RunnerGameId = 'sideways' | 'jump-duck' | 'hand-rhythm';
 
 export type JumpDuckObstacleRow = 'top' | 'bottom';
 export type JumpDuckObstacleColumn = 'left' | 'right';
@@ -24,6 +24,7 @@ export type Obstacle = {
   kind: RunnerGameId;
   targetPlayerIndex: number | null;
   blockedCells: JumpDuckCell[];
+  gesture?: string;
   hitBy: boolean[];
   hitPieces: Set<string>;
   hitMaterials: THREE.MeshStandardMaterial[];
@@ -60,6 +61,8 @@ export type PlayerRig = {
 export type PlayerAvatar = {
   root: THREE.Group;
   fallback: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>;
+  gestureSprite?: THREE.Sprite;
+  gestureTexture?: THREE.CanvasTexture;
   rig: PlayerRig | null;
   poseEnergy: number;
 };

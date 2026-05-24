@@ -8,7 +8,7 @@ export type ClientDetectorLoadResult =
   | DetectorLoadResult;
 
 export function loadDetectorClient(options: DetectorLoadOptions): Promise<ClientDetectorLoadResult> {
-  if (options.backend === 'python-webrtc') {
+  if (options.task === 'pose' && options.backend === 'python-webrtc') {
     return loadPythonWebRtcDetector(options);
   }
 

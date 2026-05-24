@@ -94,6 +94,8 @@ export function createTrackWorld(
 
   const playerCount = initialPlayerPositions.length;
   const isJumpDuck = gameId === 'jump-duck';
+  const isHandRhythm = gameId === 'hand-rhythm';
+  const isLaneBased = isJumpDuck || isHandRhythm;
 
   const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 100);
   camera.position.set(0, 5.2, 9.6);
@@ -133,13 +135,13 @@ export function createTrackWorld(
 
   const disposePlayerLaneMarkers = createPlayerLaneMarkers(scene, playerCount);
 
-  const sleeperWidth = isJumpDuck ? 4.2 : 7.6;
+  const sleeperWidth = isLaneBased ? 4.2 : 7.6;
   const sleeperGeometry = new THREE.BoxGeometry(sleeperWidth, 0.08, 0.14);
   const sideRailGeometry = new THREE.BoxGeometry(0.18, 0.14, 42);
   const guideGeometry = new THREE.BoxGeometry(0.035, 0.04, 42);
-  const floorGeometry = new THREE.PlaneGeometry(isJumpDuck ? 4.8 : 9.2, 44);
+  const floorGeometry = new THREE.PlaneGeometry(isLaneBased ? 4.8 : 9.2, 44);
 
-  const trackCenters = isJumpDuck
+  const trackCenters = isLaneBased
     ? Array.from({ length: playerCount }, (_, i) => playerTrackX(i, playerCount))
     : [0];
 
@@ -159,7 +161,7 @@ export function createTrackWorld(
       scene.add(rail);
     });
 
-    const dividerOffsets = isJumpDuck ? [-1.05, 0, 1.05] : [-2.1, -1.05, 0, 1.05, 2.1];
+    const dividerOffsets = isLaneBased ? [-1.05, 0, 1.05] : [-2.1, -1.05, 0, 1.05, 2.1];
     dividerOffsets.forEach((offset) => {
       const divider = new THREE.Mesh(guideGeometry, dividerMaterial);
       divider.position.set(centerX + offset, 0.08, -7);
@@ -177,7 +179,7 @@ export function createTrackWorld(
 
   const players = initialPlayerPositions.map((initialPlayerPosition, index) => {
     const player = createFallbackPlayer(index);
-    const targetX = isJumpDuck
+    const targetX = isLaneBased
       ? playerTrackX(index, playerCount)
       : positionToWorldX(initialPlayerPosition);
     player.root.position.set(targetX, PLAYER_BASE_Y, PLAYER_Z);

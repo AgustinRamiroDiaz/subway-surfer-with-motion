@@ -1,4 +1,4 @@
-import type { PersonDetection, PoseKeypoint } from '../pose-detection/detectionSchema';
+import type { HandGestureDetection, PersonDetection, PoseKeypoint } from '../pose-detection/detectionSchema';
 import { formatPercent } from '../formatters';
 
 const PLAYER_COLORS = ['#2fffb2', '#66a3ff', '#ffd166', '#ff6a85'] as const;
@@ -37,7 +37,7 @@ function findKeypoint(keypoints: PoseKeypoint[], label: string): PoseKeypoint | 
 
 export function drawDetections(
   canvas: HTMLCanvasElement,
-  items: PersonDetection[]
+  items: (PersonDetection | HandGestureDetection)[]
 ): void {
   const context = canvas.getContext('2d');
   if (!context) {
@@ -54,7 +54,8 @@ export function drawDetections(
     const width = box.xmax - box.xmin;
     const height = box.ymax - box.ymin;
     const idLabel = item.id !== undefined ? `[ID ${item.id}] ` : '';
-    const label = `${idLabel}person ${index + 1} ${formatPercent(item.score)}`;
+    const gestureLabel = item.label === 'hand' ? ` (${(item as HandGestureDetection).gesture})` : '';
+    const label = `${idLabel}${item.label} ${index + 1}${gestureLabel} ${formatPercent(item.score)}`;
     const labelWidth = context.measureText(label).width + 16;
     const labelHeight = 28;
     const labelY = box.ymin > labelHeight ? box.ymin - labelHeight : box.ymin;
@@ -73,19 +74,21 @@ export function drawDetections(
       return;
     }
 
-    context.strokeStyle = '#ffcc4d';
-    context.lineWidth = Math.max(2, Math.round(canvas.width / 360));
-    POSE_CONNECTIONS.forEach(([fromLabel, toLabel]) => {
-      const from = findKeypoint(item.keypoints ?? [], fromLabel);
-      const to = findKeypoint(item.keypoints ?? [], toLabel);
-      if (!from || !to) {
-        return;
-      }
-      context.beginPath();
-      context.moveTo(from.x, from.y);
-      context.lineTo(to.x, to.y);
-      context.stroke();
-    });
+    if (item.label === 'person') {
+      context.strokeStyle = '#ffcc4d';
+      context.lineWidth = Math.max(2, Math.round(canvas.width / 360));
+      POSE_CONNECTIONS.forEach(([fromLabel, toLabel]) => {
+        const from = findKeypoint(item.keypoints ?? [], fromLabel);
+        const to = findKeypoint(item.keypoints ?? [], toLabel);
+        if (!from || !to) {
+          return;
+        }
+        context.beginPath();
+        context.moveTo(from.x, from.y);
+        context.lineTo(to.x, to.y);
+        context.stroke();
+      });
+    }
 
     item.keypoints.forEach((keypoint) => {
       context.beginPath();

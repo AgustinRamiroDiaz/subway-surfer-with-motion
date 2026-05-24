@@ -1,3 +1,11 @@
+# Accessibility
+
+Allow configuring games so that they can be limited for certain people
+
+Examples:
+
+- allow removing the jump behavior on a game
+
 # UX
 
 ## Allow exploring prior to the main game

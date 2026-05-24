@@ -20,6 +20,7 @@ import type { JumpDuckGuide } from '../motion-mapping/jumpDuckActions';
 import { CameraFeedbackPanel } from '../ui/CameraFeedbackPanel';
 import { DetectionControls } from '../ui/DetectionControls';
 import { GameScene, type GamePhase } from '../game/GameScene';
+import type { RunnerGameId } from '../game/gameTypes';
 import { useI18n } from './i18n';
 import { TrackingInternalsDocs } from '../ui/TrackingInternalsDocs';
 import { useCameraController } from '../hooks/useCameraController';
@@ -43,6 +44,11 @@ function MotionRunnerApp(): ReactElement {
   const [preferences, setPreferences] = useState<AppPreferences>(readStoredAppPreferences);
   const [gamePhase, setGamePhase] = useState<GamePhase>('ready');
   const [jumpDuckGuides, setJumpDuckGuides] = useState<JumpDuckGuide[]>([]);
+
+  const detectorTask = useMemo(() => {
+    return preferences.selectedRunnerGameId === 'hand-rhythm' ? 'gesture' : 'pose';
+  }, [preferences.selectedRunnerGameId]);
+
   const camera = useCameraController({
     preferences,
     setPreferences,
@@ -53,6 +59,7 @@ function MotionRunnerApp(): ReactElement {
     },
   });
   const detector = useMotionDetector({
+    task: detectorTask,
     preferences,
     cameraEnabled: camera.cameraEnabled,
     videoRef: camera.videoRef,
@@ -96,6 +103,24 @@ function MotionRunnerApp(): ReactElement {
       return;
     }
     updatePreferences({ ...preferences, selectedBackendId }, true);
+  }, [preferences, updatePreferences]);
+
+  const handleGameIdChange = useCallback((selectedRunnerGameId: RunnerGameId) => {
+    if (selectedRunnerGameId === preferences.selectedRunnerGameId) {
+      return;
+    }
+
+    const nextTask = selectedRunnerGameId === 'hand-rhythm' ? 'gesture' : 'pose';
+    const nextBackendId = nextTask === 'gesture' ? 'mediapipe-gesture' : 'mediapipe';
+
+    updatePreferences(
+      {
+        ...preferences,
+        selectedRunnerGameId,
+        selectedBackendId: nextBackendId,
+      },
+      true
+    );
   }, [preferences, updatePreferences]);
 
   const handleModelChange = useCallback((selectedModelId: YoloModelId) => {
@@ -201,6 +226,8 @@ function MotionRunnerApp(): ReactElement {
             onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
             onPause={handlePauseRun}
             onStart={handleStartRun}
+            onGameIdChange={handleGameIdChange}
+            videoRef={camera.videoRef}
           />
         </section>
 
@@ -218,7 +245,8 @@ function MotionRunnerApp(): ReactElement {
           />
 
           <DetectionControls
-            detections={detector.detections}
+            task={detectorTask}
+            detections={detector.detections as any}
             error={detector.error ?? camera.error}
             frameTimings={detector.frameTimings}
             isLoading={detector.isLoading}

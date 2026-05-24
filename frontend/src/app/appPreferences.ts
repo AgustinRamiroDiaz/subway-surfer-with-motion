@@ -1,11 +1,13 @@
 import {
-  DEFAULT_DETECTOR_BACKEND_ID,
+  DEFAULT_POSE_BACKEND_ID,
+  DEFAULT_GESTURE_BACKEND_ID,
   DEFAULT_DETECTOR_QUANTIZATION_ID,
   DEFAULT_DETECTOR_RUNTIME_ID,
   DEFAULT_MEDIAPIPE_DELEGATE_ID,
   DEFAULT_MEDIAPIPE_MODEL_ID,
   DEFAULT_YOLO_MODEL_ID,
-  DETECTOR_BACKENDS,
+  POSE_BACKENDS,
+  GESTURE_BACKENDS,
   DETECTOR_RUNTIMES,
   MEDIAPIPE_DELEGATES,
   MEDIAPIPE_MODELS,
@@ -21,6 +23,7 @@ import {
   getQuantizationOption,
 } from '../pose-detection/aiDetector';
 import { DEFAULT_PLAYER_COUNT, normalizePlayerCount } from '../motion-mapping/playerPositions';
+import type { RunnerGameId } from '../game/gameTypes';
 
 export const DEFAULT_THRESHOLD = 0.45;
 export const DEFAULT_CAMERA_MIRRORED = true;
@@ -30,6 +33,7 @@ export const APP_PREFERENCES_STORAGE_KEY = 'motion-runner:detection-preferences:
 export type CameraFacingMode = (typeof CAMERA_FACING_MODES)[number];
 
 export type AppPreferences = {
+  selectedRunnerGameId: RunnerGameId;
   selectedBackendId: DetectorBackendId;
   selectedModelId: YoloModelId;
   selectedRuntimeId: DetectorRuntimeId;
@@ -47,7 +51,8 @@ export type AppPreferences = {
 type StoredAppPreferences = Partial<AppPreferences>;
 
 export const DEFAULT_APP_PREFERENCES: AppPreferences = {
-  selectedBackendId: DEFAULT_DETECTOR_BACKEND_ID,
+  selectedRunnerGameId: 'sideways',
+  selectedBackendId: DEFAULT_POSE_BACKEND_ID,
   selectedModelId: DEFAULT_YOLO_MODEL_ID,
   selectedRuntimeId: DEFAULT_DETECTOR_RUNTIME_ID,
   selectedQuantizationId: DEFAULT_DETECTOR_QUANTIZATION_ID,
@@ -101,9 +106,11 @@ export function readStoredAppPreferences(): AppPreferences {
         : getDefaultQuantizationForRuntime(selectedRuntimeId);
 
     return {
-      selectedBackendId: isOptionId(stored.selectedBackendId, DETECTOR_BACKENDS)
-        ? stored.selectedBackendId
-        : defaults.selectedBackendId,
+      selectedRunnerGameId: (stored.selectedRunnerGameId as RunnerGameId) || defaults.selectedRunnerGameId,
+      selectedBackendId:
+        isOptionId(stored.selectedBackendId, POSE_BACKENDS) || isOptionId(stored.selectedBackendId, GESTURE_BACKENDS)
+          ? stored.selectedBackendId
+          : defaults.selectedBackendId,
       selectedModelId,
       selectedRuntimeId,
       selectedQuantizationId,

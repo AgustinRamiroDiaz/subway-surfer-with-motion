@@ -1,7 +1,8 @@
 import type { ReactElement } from 'react';
 import { Accordion, ActionIcon, Button, Select, Slider, Switch, Tooltip } from '@mantine/core';
 import {
-  DETECTOR_BACKENDS,
+  POSE_BACKENDS,
+  GESTURE_BACKENDS,
   DETECTOR_RUNTIMES,
   MEDIAPIPE_DELEGATES,
   MEDIAPIPE_MODELS,
@@ -9,6 +10,7 @@ import {
   type DetectorBackendId,
   type DetectorQuantizationId,
   type DetectorRuntimeId,
+  type DetectorTask,
   type MediaPipeDelegateId,
   type MediaPipeModelId,
   type PersonDetection,
@@ -29,6 +31,7 @@ type HelpLabelProps = {
 };
 
 type DetectionControlsProps = {
+  task: DetectorTask;
   preferences: AppPreferences;
   cameraOptions: CameraControlOption[];
   selectedCameraValue: string;
@@ -89,6 +92,7 @@ function getYoloModelDescriptionKey(model: (typeof YOLO_MODELS)[number]): Transl
 }
 
 export function DetectionControls({
+  task,
   preferences,
   cameraOptions,
   selectedCameraValue,
@@ -115,13 +119,16 @@ export function DetectionControls({
 }: DetectionControlsProps): ReactElement {
   const { language, setLanguage, t, tn } = useI18n();
   const availableQuantizations = getAvailableQuantizations(preferences.selectedModelId);
-  const isYolo = preferences.selectedBackendId === 'yolo';
-  const isPythonWebRtc = preferences.selectedBackendId === 'python-webrtc';
+  const isPose = task === 'pose';
+  const isYolo = isPose && preferences.selectedBackendId === 'yolo';
+  const isPythonWebRtc = isPose && preferences.selectedBackendId === 'python-webrtc';
+  const isMediaPipeGesture = task === 'gesture';
+
   const languageOptions = LANGUAGES.map((item) => ({
     value: item.id,
     label: item.label,
   }));
-  const backendOptions = DETECTOR_BACKENDS.map((backend) => ({
+  const backendOptions = (isPose ? POSE_BACKENDS : GESTURE_BACKENDS).map((backend) => ({
     value: backend.id,
     label: `${backend.label} · ${t(`backend.${backend.id}.description` as TranslationKey)}`,
   }));
@@ -306,7 +313,7 @@ export function DetectionControls({
                   }}
                 />
               </>
-            ) : (
+            ) : isPose ? (
               <>
                 <Select
                   aria-label={t('controls.model')}
@@ -324,6 +331,24 @@ export function DetectionControls({
                   }}
                 />
 
+                <Select
+                  aria-label={t('controls.delegate')}
+                  className="model-control"
+                  data={mediaPipeDelegateOptions}
+                  disabled={isLoading}
+                  label={
+                    <HelpLabel help={t('controls.delegateHelp')}>{t('controls.delegate')}</HelpLabel>
+                  }
+                  value={preferences.selectedMediaPipeDelegateId}
+                  onChange={(value) => {
+                    if (value) {
+                      onMediaPipeDelegateChange(value);
+                    }
+                  }}
+                />
+              </>
+            ) : (
+              <>
                 <Select
                   aria-label={t('controls.delegate')}
                   className="model-control"

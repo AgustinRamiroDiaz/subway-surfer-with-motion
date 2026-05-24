@@ -38,6 +38,20 @@ export type PoseDetection = {
   keypoints: PoseKeypoint[];
 };
 
+export type HandGestureDetection = {
+  id?: number;
+  label: 'hand';
+  score: number;
+  gesture: string;
+  box: {
+    xmin: number;
+    ymin: number;
+    xmax: number;
+    ymax: number;
+  };
+  keypoints?: PoseKeypoint[];
+};
+
 export type PersonDetection = Omit<PoseDetection, 'keypoints'> & {
   id?: number;
   keypoints?: PoseKeypoint[];
@@ -59,7 +73,7 @@ export type ModelPredictionOptions = {
 export type ModelPrediction = {
   type: 'model-prediction';
   frame: CameraFrameDescriptor;
-  detections: PersonDetection[];
+  detections: (PersonDetection | HandGestureDetection)[];
   timings: ModelPredictionTimings;
 };
 

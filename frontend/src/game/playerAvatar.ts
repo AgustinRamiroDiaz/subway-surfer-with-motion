@@ -250,6 +250,23 @@ export function applyMarkerPose(player: PlayerAvatar, detection: PersonDetection
   pointBoneAtMarkerSegment(rig, 'LowerLegR', rightLowerLeg, 0.35);
 }
 
+export function updatePlayerGestureEmoji(player: PlayerAvatar, emoji: string): void {
+  const canvas = player.gestureTexture?.image;
+  if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
+    return;
+  }
+
+  const context = canvas.getContext('2d');
+  if (context) {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.font = '84px Inter, system-ui, sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(emoji, 64, 64);
+    player.gestureTexture!.needsUpdate = true;
+  }
+}
+
 export function createFallbackPlayer(index: number): PlayerAvatar {
   const root = new THREE.Group();
   const fallback = new THREE.Mesh(
@@ -265,9 +282,23 @@ export function createFallbackPlayer(index: number): PlayerAvatar {
   fallback.castShadow = true;
   root.add(fallback);
 
+  // Gesture emoji sprite
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const texture = new THREE.CanvasTexture(canvas);
+  const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const gestureSprite = new THREE.Sprite(spriteMaterial);
+  gestureSprite.scale.set(2, 2, 1);
+  gestureSprite.position.y = 1.2;
+  gestureSprite.visible = false;
+  root.add(gestureSprite);
+
   return {
     root,
     fallback,
+    gestureSprite,
+    gestureTexture: texture,
     rig: null,
     poseEnergy: 0.55,
   };
