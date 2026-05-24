@@ -246,7 +246,7 @@ function MotionRunnerApp(): ReactElement {
 
           <DetectionControls
             task={detectorTask}
-            detections={detector.detections as any}
+            detections={detector.detections}
             error={detector.error ?? camera.error}
             frameTimings={detector.frameTimings}
             isLoading={detector.isLoading}

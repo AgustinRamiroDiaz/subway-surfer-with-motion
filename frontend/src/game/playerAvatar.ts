@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
-import type { PersonDetection, PoseKeypoint } from '../pose-detection/detectionSchema';
+import type { HandGestureDetection, PersonDetection, PoseKeypoint } from '../pose-detection/detectionSchema';
 import {
   KEYPOINT_CONFIDENCE,
   PLAYER_COLORS,
@@ -10,7 +10,7 @@ import {
 } from './gameConstants';
 import type { PlayerAvatar, PlayerRig, PlayerRigBoneName } from './gameTypes';
 
-function findKeypoint(detection: PersonDetection | null, label: string): PoseKeypoint | null {
+function findKeypoint(detection: PersonDetection | HandGestureDetection | null, label: string): PoseKeypoint | null {
   const keypoint = detection?.keypoints?.find((item) => item.label === label);
   if (!keypoint || keypoint.score < KEYPOINT_CONFIDENCE) {
     return null;
@@ -46,22 +46,23 @@ function markerSegmentDirection(
   return direction.normalize();
 }
 
-export function getPoseAnimationState(detection: PersonDetection | null): { lean: number; turn: number; energy: number } {
-  if (!detection?.keypoints?.length) {
+export function getPoseAnimationState(detection: PersonDetection | HandGestureDetection | null): { lean: number; turn: number; energy: number } {
+  if (!detection?.keypoints?.length || detection.label === 'hand') {
     return { lean: 0, turn: 0, energy: 0.55 };
   }
 
-  const leftShoulder = findKeypoint(detection, 'Left Shoulder');
-  const rightShoulder = findKeypoint(detection, 'Right Shoulder');
-  const leftHip = findKeypoint(detection, 'Left Hip');
-  const rightHip = findKeypoint(detection, 'Right Hip');
-  const leftKnee = findKeypoint(detection, 'Left Knee');
-  const rightKnee = findKeypoint(detection, 'Right Knee');
-  const leftWrist = findKeypoint(detection, 'Left Wrist');
-  const rightWrist = findKeypoint(detection, 'Right Wrist');
+  const person = detection as PersonDetection;
+  const leftShoulder = findKeypoint(person, 'Left Shoulder');
+  const rightShoulder = findKeypoint(person, 'Right Shoulder');
+  const leftHip = findKeypoint(person, 'Left Hip');
+  const rightHip = findKeypoint(person, 'Right Hip');
+  const leftKnee = findKeypoint(person, 'Left Knee');
+  const rightKnee = findKeypoint(person, 'Right Knee');
+  const leftWrist = findKeypoint(person, 'Left Wrist');
+  const rightWrist = findKeypoint(person, 'Right Wrist');
 
-  const boxWidth = Math.max(1, detection.box.xmax - detection.box.xmin);
-  const boxHeight = Math.max(1, detection.box.ymax - detection.box.ymin);
+  const boxWidth = Math.max(1, person.box.xmax - person.box.xmin);
+  const boxHeight = Math.max(1, person.box.ymax - person.box.ymin);
   const shoulderMidX = leftShoulder && rightShoulder ? (leftShoulder.x + rightShoulder.x) / 2 : null;
   const hipMidX = leftHip && rightHip ? (leftHip.x + rightHip.x) / 2 : null;
   const lean = shoulderMidX !== null && hipMidX !== null
@@ -195,40 +196,41 @@ function resetRigToRest(rig: PlayerRig, alpha: number): void {
   });
 }
 
-export function applyMarkerPose(player: PlayerAvatar, detection: PersonDetection | null): void {
+export function applyMarkerPose(player: PlayerAvatar, detection: PersonDetection | HandGestureDetection | null): void {
   const rig = player.rig;
   if (!rig) {
     return;
   }
 
   resetRigToRest(rig, detection?.keypoints?.length ? 0.2 : 0.08);
-  if (!detection?.keypoints?.length) {
+  if (!detection?.keypoints?.length || detection.label === 'hand') {
     return;
   }
 
-  const leftShoulder = findKeypoint(detection, 'Left Shoulder');
-  const rightShoulder = findKeypoint(detection, 'Right Shoulder');
-  const leftElbow = findKeypoint(detection, 'Left Elbow');
-  const rightElbow = findKeypoint(detection, 'Right Elbow');
-  const leftWrist = findKeypoint(detection, 'Left Wrist');
-  const rightWrist = findKeypoint(detection, 'Right Wrist');
-  const leftHip = findKeypoint(detection, 'Left Hip');
-  const rightHip = findKeypoint(detection, 'Right Hip');
-  const leftKnee = findKeypoint(detection, 'Left Knee');
-  const rightKnee = findKeypoint(detection, 'Right Knee');
-  const leftAnkle = findKeypoint(detection, 'Left Ankle');
-  const rightAnkle = findKeypoint(detection, 'Right Ankle');
-  const nose = findKeypoint(detection, 'Nose');
+  const person = detection as PersonDetection;
+  const leftShoulder = findKeypoint(person, 'Left Shoulder');
+  const rightShoulder = findKeypoint(person, 'Right Shoulder');
+  const leftElbow = findKeypoint(person, 'Left Elbow');
+  const rightElbow = findKeypoint(person, 'Right Elbow');
+  const leftWrist = findKeypoint(person, 'Left Wrist');
+  const rightWrist = findKeypoint(person, 'Right Wrist');
+  const leftHip = findKeypoint(person, 'Left Hip');
+  const rightHip = findKeypoint(person, 'Right Hip');
+  const leftKnee = findKeypoint(person, 'Left Knee');
+  const rightKnee = findKeypoint(person, 'Right Knee');
+  const leftAnkle = findKeypoint(person, 'Left Ankle');
+  const rightAnkle = findKeypoint(person, 'Right Ankle');
+  const nose = findKeypoint(person, 'Nose');
 
-  const poseState = getPoseAnimationState(detection);
-  const leftUpperArm = markerSegmentDirection(detection, leftShoulder, leftElbow);
-  const rightUpperArm = markerSegmentDirection(detection, rightShoulder, rightElbow);
-  const leftLowerArm = markerSegmentDirection(detection, leftElbow, leftWrist);
-  const rightLowerArm = markerSegmentDirection(detection, rightElbow, rightWrist);
-  const leftUpperLeg = markerSegmentDirection(detection, leftHip, leftKnee);
-  const rightUpperLeg = markerSegmentDirection(detection, rightHip, rightKnee);
-  const leftLowerLeg = markerSegmentDirection(detection, leftKnee, leftAnkle);
-  const rightLowerLeg = markerSegmentDirection(detection, rightKnee, rightAnkle);
+  const poseState = getPoseAnimationState(person);
+  const leftUpperArm = markerSegmentDirection(person, leftShoulder, leftElbow);
+  const rightUpperArm = markerSegmentDirection(person, rightShoulder, rightElbow);
+  const leftLowerArm = markerSegmentDirection(person, leftElbow, leftWrist);
+  const rightLowerArm = markerSegmentDirection(person, rightElbow, rightWrist);
+  const leftUpperLeg = markerSegmentDirection(person, leftHip, leftKnee);
+  const rightUpperLeg = markerSegmentDirection(person, rightHip, rightKnee);
+  const leftLowerLeg = markerSegmentDirection(person, leftKnee, leftAnkle);
+  const rightLowerLeg = markerSegmentDirection(person, rightKnee, rightAnkle);
   const shoulderLine = leftShoulder && rightShoulder
     ? THREE.MathUtils.clamp((rightShoulder.y - leftShoulder.y) / Math.max(1, distanceBetween(leftShoulder, rightShoulder)), -0.8, 0.8)
     : 0;

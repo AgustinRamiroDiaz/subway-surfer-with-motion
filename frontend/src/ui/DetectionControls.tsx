@@ -11,6 +11,7 @@ import {
   type DetectorQuantizationId,
   type DetectorRuntimeId,
   type DetectorTask,
+  type HandGestureDetection,
   type MediaPipeDelegateId,
   type MediaPipeModelId,
   type PersonDetection,
@@ -35,7 +36,7 @@ type DetectionControlsProps = {
   preferences: AppPreferences;
   cameraOptions: CameraControlOption[];
   selectedCameraValue: string;
-  detections: PersonDetection[];
+  detections: (PersonDetection | HandGestureDetection)[];
   error: string | null;
   frameTimings: FrameTimings | null;
   isLoading: boolean;

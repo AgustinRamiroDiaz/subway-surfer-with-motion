@@ -9,7 +9,7 @@ import {
   type JumpDuckGuide,
   type VerticalAction,
 } from '../motion-mapping/jumpDuckActions';
-import type { PersonDetection } from '../pose-detection/detectionSchema';
+import type { HandGestureDetection, PersonDetection } from '../pose-detection/detectionSchema';
 import {
   COLLISION_RADIUS_X,
   COLLISION_RADIUS_Z,
@@ -47,7 +47,7 @@ export type { GamePhase };
 type GameSceneProps = {
   canStart: boolean;
   phase: GamePhase;
-  playerDetections: Array<PersonDetection | null>;
+  playerDetections: Array<PersonDetection | HandGestureDetection | null>;
   playerPositions: number[];
   startLabel: string;
   onPause: () => void;
@@ -250,15 +250,15 @@ export function GameScene({
           });
         }
 
-        const poseState = getPoseAnimationState(detection);
+        const poseState = getPoseAnimationState(detection as PersonDetection | null);
         const jumpDuckMotion = getJumpDuckPlayerMotion(
-          detection,
+          detection as PersonDetection | null,
           calibration.players?.[index],
           index,
           world.players.length
         );
         const handRhythmMotion = getHandRhythmPlayerMotion(
-          detection as any,
+          detection as HandGestureDetection | null,
           index,
           world.players.length,
           videoRef.current?.videoWidth || 640,
@@ -294,7 +294,7 @@ export function GameScene({
         player.fallback.rotation.y += delta * (2 + index * 0.35);
         
         if (!isHandRhythm) {
-          applyMarkerPose(player, detection);
+          applyMarkerPose(player, detection as PersonDetection | null);
         }
       });
 
@@ -361,7 +361,7 @@ export function GameScene({
           let hitCount = 0;
           if (isInCollisionRange) {
             if (obstacle.kind === 'hand-rhythm') {
-              const detection = playerDetectionsRef.current[playerIndex] as any;
+              const detection = playerDetectionsRef.current[playerIndex] as HandGestureDetection | null;
               // Only check if it's the target player
               if (obstacle.targetPlayerIndex === playerIndex && detection?.gesture === obstacle.gesture) {
                 hitCount = 1;

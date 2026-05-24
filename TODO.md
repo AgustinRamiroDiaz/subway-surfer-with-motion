@@ -56,3 +56,24 @@ Inputs:
 Using all different pipelines
 
 We should see the player win the game
+
+# Tech debt
+
+## Decouple hand gesture and pose detection
+
+They are entirely different modules, it does not make sense to have things like
+
+```
+detection: PersonDetection | HandGestureDetection
+```
+
+We should probably make the differt modules boundaries clearer, and then use them as building blocks
+Then, in the building blocks we could impose dynamic restrictions about which module goes with what
+
+Example:
+
+- hand gesture recognizer gives gestures and positions
+- another module can be the mapper from gesture to game actions
+- game only knows about the game actions
+
+By doing this, we'll know which modules adhere to the interfaces of the others, so that mappings make sense

@@ -6,7 +6,7 @@ export const GESTURE_TO_EMOJI: Record<string, string> = {
   Victory: '✌️',
   Open_Palm: '🖐️',
   Thumb_Up: '👍',
-  Closed_Fist: '👊',
+  Closed_Fist: '✊',
   None: '❓',
 };
 

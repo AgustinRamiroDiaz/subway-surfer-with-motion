@@ -158,6 +158,7 @@ describe('loadYoloDetector', () => {
     canvas.height = 480;
 
     const { detector, runtime } = await loadYoloDetector({
+      task: 'pose',
       backend: 'yolo',
       modelId: DEFAULT_YOLO_MODEL_ID,
       runtime: 'wasm',
@@ -209,6 +210,7 @@ describe('loadYoloDetector', () => {
     });
 
     await loadYoloDetector({
+      task: 'pose',
       backend: 'yolo',
       modelId: DEFAULT_YOLO_MODEL_ID,
       runtime: 'webgpu',
@@ -240,6 +242,7 @@ describe('loadYoloDetector', () => {
     canvas.height = 480;
 
     const { detector } = await loadYoloDetector({
+      task: 'pose',
       backend: 'yolo',
       modelId: detectionModelId,
       runtime: 'wasm',
@@ -286,6 +289,7 @@ describe('loadMediaPipePoseDetector', () => {
 
   test('loads the selected MediaPipe model with the selected delegate', async () => {
     await loadMediaPipePoseDetector({
+      task: 'pose',
       backend: 'mediapipe',
       modelId: DEFAULT_YOLO_MODEL_ID,
       runtime: 'wasm',
@@ -322,6 +326,7 @@ describe('loadMediaPipePoseDetector', () => {
     canvas.height = 480;
 
     const { detector, runtime, dispose } = await loadMediaPipePoseDetector({
+      task: 'pose',
       backend: 'mediapipe',
       modelId: DEFAULT_YOLO_MODEL_ID,
       runtime: 'wasm',
@@ -374,6 +379,7 @@ describe('loadMediaPipePoseDetector', () => {
     canvas.height = 480;
 
     const { detector } = await loadMediaPipePoseDetector({
+      task: 'pose',
       backend: 'mediapipe',
       modelId: DEFAULT_YOLO_MODEL_ID,
       runtime: 'wasm',
@@ -402,6 +408,7 @@ describe('loadMediaPipePoseDetector', () => {
     canvas.height = 480;
 
     const { detector } = await loadMediaPipePoseDetector({
+      task: 'pose',
       backend: 'mediapipe',
       modelId: DEFAULT_YOLO_MODEL_ID,
       runtime: 'wasm',

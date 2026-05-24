@@ -1,4 +1,4 @@
-import type { PersonDetection, PoseKeypoint } from '../pose-detection/detectionSchema';
+import type { HandGestureDetection, PersonDetection, PoseKeypoint } from '../pose-detection/detectionSchema';
 
 const KEYPOINT_CONFIDENCE = 0.2;
 
@@ -34,7 +34,7 @@ export type CalibrationRun = {
   players: PlayerCalibration[] | null;
 };
 
-function findKeypoint(detection: PersonDetection | null, label: string): PoseKeypoint | null {
+function findKeypoint(detection: PersonDetection | HandGestureDetection | null, label: string): PoseKeypoint | null {
   const keypoint = detection?.keypoints?.find((item) => item.label === label);
   if (!keypoint || keypoint.score < KEYPOINT_CONFIDENCE) {
     return null;
@@ -60,7 +60,10 @@ function averageKeypointX(keypoints: Array<PoseKeypoint | null>): number | null 
   return visibleKeypoints.reduce((sum, keypoint) => sum + keypoint.x, 0) / visibleKeypoints.length;
 }
 
-export function getPoseVerticalMetrics(detection: PersonDetection | null): PoseVerticalMetrics | null {
+export function getPoseVerticalMetrics(detection: PersonDetection | HandGestureDetection | null): PoseVerticalMetrics | null {
+  if (detection?.label === 'hand') {
+    return null;
+  }
   const leftEye = findKeypoint(detection, 'Left Eye');
   const rightEye = findKeypoint(detection, 'Right Eye');
   const nose = findKeypoint(detection, 'Nose');
@@ -138,7 +141,7 @@ export function calibrationToGuides(players: PlayerCalibration[]): JumpDuckGuide
 }
 
 export function getVerticalAction(
-  detection: PersonDetection | null,
+  detection: PersonDetection | HandGestureDetection | null,
   calibration: PlayerCalibration | undefined
 ): VerticalAction {
   const metrics = getPoseVerticalMetrics(detection);
@@ -161,7 +164,7 @@ export function getVerticalAction(
 }
 
 export function getHorizontalAction(
-  detection: PersonDetection | null,
+  detection: PersonDetection | HandGestureDetection | null,
   calibration: PlayerCalibration | undefined
 ): HorizontalAction {
   const metrics = getPoseVerticalMetrics(detection);
@@ -184,7 +187,7 @@ export function getHorizontalAction(
 }
 
 export function getJumpDuckCell(
-  detection: PersonDetection | null,
+  detection: PersonDetection | HandGestureDetection | null,
   calibration: PlayerCalibration | undefined
 ): JumpDuckCell {
   return `${getVerticalAction(detection, calibration)}-${getHorizontalAction(detection, calibration)}`;

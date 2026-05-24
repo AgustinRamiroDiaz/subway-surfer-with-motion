@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { Detector, DetectorLoadResult, DetectorResult, DetectorTimings } from '../pose-detection/aiDetector';
-import type { PersonDetection } from '../pose-detection/detectionSchema';
+import type { HandGestureDetection, PersonDetection } from '../pose-detection/detectionSchema';
 import { createCameraFrame } from '../pose-detection/detectionSchema';
 import { loadDetectorClient } from '../pose-detection/detectorClient';
 import type { DetectorTask } from '../pose-detection/detectorConfig';
@@ -14,7 +14,7 @@ function createEmptyTrackIds(playerCount: number): Array<number | null> {
   return Array.from({ length: playerCount }, () => null);
 }
 
-function mirrorDetection(detection: PersonDetection, frameWidth: number): PersonDetection {
+function mirrorDetection<T extends PersonDetection | HandGestureDetection>(detection: T, frameWidth: number): T {
   return {
     ...detection,
     box: {
@@ -26,7 +26,7 @@ function mirrorDetection(detection: PersonDetection, frameWidth: number): Person
       ...keypoint,
       x: frameWidth - keypoint.x,
     })),
-  };
+  } as T;
 }
 
 export type FrameTimings = DetectorTimings & {
@@ -53,8 +53,8 @@ type MotionDetectorControls = {
   isLoading: boolean;
   status: string;
   modelStatus: string;
-  detections: PersonDetection[];
-  playerDetections: Array<PersonDetection | null>;
+  detections: (PersonDetection | HandGestureDetection)[];
+  playerDetections: Array<PersonDetection | HandGestureDetection | null>;
   lastInferenceMs: number | null;
   frameTimings: FrameTimings | null;
   playerPositions: number[];
@@ -93,8 +93,8 @@ export function useMotionDetector({
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState(t('status.cameraIdle'));
   const [modelStatus, setModelStatus] = useState(t('status.modelNotLoaded'));
-  const [detections, setDetections] = useState<PersonDetection[]>([]);
-  const [playerDetections, setPlayerDetections] = useState<Array<PersonDetection | null>>(
+  const [detections, setDetections] = useState<(PersonDetection | HandGestureDetection)[]>([]);
+  const [playerDetections, setPlayerDetections] = useState<Array<PersonDetection | HandGestureDetection | null>>(
     Array.from({ length: preferences.playerCount }, () => null)
   );
   const [lastInferenceMs, setLastInferenceMs] = useState<number | null>(null);
@@ -172,13 +172,14 @@ export function useMotionDetector({
       return;
     }
 
+    const persons = sorted.filter((d): d is PersonDetection => d.label === 'person');
     const playerCount = activePreferences.playerCount;
     const fallbackPositions = getDefaultPlayerPositions(playerCount);
     if (playerTrackIdsRef.current.length !== playerCount) {
       playerTrackIdsRef.current = createEmptyTrackIds(playerCount);
     }
 
-    const hasTrackingIds = sorted.some((d) => d.id !== undefined);
+    const hasTrackingIds = persons.some((d) => d.id !== undefined);
     let finalPositions: number[];
     let finalDetections: Array<PersonDetection | null> = Array.from(
       { length: playerCount },
@@ -189,7 +190,7 @@ export function useMotionDetector({
       const now = performance.now();
       const TRACK_TIMEOUT_MS = 2000;
 
-      sorted.forEach((d) => {
+      persons.forEach((d) => {
         if (d.id !== undefined) {
           trackIdLastSeenRef.current.set(d.id, now);
         }
@@ -214,7 +215,7 @@ export function useMotionDetector({
         if (trackedId === null) {
           return;
         }
-        const match = sorted.find((d) => d.id === trackedId);
+        const match = persons.find((d) => d.id === trackedId);
         if (match) {
           const pos = getPersonPosition(match, frameWidth);
           nextPositions[index] = activePreferences.cameraMirrored ? 1 - pos : pos;
@@ -223,7 +224,7 @@ export function useMotionDetector({
         }
       });
 
-      const unassignedDetections = sorted
+      const unassignedDetections = persons
         .filter((d) => !assigned.has(d))
         .sort((a, b) => {
           const posA = getPersonPosition(a, frameWidth);
@@ -252,8 +253,8 @@ export function useMotionDetector({
 
       finalPositions = nextPositions;
     } else {
-      finalPositions = getPlayerPositions(sorted, frameWidth, activePreferences.cameraMirrored, playerCount);
-      const sortedByPosition = sorted
+      finalPositions = getPlayerPositions(persons, frameWidth, activePreferences.cameraMirrored, playerCount);
+      const sortedByPosition = persons
         .slice(0, playerCount)
         .sort((left, right) => {
           const leftPosition = getPersonPosition(left, frameWidth);

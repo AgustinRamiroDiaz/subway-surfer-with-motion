@@ -11,7 +11,7 @@ import {
   type PlayerCalibration,
   type VerticalAction,
 } from '../../motion-mapping/jumpDuckActions';
-import type { PersonDetection } from '../../pose-detection/detectionSchema';
+import type { HandGestureDetection, PersonDetection } from '../../pose-detection/detectionSchema';
 import { playerTrackX } from '../trackWorld';
 
 export const JUMP_DUCK_SPAWN_INTERVAL_MS = 1700;
@@ -49,7 +49,7 @@ export function getInitialJumpDuckActions(playerCount: number): JumpDuckCell[] {
 }
 
 export function getJumpDuckPlayerMotion(
-  detection: PersonDetection | null,
+  detection: PersonDetection | HandGestureDetection | null,
   calibration: PlayerCalibration | undefined,
   playerIndex: number,
   playerCount: number
@@ -74,7 +74,7 @@ export function getJumpDuckPlayerMotion(
 
 export function updateJumpDuckCalibration(
   calibration: CalibrationRun,
-  detections: Array<PersonDetection | null>,
+  detections: Array<PersonDetection | HandGestureDetection | null>,
   now: number,
   lastProgress: number
 ): JumpDuckCalibrationUpdate {
