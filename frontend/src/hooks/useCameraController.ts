@@ -21,7 +21,7 @@ type CameraController = ReturnType<typeof useCameraStream> & {
   clearError: () => void;
   startCameraWithPreferences: () => Promise<MediaStream>;
   changeCamera: (value: string | null) => void;
-  changeDevCameraMultiplier: (value: boolean) => void;
+  changeDevCameraMultiplier: (value: number) => void;
 };
 
 function getCameraValue(preferences: AppPreferences): string {
@@ -66,9 +66,9 @@ export function useCameraController({
     return stream.startCamera({
       facingMode: preferences.cameraFacingMode,
       deviceId: preferences.cameraDeviceId,
-      devCameraMultiplierEnabled: preferences.devCameraMultiplierEnabled,
+      devCameraMultiplier: preferences.devCameraMultiplier,
     });
-  }, [preferences.cameraDeviceId, preferences.cameraFacingMode, preferences.devCameraMultiplierEnabled, stream]);
+  }, [preferences.cameraDeviceId, preferences.cameraFacingMode, preferences.devCameraMultiplier, stream]);
 
   const restartCameraIfEnabled = useCallback(async (nextPreferences: AppPreferences) => {
     if (!stream.cameraEnabled) {
@@ -82,7 +82,7 @@ export function useCameraController({
       await stream.startCamera({
         facingMode: nextPreferences.cameraFacingMode,
         deviceId: nextPreferences.cameraDeviceId,
-        devCameraMultiplierEnabled: nextPreferences.devCameraMultiplierEnabled,
+        devCameraMultiplier: nextPreferences.devCameraMultiplier,
       });
     } catch (cause: unknown) {
       stream.stopCamera();
@@ -107,10 +107,10 @@ export function useCameraController({
     void restartCameraIfEnabled(nextPreferences);
   }, [preferences, restartCameraIfEnabled, setPreferences]);
 
-  const changeDevCameraMultiplier = useCallback((devCameraMultiplierEnabled: boolean) => {
+  const changeDevCameraMultiplier = useCallback((devCameraMultiplier: number) => {
     const nextPreferences: AppPreferences = {
       ...preferences,
-      devCameraMultiplierEnabled,
+      devCameraMultiplier,
     };
 
     setPreferences(nextPreferences);

@@ -9,7 +9,7 @@ export type CameraDeviceOption = {
 export type StartCameraOptions = {
   facingMode: CameraFacingMode;
   deviceId: string | null;
-  devCameraMultiplierEnabled: boolean;
+  devCameraMultiplier: number;
 };
 
 type CameraStreamControls = {
@@ -63,7 +63,7 @@ function waitForVideoMetadata(video: HTMLVideoElement): Promise<void> {
   });
 }
 
-async function createSideBySideStream(sourceStream: MediaStream): Promise<StreamPreprocessor> {
+async function createMultipliedStream(sourceStream: MediaStream, multiplier: number): Promise<StreamPreprocessor> {
   const sourceVideo = document.createElement('video');
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
@@ -84,7 +84,7 @@ async function createSideBySideStream(sourceStream: MediaStream): Promise<Stream
     throw cause;
   }
 
-  canvas.width = sourceVideo.videoWidth * 2;
+  canvas.width = sourceVideo.videoWidth * multiplier;
   canvas.height = sourceVideo.videoHeight;
 
   let animationFrameId: number | null = null;
@@ -96,8 +96,9 @@ async function createSideBySideStream(sourceStream: MediaStream): Promise<Stream
       return;
     }
 
-    context.drawImage(sourceVideo, 0, 0, sourceVideo.videoWidth, sourceVideo.videoHeight);
-    context.drawImage(sourceVideo, sourceVideo.videoWidth, 0, sourceVideo.videoWidth, sourceVideo.videoHeight);
+    for (let i = 0; i < multiplier; i++) {
+      context.drawImage(sourceVideo, i * sourceVideo.videoWidth, 0, sourceVideo.videoWidth, sourceVideo.videoHeight);
+    }
   };
 
   const scheduleDraw = (): void => {
@@ -201,7 +202,7 @@ export function useCameraStream(): CameraStreamControls {
     streamRef.current = null;
   }, []);
 
-  const startCamera = useCallback(async ({ facingMode, deviceId, devCameraMultiplierEnabled }: StartCameraOptions) => {
+  const startCamera = useCallback(async ({ facingMode, deviceId, devCameraMultiplier }: StartCameraOptions) => {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error(getCameraAccessUnavailableMessage());
     }
@@ -219,8 +220,8 @@ export function useCameraStream(): CameraStreamControls {
 
     let activeStream: StreamPreprocessor;
     try {
-      activeStream = devCameraMultiplierEnabled
-        ? await createSideBySideStream(stream)
+      activeStream = devCameraMultiplier > 1
+        ? await createMultipliedStream(stream, devCameraMultiplier)
         : {
             stream,
             cleanup: () => {

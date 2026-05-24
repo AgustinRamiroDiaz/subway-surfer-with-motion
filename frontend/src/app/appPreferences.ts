@@ -45,7 +45,7 @@ export type AppPreferences = {
   cameraMirrored: boolean;
   cameraFacingMode: CameraFacingMode;
   cameraDeviceId: string | null;
-  devCameraMultiplierEnabled: boolean;
+  devCameraMultiplier: number;
 };
 
 type StoredAppPreferences = Partial<AppPreferences>;
@@ -63,7 +63,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   cameraMirrored: DEFAULT_CAMERA_MIRRORED,
   cameraFacingMode: 'user',
   cameraDeviceId: null,
-  devCameraMultiplierEnabled: false,
+  devCameraMultiplier: 1,
 };
 
 function isOptionId<T extends string>(value: unknown, options: ReadonlyArray<{ id: T }>): value is T {
@@ -134,10 +134,10 @@ export function readStoredAppPreferences(): AppPreferences {
         typeof stored.cameraDeviceId === 'string' && stored.cameraDeviceId.length > 0
           ? stored.cameraDeviceId
           : defaults.cameraDeviceId,
-      devCameraMultiplierEnabled:
-        typeof stored.devCameraMultiplierEnabled === 'boolean'
-          ? stored.devCameraMultiplierEnabled
-          : defaults.devCameraMultiplierEnabled,
+      devCameraMultiplier:
+        typeof stored.devCameraMultiplier === 'number'
+          ? stored.devCameraMultiplier
+          : (stored as any).devCameraMultiplierEnabled === true ? 2 : defaults.devCameraMultiplier,
     };
   } catch {
     return defaults;

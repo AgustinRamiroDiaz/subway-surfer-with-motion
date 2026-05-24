@@ -56,7 +56,8 @@ test('renders the motion game shell', () => {
   expect(screen.getByDisplayValue('Español')).toBeInTheDocument();
   expect(screen.getByDisplayValue('Cámara frontal')).toBeInTheDocument();
   expect(screen.getByRole('switch', { name: /espejar cámara/i })).toBeChecked();
-  expect(screen.getByRole('switch', { name: /multiplicador de cámara/i })).not.toBeChecked();
+  expect(screen.getByText(/ninguno/i)).toBeInTheDocument();
+  expect(screen.getByRole('slider', { name: /multiplicador de cámara/i })).toHaveAttribute('aria-valuenow', '1');
   expect(screen.getByRole('slider', { name: /jugadores/i })).toHaveAttribute('aria-valuenow', '2');
   expect(screen.getByRole('button', { name: /detener cámara/i })).toBeDisabled();
 });
@@ -82,7 +83,7 @@ test('remembers detector decisions across remounts', () => {
   fireEvent.keyDown(screen.getByRole('slider', { name: /jugadores/i }), { key: 'ArrowRight' });
   fireEvent.keyDown(screen.getByRole('slider', { name: /jugadores/i }), { key: 'ArrowRight' });
   userEvent.click(screen.getByRole('switch', { name: /espejar cámara/i }));
-  userEvent.click(screen.getByRole('switch', { name: /multiplicador de cámara/i }));
+  fireEvent.keyDown(screen.getByRole('slider', { name: /multiplicador de cámara/i }), { key: 'ArrowRight' });
 
   unmount();
   renderApp();
@@ -95,10 +96,11 @@ test('remembers detector decisions across remounts', () => {
   expect(screen.getByDisplayValue('Cámara trasera')).toBeInTheDocument();
   expect(screen.getByRole('slider', { name: /jugadores/i })).toHaveAttribute('aria-valuenow', '4');
   expect(screen.getByRole('switch', { name: /espejar cámara/i })).not.toBeChecked();
-  expect(screen.getByRole('switch', { name: /multiplicador de cámara/i })).toBeChecked();
+  expect(screen.getByText(/2x/i)).toBeInTheDocument();
+  expect(screen.getByRole('slider', { name: /multiplicador de cámara/i })).toHaveAttribute('aria-valuenow', '2');
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"selectedBackendId":"yolo"');
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"cameraFacingMode":"environment"');
-  expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"devCameraMultiplierEnabled":true');
+  expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"devCameraMultiplier":2');
 });
 
 test('remembers the selected level across remounts', () => {

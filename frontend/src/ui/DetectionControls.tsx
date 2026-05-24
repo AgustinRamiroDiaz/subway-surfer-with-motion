@@ -45,7 +45,7 @@ type DetectionControlsProps = {
   status: string;
   onBackendChange: (value: DetectorBackendId) => void;
   onCameraChange: (value: string | null) => void;
-  onDevCameraMultiplierChange: (value: boolean) => void;
+  onDevCameraMultiplierChange: (value: number) => void;
   onCameraMirrorChange: (value: boolean) => void;
   onMediaPipeDelegateChange: (value: MediaPipeDelegateId) => void;
   onMediaPipeModelChange: (value: MediaPipeModelId) => void;
@@ -202,14 +202,18 @@ export function DetectionControls({
           onChange={(event) => onCameraMirrorChange(event.currentTarget.checked)}
         />
 
-        <Switch
-          checked={preferences.devCameraMultiplierEnabled}
-          className="toggle-control"
-          label={
-            <HelpLabel help={t('controls.cameraMultiplierHelp')}>{t('controls.cameraMultiplier')}</HelpLabel>
-          }
-          onChange={(event) => onDevCameraMultiplierChange(event.currentTarget.checked)}
-        />
+        <div className="multiplier-control">
+          <HelpLabel help={t('controls.cameraMultiplierHelp')}>{t('controls.cameraMultiplier')}</HelpLabel>
+          <strong>{preferences.devCameraMultiplier === 1 ? t('controls.multiplierNone') : `${preferences.devCameraMultiplier}x`}</strong>
+          <Slider
+            thumbLabel={t('controls.cameraMultiplier')}
+            min={1}
+            max={4}
+            step={1}
+            value={preferences.devCameraMultiplier}
+            onChange={onDevCameraMultiplierChange}
+          />
+        </div>
 
         <div className="player-count-control">
           <HelpLabel help={t('controls.playersHelp')}>{t('controls.players')}</HelpLabel>

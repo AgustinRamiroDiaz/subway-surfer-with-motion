@@ -660,19 +660,23 @@
 }
 
 .player-count-control .mantine-Slider-root,
-.threshold-control .mantine-Slider-root {
+.threshold-control .mantine-Slider-root,
+.multiplier-control .mantine-Slider-root {
   grid-column: 1 / -1;
 }
 
 .player-count-control .mantine-Slider-track::before,
-.threshold-control .mantine-Slider-track::before {
+.threshold-control .mantine-Slider-track::before,
+.multiplier-control .mantine-Slider-track::before {
   background: var(--surface-4);
 }
 
 .player-count-control .mantine-Slider-bar,
 .threshold-control .mantine-Slider-bar,
+.multiplier-control .mantine-Slider-bar,
 .player-count-control .mantine-Slider-thumb,
-.threshold-control .mantine-Slider-thumb {
+.threshold-control .mantine-Slider-thumb,
+.multiplier-control .mantine-Slider-thumb {
   accent-color: var(--accent);
   border-color: var(--accent);
   background: var(--accent);
