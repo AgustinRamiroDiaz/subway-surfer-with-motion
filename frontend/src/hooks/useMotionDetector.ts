@@ -13,6 +13,7 @@ import {
   getPersonPosition,
 } from '../motion-mapping/playerPositions';
 import { drawDetections } from '../motion-mapping/poseOverlay';
+import { getDetectorFrameSize, scaleDetectorResultToFrame } from './detectorFrameScaling';
 import { useLatest } from './useLatest';
 
 function createEmptyTrackIds(playerCount: number): Array<number | null> {
@@ -327,9 +328,8 @@ export function useMotionDetector({
     const detector = detectorRef.current;
     const video = videoRef.current;
     const frame = frameRef.current;
-    const frameContext = frame?.getContext('2d', { willReadFrequently: true });
 
-    if (!detectingRef.current || !detector || !video || !frame || !frameContext) {
+    if (!detectingRef.current || !detector || !video || !frame) {
       return;
     }
 
@@ -340,6 +340,15 @@ export function useMotionDetector({
 
     const loopStartedAt = performance.now();
     syncCanvasSize();
+    const detectorFrameSize = getDetectorFrameSize(video.videoWidth, video.videoHeight, task);
+    if (frame.width !== detectorFrameSize.width || frame.height !== detectorFrameSize.height) {
+      frame.width = detectorFrameSize.width;
+      frame.height = detectorFrameSize.height;
+    }
+    const frameContext = frame.getContext('2d', { willReadFrequently: true });
+    if (!frameContext) {
+      return;
+    }
     frameContext.drawImage(video, 0, 0, frame.width, frame.height);
     const captureDoneAt = performance.now();
     frameSequenceRef.current += 1;
@@ -351,7 +360,11 @@ export function useMotionDetector({
         threshold: activePreferences.threshold,
         percentage: false,
       });
-      handleDetectorResult(result, captureDoneAt - loopStartedAt, loopStartedAt);
+      handleDetectorResult(
+        scaleDetectorResultToFrame(result, video.videoWidth, video.videoHeight),
+        captureDoneAt - loopStartedAt,
+        loopStartedAt
+      );
     } catch (cause: unknown) {
       detectingRef.current = false;
       setIsDetecting(false);
@@ -363,7 +376,7 @@ export function useMotionDetector({
     if (detectingRef.current) {
       scheduleDetectionFrame();
     }
-  }, [frameRef, handleDetectorResult, preferencesRef, scheduleDetectionFrame, syncCanvasSize, t, videoRef]);
+  }, [frameRef, handleDetectorResult, preferencesRef, scheduleDetectionFrame, syncCanvasSize, t, task, videoRef]);
 
   useEffect(() => {
     runDetectionRef.current = () => {
