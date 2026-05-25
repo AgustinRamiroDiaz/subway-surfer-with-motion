@@ -20,7 +20,6 @@ import {
 } from './gameConstants';
 import {
   GAME_SELECTION_STORAGE_KEY,
-  readStoredRunnerGameId,
   writeStoredRunnerGameId,
 } from './gameStorage';
 import type { GamePhase, GameStats, Obstacle, RunnerGameId } from './gameTypes';
@@ -45,15 +44,11 @@ export { GAME_SELECTION_STORAGE_KEY };
 export type { GamePhase };
 
 type GameSceneProps = {
-  canStart: boolean;
   phase: GamePhase;
   playerDetections: Array<PersonDetection | HandGestureDetection | null>;
   playerPositions: number[];
-  startLabel: string;
-  onPause: () => void;
-  onStart: () => void;
+  selectedGameId: RunnerGameId;
   onJumpDuckGuidesChange: (guides: JumpDuckGuide[]) => void;
-  onGameIdChange?: (gameId: RunnerGameId) => void;
   videoRef: React.RefObject<HTMLVideoElement | null>;
 };
 
@@ -93,21 +88,16 @@ function getJumpDuckPieceHitCount(obstacle: Obstacle, playerIndex: number, cell:
   return hitCount;
 }
 export function GameScene({
-  canStart,
   phase,
   playerDetections,
   playerPositions,
-  startLabel,
-  onPause,
-  onStart,
+  selectedGameId,
   onJumpDuckGuidesChange,
-  onGameIdChange,
   videoRef,
 }: GameSceneProps): ReactElement {
   const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement | null>(null);
   const playerCount = playerPositions.length;
-  const [selectedGameId, setSelectedGameId] = useState<RunnerGameId>(readStoredRunnerGameId);
   const selectedGameIdRef = useRef<RunnerGameId>(selectedGameId);
   const playerPositionsRef = useRef(playerPositions);
   const playerDetectionsRef = useRef(playerDetections);
@@ -127,6 +117,7 @@ export function GameScene({
 
   useEffect(() => {
     selectedGameIdRef.current = selectedGameId;
+    writeStoredRunnerGameId(selectedGameId);
     if (selectedGameId !== 'jump-duck') {
       onJumpDuckGuidesChange([]);
     }
@@ -151,20 +142,6 @@ export function GameScene({
   useEffect(() => {
     gamePhaseRef.current = phase;
   }, [phase]);
-
-  const handleGameSelection = (gameId: RunnerGameId): void => {
-    if (gameId === selectedGameId) {
-      return;
-    }
-
-    if (phase === 'running') {
-      onPause();
-    }
-
-    setSelectedGameId(gameId);
-    writeStoredRunnerGameId(gameId);
-    onGameIdChange?.(gameId);
-  };
 
   const isJumpDuckGame = selectedGameId === 'jump-duck';
   const isHandRhythmGame = selectedGameId === 'hand-rhythm';
@@ -452,48 +429,9 @@ export function GameScene({
               ? t('game.handRhythmTitle')
               : t('game.jumpDuckTitle')}
         </h1>
-        <div className="game-mode-selector" aria-label={t('game.modeSelector')}>
-          <button
-            type="button"
-            className={selectedGameId === 'sideways' ? 'active' : ''}
-            aria-pressed={selectedGameId === 'sideways'}
-            onClick={() => handleGameSelection('sideways')}
-          >
-            {t('game.sidewaysMode')}
-          </button>
-          <button
-            type="button"
-            className={selectedGameId === 'jump-duck' ? 'active' : ''}
-            aria-pressed={selectedGameId === 'jump-duck'}
-            onClick={() => handleGameSelection('jump-duck')}
-          >
-            {t('game.jumpDuckMode')}
-          </button>
-          <button
-            type="button"
-            className={selectedGameId === 'hand-rhythm' ? 'active' : ''}
-            aria-pressed={selectedGameId === 'hand-rhythm'}
-            onClick={() => handleGameSelection('hand-rhythm')}
-          >
-            {t('game.handRhythmMode')}
-          </button>
-        </div>
       </div>
       <div className="game-hud" aria-label={t('game.status')}>
         <span>{statusLabel}</span>
-      </div>
-      <div className="game-controls" aria-label={t('game.controls')}>
-        <button
-          className="primary-action"
-          type="button"
-          disabled={!canStart || phase === 'running'}
-          onClick={onStart}
-        >
-          {startLabel}
-        </button>
-        <button type="button" disabled={phase !== 'running'} onClick={onPause}>
-          {t('game.pause')}
-        </button>
       </div>
       <dl className="game-stats" aria-label={t('game.stats')}>
         <div>

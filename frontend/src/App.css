@@ -353,7 +353,8 @@
   gap: 10px;
 }
 
-.game-controls button {
+.game-controls button,
+.run-controls button {
   min-width: 104px;
   min-height: 42px;
 }
@@ -552,6 +553,7 @@
 }
 
 .game-controls button,
+.run-controls button,
 .control-action,
 .secondary-action {
   min-height: 46px;
@@ -569,6 +571,7 @@
 }
 
 .game-controls button:hover:not(:disabled),
+.run-controls button:hover:not(:disabled),
 .control-action:hover:not(:disabled),
 .secondary-action:hover:not(:disabled) {
   transform: translateY(-1px);
@@ -577,6 +580,7 @@
 }
 
 .game-controls button:disabled,
+.run-controls button:disabled,
 .control-action:disabled,
 .secondary-action:disabled {
   cursor: not-allowed;
@@ -732,6 +736,39 @@
   display: grid;
   gap: 16px;
   padding-block: 2px 4px;
+}
+
+.run-panel {
+  display: grid;
+  gap: 12px;
+  padding-block: 2px 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.run-panel .game-mode-selector {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  margin-top: 0;
+}
+
+.run-panel .game-mode-selector button {
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 8px;
+  white-space: normal;
+  line-height: 1.15;
+}
+
+.run-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
+  gap: 10px;
+}
+
+.run-controls button {
+  min-width: 0;
+  min-height: 48px;
 }
 
 .advanced-panel {
@@ -925,6 +962,22 @@
   .stage-heading {
     top: 18px;
     left: 18px;
+    right: 18px;
+  }
+
+  .stage-heading h1,
+  .stage-heading h2 {
+    max-width: calc(100% - 72px);
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+
+  .game-mode-selector button {
+    min-width: 0;
+    min-height: 40px;
+    padding: 0 6px;
+    white-space: normal;
+    line-height: 1.15;
   }
 
   .game-hud {
@@ -932,20 +985,44 @@
     right: 18px;
   }
 
-  .game-controls {
-    right: 18px;
-    bottom: 18px;
-  }
-
-  .game-controls button {
-    min-width: 82px;
-    padding: 0 12px;
-  }
-
   .game-stats {
-    left: 18px;
-    bottom: 18px;
-    gap: 16px;
+    left: 12px;
+    right: auto;
+    bottom: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    max-width: calc(100% - 24px);
+    padding: 8px 10px;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    background: rgba(12, 15, 17, 0.58);
+    backdrop-filter: blur(10px);
+  }
+
+  .game-stats div {
+    min-width: 54px;
+  }
+
+  .game-stats dt {
+    overflow: hidden;
+    font-size: 0.56rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .game-stats dd {
+    font-size: 1.08rem;
+  }
+
+  .run-panel {
+    padding-bottom: 12px;
+  }
+
+  .run-controls button {
+    min-height: 48px;
+    padding: 0 10px;
+    font-size: 0.78rem;
   }
 
   .control-panel {

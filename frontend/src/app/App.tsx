@@ -207,6 +207,13 @@ function MotionRunnerApp(): ReactElement {
     setGamePhase('paused');
   }, [detector]);
 
+  const handleGameSelection = useCallback((selectedRunnerGameId: RunnerGameId) => {
+    if (gamePhase === 'running') {
+      handlePauseRun();
+    }
+    handleGameIdChange(selectedRunnerGameId);
+  }, [gamePhase, handleGameIdChange, handlePauseRun]);
+
   const handleJumpDuckGuidesChange = useCallback((guides: JumpDuckGuide[]) => {
     setJumpDuckGuides(guides);
   }, []);
@@ -218,15 +225,11 @@ function MotionRunnerApp(): ReactElement {
       <section className="workspace" aria-label={t('app.workspace')}>
         <section className="game-stage" aria-label={t('app.mainGame')}>
           <GameScene
-            canStart={!detector.isLoading}
             phase={gamePhase}
             playerDetections={detector.playerDetections}
             playerPositions={detector.playerPositions}
-            startLabel={detector.isLoading ? t('app.loadingModel') : startLabel}
+            selectedGameId={preferences.selectedRunnerGameId}
             onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
-            onPause={handlePauseRun}
-            onStart={handleStartRun}
-            onGameIdChange={handleGameIdChange}
             videoRef={camera.videoRef}
           />
         </section>
@@ -243,6 +246,48 @@ function MotionRunnerApp(): ReactElement {
             videoRef={camera.videoRef}
             onLoadedMetadata={camera.syncCanvasSize}
           />
+
+          <section className="run-panel" aria-label={t('game.controls')}>
+            <div className="game-mode-selector" aria-label={t('game.modeSelector')}>
+              <button
+                type="button"
+                className={preferences.selectedRunnerGameId === 'sideways' ? 'active' : ''}
+                aria-pressed={preferences.selectedRunnerGameId === 'sideways'}
+                onClick={() => handleGameSelection('sideways')}
+              >
+                {t('game.sidewaysMode')}
+              </button>
+              <button
+                type="button"
+                className={preferences.selectedRunnerGameId === 'jump-duck' ? 'active' : ''}
+                aria-pressed={preferences.selectedRunnerGameId === 'jump-duck'}
+                onClick={() => handleGameSelection('jump-duck')}
+              >
+                {t('game.jumpDuckMode')}
+              </button>
+              <button
+                type="button"
+                className={preferences.selectedRunnerGameId === 'hand-rhythm' ? 'active' : ''}
+                aria-pressed={preferences.selectedRunnerGameId === 'hand-rhythm'}
+                onClick={() => handleGameSelection('hand-rhythm')}
+              >
+                {t('game.handRhythmMode')}
+              </button>
+            </div>
+            <div className="run-controls">
+              <button
+                className="primary-action"
+                type="button"
+                disabled={detector.isLoading || gamePhase === 'running'}
+                onClick={handleStartRun}
+              >
+                {detector.isLoading ? t('app.loadingModel') : startLabel}
+              </button>
+              <button type="button" disabled={gamePhase !== 'running'} onClick={handlePauseRun}>
+                {t('game.pause')}
+              </button>
+            </div>
+          </section>
 
           <DetectionControls
             task={detectorTask}
