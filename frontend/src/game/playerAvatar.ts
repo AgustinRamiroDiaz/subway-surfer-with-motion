@@ -51,7 +51,7 @@ export function getPoseAnimationState(detection: PersonDetection | HandGestureDe
     return { lean: 0, turn: 0, energy: 0.55 };
   }
 
-  const person = detection as PersonDetection;
+  const person = detection ;
   const leftShoulder = findKeypoint(person, 'Left Shoulder');
   const rightShoulder = findKeypoint(person, 'Right Shoulder');
   const leftHip = findKeypoint(person, 'Left Hip');
@@ -207,7 +207,7 @@ export function applyMarkerPose(player: PlayerAvatar, detection: PersonDetection
     return;
   }
 
-  const person = detection as PersonDetection;
+  const person = detection ;
   const leftShoulder = findKeypoint(person, 'Left Shoulder');
   const rightShoulder = findKeypoint(person, 'Right Shoulder');
   const leftElbow = findKeypoint(person, 'Left Elbow');
@@ -253,7 +253,8 @@ export function applyMarkerPose(player: PlayerAvatar, detection: PersonDetection
 }
 
 export function updatePlayerGestureEmoji(player: PlayerAvatar, emoji: string): void {
-  const canvas = player.gestureTexture?.image;
+  const texture = player.gestureTexture;
+  const canvas = texture?.image;
   if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
     return;
   }
@@ -265,7 +266,7 @@ export function updatePlayerGestureEmoji(player: PlayerAvatar, emoji: string): v
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillText(emoji, 64, 64);
-    player.gestureTexture!.needsUpdate = true;
+    texture.needsUpdate = true;
   }
 }
 

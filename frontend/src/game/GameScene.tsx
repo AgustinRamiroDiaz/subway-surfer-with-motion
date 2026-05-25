@@ -209,6 +209,7 @@ export function GameScene({
       const width = Math.max(1, clientWidth);
       const height = Math.max(1, clientHeight);
       world.camera.aspect = width / height;
+      world.camera.zoom = world.camera.aspect < 1 ? world.camera.aspect : 1;
       world.camera.updateProjectionMatrix();
       world.renderer.setSize(width, height, false);
     };
@@ -261,8 +262,8 @@ export function GameScene({
           detection as HandGestureDetection | null,
           index,
           world.players.length,
-          videoRef.current?.videoWidth || 640,
-          videoRef.current?.videoHeight || 480
+          videoRef.current?.videoWidth ?? 640,
+          videoRef.current?.videoHeight ?? 480
         );
         jumpDuckActionsRef.current[index] = jumpDuckMotion.cell;
 
@@ -438,7 +439,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [onJumpDuckGuidesChange, playerCount, selectedGameId]);
+  }, [onJumpDuckGuidesChange, playerCount, selectedGameId, videoRef]);
 
   return (
     <div className="game-scene" ref={mountRef}>

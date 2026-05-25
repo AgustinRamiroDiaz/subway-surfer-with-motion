@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PLAYER_BASE_Y, PLAYER_Z, TRACK_MAX_X, TRACK_MIN_X } from './gameConstants';
+import { PLAYER_BASE_Y, PLAYER_Z, TRACK_MAX_X, TRACK_MIN_X, TRACK_WIDTH } from './gameConstants';
 import type { RunnerGameId, TrackWorld } from './gameTypes';
 import { createFallbackPlayer, disposeObject, loadPlayerModels } from './playerAvatar';
 
@@ -16,16 +16,25 @@ export function positionToWorldX(position: number): number {
 }
 
 export function playerTrackX(index: number, playerCount: number): number {
-  if (playerCount <= 1) {
+  const normalizedPlayerCount = Math.max(1, playerCount);
+
+  if (normalizedPlayerCount <= 1) {
     return 0;
   }
 
-  return (index - (playerCount - 1) / 2) * 5.2;
+  const clampedIndex = THREE.MathUtils.clamp(index, 0, normalizedPlayerCount - 1);
+  const segmentWidth = TRACK_WIDTH / normalizedPlayerCount;
+  return TRACK_MIN_X + segmentWidth * (clampedIndex + 0.5);
+}
+
+export function playerTrackWidth(playerCount: number): number {
+  const normalizedPlayerCount = Math.max(1, playerCount);
+  return normalizedPlayerCount <= 1 ? 4.6 : TRACK_WIDTH / normalizedPlayerCount;
 }
 
 function createPlayerLaneMarkers(scene: THREE.Scene, playerCount: number): () => void {
   const laneObjects: THREE.Object3D[] = [];
-  const zoneWidth = playerCount <= 1 ? 4.6 : 3.2;
+  const zoneWidth = playerTrackWidth(playerCount);
   const laneWidth = zoneWidth / 2;
   const laneDepth = 38;
   const laneColors = ['#263235', '#20292d'] as const;
@@ -135,11 +144,12 @@ export function createTrackWorld(
 
   const disposePlayerLaneMarkers = createPlayerLaneMarkers(scene, playerCount);
 
-  const sleeperWidth = isLaneBased ? 4.2 : 7.6;
+  const playerZoneWidth = playerTrackWidth(playerCount);
+  const sleeperWidth = isLaneBased ? playerZoneWidth : 7.6;
   const sleeperGeometry = new THREE.BoxGeometry(sleeperWidth, 0.08, 0.14);
   const sideRailGeometry = new THREE.BoxGeometry(0.18, 0.14, 42);
   const guideGeometry = new THREE.BoxGeometry(0.035, 0.04, 42);
-  const floorGeometry = new THREE.PlaneGeometry(isLaneBased ? 4.8 : 9.2, 44);
+  const floorGeometry = new THREE.PlaneGeometry(isLaneBased ? playerZoneWidth : 9.2, 44);
 
   const trackCenters = isLaneBased
     ? Array.from({ length: playerCount }, (_, i) => playerTrackX(i, playerCount))

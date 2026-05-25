@@ -5,7 +5,8 @@
     "start": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0"
+    "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",

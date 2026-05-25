@@ -37,7 +37,7 @@ function findKeypoint(keypoints: PoseKeypoint[], label: string): PoseKeypoint | 
 
 export function drawDetections(
   canvas: HTMLCanvasElement,
-  items: (PersonDetection | HandGestureDetection)[]
+  items: Array<PersonDetection | HandGestureDetection>
 ): void {
   const context = canvas.getContext('2d');
   if (!context) {
@@ -54,7 +54,7 @@ export function drawDetections(
     const width = box.xmax - box.xmin;
     const height = box.ymax - box.ymin;
     const idLabel = item.id !== undefined ? `[ID ${item.id}] ` : '';
-    const gestureLabel = item.label === 'hand' ? ` (${(item as HandGestureDetection).gesture})` : '';
+    const gestureLabel = item.label === 'hand' ? ` (${(item ).gesture})` : '';
     const label = `${idLabel}${item.label} ${index + 1}${gestureLabel} ${formatPercent(item.score)}`;
     const labelWidth = context.measureText(label).width + 16;
     const labelHeight = 28;

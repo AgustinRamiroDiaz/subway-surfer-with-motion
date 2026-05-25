@@ -11,9 +11,9 @@ import {
 } from './detectorConfig';
 
 export type MediaPipeGestureResult = {
-  gestures: { categoryName: string; score: number }[][];
-  landmarks: { x: number; y: number; z: number }[][];
-  worldLandmarks: { x: number; y: number; z: number }[][];
+  gestures: Array<Array<{ categoryName: string; score: number }>>;
+  landmarks: Array<Array<{ x: number; y: number; z: number }>>;
+  worldLandmarks: Array<Array<{ x: number; y: number; z: number }>>;
 };
 
 export type MediaPipeGestureRecognizer = {
@@ -33,7 +33,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function boxFromLandmarks(
-  landmarks: { x: number; y: number }[],
+  landmarks: Array<{ x: number; y: number }>,
   width: number,
   height: number
 ): HandGestureDetection['box'] {

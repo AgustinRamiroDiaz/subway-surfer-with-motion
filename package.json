@@ -7,9 +7,14 @@
     "frontend"
   ],
   "scripts": {
+    "prepare": "husky",
     "start": "pnpm --filter @subway-surfer-with-motion/frontend start",
     "build": "pnpm --filter @subway-surfer-with-motion/frontend build",
     "test": "pnpm --filter @subway-surfer-with-motion/frontend test",
-    "lint": "pnpm --filter @subway-surfer-with-motion/frontend lint"
+    "lint": "pnpm --filter @subway-surfer-with-motion/frontend lint",
+    "lint:fix": "pnpm --filter @subway-surfer-with-motion/frontend lint:fix"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
   }
 }

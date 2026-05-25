@@ -53,7 +53,7 @@ type MotionDetectorControls = {
   isLoading: boolean;
   status: string;
   modelStatus: string;
-  detections: (PersonDetection | HandGestureDetection)[];
+  detections: Array<PersonDetection | HandGestureDetection>;
   playerDetections: Array<PersonDetection | HandGestureDetection | null>;
   lastInferenceMs: number | null;
   frameTimings: FrameTimings | null;
@@ -93,7 +93,7 @@ export function useMotionDetector({
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState(t('status.cameraIdle'));
   const [modelStatus, setModelStatus] = useState(t('status.modelNotLoaded'));
-  const [detections, setDetections] = useState<(PersonDetection | HandGestureDetection)[]>([]);
+  const [detections, setDetections] = useState<Array<PersonDetection | HandGestureDetection>>([]);
   const [playerDetections, setPlayerDetections] = useState<Array<PersonDetection | HandGestureDetection | null>>(
     Array.from({ length: preferences.playerCount }, () => null)
   );
@@ -151,13 +151,13 @@ export function useMotionDetector({
 
     // Skip player assignment for hand gestures for now, or handle it differently
     if (sorted.length > 0 && sorted[0].label === 'hand') {
-      const handDetections = sorted as any[];
+      const handDetections = sorted.filter((detection): detection is HandGestureDetection => detection.label === 'hand');
       setPlayerDetections(handDetections.slice(0, activePreferences.playerCount));
       
       const drawStartedAt = performance.now();
       const overlay = overlayRef.current;
       if (overlay) {
-        drawDetections(overlay, sorted as any);
+        drawDetections(overlay, sorted);
       }
       const drawDoneAt = performance.now();
 
@@ -408,7 +408,7 @@ export function useMotionDetector({
     } finally {
       setIsLoading(false);
     }
-  }, [handleDetectorResult, preferencesRef, streamRef, syncCanvasSize, t]);
+  }, [handleDetectorResult, preferencesRef, streamRef, syncCanvasSize, t, task]);
 
   const resetDetector = useCallback(() => {
     stopDetection();

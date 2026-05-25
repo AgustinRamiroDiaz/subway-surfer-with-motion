@@ -73,7 +73,7 @@ export type ModelPredictionOptions = {
 export type ModelPrediction = {
   type: 'model-prediction';
   frame: CameraFrameDescriptor;
-  detections: (PersonDetection | HandGestureDetection)[];
+  detections: Array<PersonDetection | HandGestureDetection>;
   timings: ModelPredictionTimings;
 };
 

@@ -36,7 +36,7 @@ type DetectionControlsProps = {
   preferences: AppPreferences;
   cameraOptions: CameraControlOption[];
   selectedCameraValue: string;
-  detections: (PersonDetection | HandGestureDetection)[];
+  detections: Array<PersonDetection | HandGestureDetection>;
   error: string | null;
   frameTimings: FrameTimings | null;
   isLoading: boolean;
@@ -123,7 +123,6 @@ export function DetectionControls({
   const isPose = task === 'pose';
   const isYolo = isPose && preferences.selectedBackendId === 'yolo';
   const isPythonWebRtc = isPose && preferences.selectedBackendId === 'python-webrtc';
-  const isMediaPipeGesture = task === 'gesture';
 
   const languageOptions = LANGUAGES.map((item) => ({
     value: item.id,
@@ -353,8 +352,7 @@ export function DetectionControls({
                 />
               </>
             ) : (
-              <>
-                <Select
+              <Select
                   aria-label={t('controls.delegate')}
                   className="model-control"
                   data={mediaPipeDelegateOptions}
@@ -369,7 +367,6 @@ export function DetectionControls({
                     }
                   }}
                 />
-              </>
             )}
           </Accordion.Panel>
         </Accordion.Item>

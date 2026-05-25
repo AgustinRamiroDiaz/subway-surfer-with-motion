@@ -1,4 +1,5 @@
 import type { HandGestureDetection } from '../../pose-detection/detectionSchema';
+import { playerTrackX } from '../trackWorld';
 
 export type HandRhythmGesture = 'Victory' | 'Open_Palm' | 'Thumb_Up' | 'Closed_Fist';
 
@@ -29,11 +30,11 @@ export function getHandRhythmPlayerMotion(
   detection: HandGestureDetection | null,
   playerIndex: number,
   playerCount: number,
-  frameWidth: number,
-  frameHeight: number
+  _frameWidth: number,
+  _frameHeight: number
 ): HandRhythmPlayerMotion {
   // Players are stationary in Hand Rhythm mode
-  const targetX = (playerIndex - (playerCount - 1) / 2) * 5.2;
+  const targetX = playerTrackX(playerIndex, playerCount);
 
   if (!detection) {
     return {
@@ -48,4 +49,4 @@ export function getHandRhythmPlayerMotion(
     targetX,
     targetY: 1.2, // Keep stationary at a consistent height
   };
-  }
+}

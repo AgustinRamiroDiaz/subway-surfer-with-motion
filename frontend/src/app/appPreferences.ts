@@ -1,6 +1,5 @@
 import {
   DEFAULT_POSE_BACKEND_ID,
-  DEFAULT_GESTURE_BACKEND_ID,
   DEFAULT_DETECTOR_QUANTIZATION_ID,
   DEFAULT_DETECTOR_RUNTIME_ID,
   DEFAULT_MEDIAPIPE_DELEGATE_ID,
@@ -48,7 +47,9 @@ export type AppPreferences = {
   devCameraMultiplier: number;
 };
 
-type StoredAppPreferences = Partial<AppPreferences>;
+type StoredAppPreferences = Partial<AppPreferences> & {
+  devCameraMultiplierEnabled?: boolean;
+};
 
 export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   selectedRunnerGameId: 'sideways',
@@ -137,7 +138,7 @@ export function readStoredAppPreferences(): AppPreferences {
       devCameraMultiplier:
         typeof stored.devCameraMultiplier === 'number'
           ? stored.devCameraMultiplier
-          : (stored as any).devCameraMultiplierEnabled === true ? 2 : defaults.devCameraMultiplier,
+          : stored.devCameraMultiplierEnabled === true ? 2 : defaults.devCameraMultiplier,
     };
   } catch {
     return defaults;
