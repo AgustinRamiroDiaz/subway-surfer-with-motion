@@ -123,6 +123,9 @@ export function DetectionControls({
   const isPose = task === 'pose';
   const isYolo = isPose && preferences.selectedBackendId === 'yolo';
   const isPythonWebRtc = isPose && preferences.selectedBackendId === 'python-webrtc';
+  const detectorCallLabel = task === 'gesture' ? t('timing.recognition') : t('timing.model');
+  const preprocessLabel = task === 'gesture' ? t('timing.gestureSetup') : t('timing.preprocess');
+  const postprocessLabel = task === 'gesture' ? t('timing.gestureDecode') : t('timing.postprocess');
 
   const languageOptions = LANGUAGES.map((item) => ({
     value: item.id,
@@ -405,20 +408,28 @@ export function DetectionControls({
                   <dd>{formatMs(frameTimings.rawImageMs)}</dd>
                 </div>
                 <div>
-                  <dt>{t('timing.preprocess')}</dt>
+                  <dt>{preprocessLabel}</dt>
                   <dd>{formatMs(frameTimings.preprocessMs)}</dd>
                 </div>
                 <div>
-                  <dt>{t('timing.model')}</dt>
+                  <dt>{detectorCallLabel}</dt>
                   <dd>{formatMs(frameTimings.modelMs)}</dd>
                 </div>
                 <div>
-                  <dt>{t('timing.postprocess')}</dt>
+                  <dt>{postprocessLabel}</dt>
                   <dd>{formatMs(frameTimings.postprocessMs)}</dd>
+                </div>
+                <div>
+                  <dt>{t('timing.analysis')}</dt>
+                  <dd>{formatMs(frameTimings.analysisMs)}</dd>
                 </div>
                 <div>
                   <dt>{t('timing.draw')}</dt>
                   <dd>{formatMs(frameTimings.drawMs)}</dd>
+                </div>
+                <div>
+                  <dt>{t('timing.overhead')}</dt>
+                  <dd>{formatMs(frameTimings.overheadMs)}</dd>
                 </div>
                 <div>
                   <dt>{t('timing.total')}</dt>

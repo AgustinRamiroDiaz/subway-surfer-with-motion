@@ -502,15 +502,17 @@
 .timing-panel {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .timing-panel dl {
   display: grid;
   gap: 8px;
   margin: 0;
+  min-width: 0;
 }
 
-.timing-panel div {
+.timing-panel dl > div {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -532,6 +534,7 @@
   color: var(--text-strong);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .error-message {

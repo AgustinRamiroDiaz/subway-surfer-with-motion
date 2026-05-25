@@ -36,6 +36,8 @@ function mirrorDetection<T extends PersonDetection | HandGestureDetection>(detec
 
 export type FrameTimings = DetectorTimings & {
   captureMs: number;
+  analysisMs: number;
+  overheadMs: number;
   drawMs: number;
   loopMs: number;
 };
@@ -149,10 +151,31 @@ export function useMotionDetector({
   }, [videoRef]);
 
   const handleDetectorResult = useCallback((result: DetectorResult, captureMs: number, loopStartedAt: number | null) => {
+    const analysisStartedAt = performance.now();
     const activePreferences = preferencesRef.current;
     const frameWidth = result.frame.width;
     const sorted = [...result.detections].sort((a, b) => b.score - a.score);
     setDetections(sorted);
+
+    const publishFrameTimings = (analysisMs: number, drawMs: number, drawDoneAt: number): void => {
+      const loopMs = loopStartedAt === null
+        ? result.timings.totalMs + analysisMs + drawMs
+        : drawDoneAt - loopStartedAt;
+      const overheadMs = Math.max(
+        0,
+        loopMs - captureMs - result.timings.totalMs - analysisMs - drawMs
+      );
+
+      setLastInferenceMs(Math.round(result.timings.totalMs));
+      setFrameTimings({
+        ...result.timings,
+        captureMs,
+        analysisMs,
+        overheadMs,
+        drawMs,
+        loopMs,
+      });
+    };
 
     if (sorted.length > 0 && sorted[0].label === 'hand') {
       const playerCount = activePreferences.playerCount;
@@ -166,20 +189,13 @@ export function useMotionDetector({
       setPlayerPositions(getDefaultPlayerPositions(playerCount));
       
       const drawStartedAt = performance.now();
+      const analysisMs = drawStartedAt - analysisStartedAt;
       const overlay = overlayRef.current;
       if (overlay) {
         drawDetections(overlay, sorted);
       }
       const drawDoneAt = performance.now();
-
-      const loopMs = loopStartedAt === null ? result.timings.totalMs + (drawDoneAt - drawStartedAt) : drawDoneAt - loopStartedAt;
-      setLastInferenceMs(Math.round(result.timings.totalMs));
-      setFrameTimings({
-        ...result.timings,
-        captureMs,
-        drawMs: drawDoneAt - drawStartedAt,
-        loopMs,
-      });
+      publishFrameTimings(analysisMs, drawDoneAt - drawStartedAt, drawDoneAt);
       return;
     }
 
@@ -284,20 +300,13 @@ export function useMotionDetector({
     setStatus(sorted.length ? tn('status.detectedPeople', sorted.length) : t('status.scanning'));
 
     const drawStartedAt = performance.now();
+    const analysisMs = drawStartedAt - analysisStartedAt;
     const overlay = overlayRef.current;
     if (overlay) {
       drawDetections(overlay, sorted);
     }
     const drawDoneAt = performance.now();
-
-    const loopMs = loopStartedAt === null ? result.timings.totalMs + (drawDoneAt - drawStartedAt) : drawDoneAt - loopStartedAt;
-    setLastInferenceMs(Math.round(result.timings.totalMs));
-    setFrameTimings({
-      ...result.timings,
-      captureMs,
-      drawMs: drawDoneAt - drawStartedAt,
-      loopMs,
-    });
+    publishFrameTimings(analysisMs, drawDoneAt - drawStartedAt, drawDoneAt);
   }, [overlayRef, playerPositionsRef, preferencesRef, t, tn]);
 
   const stopDetection = useCallback(() => {
