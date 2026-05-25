@@ -131,15 +131,58 @@
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  background:
-    linear-gradient(90deg, rgba(47, 255, 178, 0.08), transparent 18%, transparent 82%, rgba(47, 255, 178, 0.08)),
-    repeating-linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.07) 0,
-      rgba(255, 255, 255, 0.07) 1px,
-      transparent 1px,
-      transparent 12.5%
-    );
+  background: linear-gradient(
+    90deg,
+    rgba(47, 255, 178, 0.08),
+    transparent 18%,
+    transparent 82%,
+    rgba(47, 255, 178, 0.08)
+  );
+}
+
+.camera-player-sections {
+  position: absolute;
+  inset: 0;
+  display: grid;
+}
+
+.camera-player-section {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(47, 255, 178, 0.055);
+}
+
+.camera-player-section:first-child {
+  border-left: 0;
+}
+
+.camera-player-section.player-2 {
+  background: rgba(102, 163, 255, 0.055);
+}
+
+.camera-player-section.player-3 {
+  background: rgba(255, 209, 102, 0.06);
+}
+
+.camera-player-section.player-4 {
+  background: rgba(255, 106, 133, 0.055);
+}
+
+.camera-player-section span {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  min-width: 28px;
+  padding: 3px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  background: rgba(7, 18, 15, 0.62);
+  color: var(--text-strong);
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
 }
 
 .camera-center-line {

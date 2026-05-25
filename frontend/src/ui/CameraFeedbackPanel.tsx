@@ -64,6 +64,16 @@ export function CameraFeedbackPanel({
         onLoadedMetadata={onLoadedMetadata}
       />
       <div className="camera-position-guides" aria-hidden="true">
+        <div
+          className="camera-player-sections"
+          style={{ gridTemplateColumns: `repeat(${Math.max(1, playerPositions.length)}, minmax(0, 1fr))` }}
+        >
+          {playerPositions.map((_, index) => (
+            <div className={`camera-player-section player-${index + 1}`} key={`player-section-${index + 1}`}>
+              <span>{`P${index + 1}`}</span>
+            </div>
+          ))}
+        </div>
         <div className="camera-center-line" />
         {playerPositions.map((playerPosition, index) => (
           <div
