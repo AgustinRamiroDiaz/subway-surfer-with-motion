@@ -1,21 +1,34 @@
 import type { HandGestureDetection } from '../../pose-detection/detectionSchema';
 import { playerTrackX } from '../trackWorld';
 
-export type HandRhythmGesture = 'Victory' | 'Open_Palm' | 'Thumb_Up' | 'Closed_Fist';
+export type HandRhythmGesture =
+  | 'Closed_Fist'
+  | 'Open_Palm'
+  | 'Pointing_Up'
+  | 'Thumb_Down'
+  | 'Thumb_Up'
+  | 'Victory'
+  | 'ILoveYou';
 
 export const GESTURE_TO_EMOJI: Record<string, string> = {
-  Victory: '✌️',
-  Open_Palm: '🖐️',
-  Thumb_Up: '👍',
   Closed_Fist: '✊',
+  Open_Palm: '🖐️',
+  Pointing_Up: '☝️',
+  Thumb_Down: '👎',
+  Thumb_Up: '👍',
+  Victory: '✌️',
+  ILoveYou: '🤟',
   None: '❓',
 };
 
 export const HAND_RHYTHM_GESTURES: HandRhythmGesture[] = [
-  'Victory',
-  'Open_Palm',
-  'Thumb_Up',
   'Closed_Fist',
+  'Open_Palm',
+  'Pointing_Up',
+  'Thumb_Down',
+  'Thumb_Up',
+  'Victory',
+  'ILoveYou',
 ];
 
 export const HAND_RHYTHM_SPAWN_INTERVAL_MS = 1500;

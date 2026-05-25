@@ -195,10 +195,13 @@ function createGestureObstacleRoot(gesture: string): THREE.Group {
 
   // Background glow
   const colors: Record<string, string> = {
-    Victory: '#66a3ff',
-    Open_Palm: '#2fffb2',
-    Thumb_Up: '#ffd166',
     Closed_Fist: '#ff6a85',
+    Open_Palm: '#2fffb2',
+    Pointing_Up: '#b692ff',
+    Thumb_Down: '#ff8f4d',
+    Thumb_Up: '#ffd166',
+    Victory: '#66a3ff',
+    ILoveYou: '#ff73d1',
   };
   const color = colors[gesture] ?? '#ffffff';
   const material = new THREE.MeshStandardMaterial({
