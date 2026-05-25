@@ -1,11 +1,35 @@
 import { describe, expect, test } from 'vitest';
-import type { PersonDetection } from '../pose-detection/detectionSchema';
-import { DEFAULT_PLAYER_POSITIONS, getDefaultPlayerPositions, getPlayerPositions } from './playerPositions';
+import type { HandGestureDetection, PersonDetection } from '../pose-detection/detectionSchema';
+import {
+  assignHandDetectionsToPlayerSections,
+  DEFAULT_PLAYER_POSITIONS,
+  getDefaultPlayerPositions,
+  getPlayerPositions,
+} from './playerPositions';
 
 function makeDetection(xmin: number, xmax: number, score: number): PersonDetection {
   return {
     label: 'person',
     score,
+    box: {
+      xmin,
+      ymin: 0,
+      xmax,
+      ymax: 100,
+    },
+  };
+}
+
+function makeHandDetection(
+  xmin: number,
+  xmax: number,
+  score: number,
+  gesture: string
+): HandGestureDetection {
+  return {
+    label: 'hand',
+    score,
+    gesture,
     box: {
       xmin,
       ymin: 0,
@@ -50,5 +74,50 @@ describe('getPlayerPositions', () => {
     ];
 
     expect(getPlayerPositions(detections, 500, true)).toEqual([0.19999999999999996, 0.84]);
+  });
+});
+
+describe('assignHandDetectionsToPlayerSections', () => {
+  test('assigns hands only to their camera-width player sections', () => {
+    const assignments = assignHandDetectionsToPlayerSections([
+      makeHandDetection(325, 375, 0.7, 'Thumb_Up'),
+      makeHandDetection(25, 75, 0.9, 'Victory'),
+      makeHandDetection(225, 275, 0.8, 'Open_Palm'),
+    ], 400, false, 4);
+
+    expect(assignments.map((detection) => detection?.gesture ?? null)).toEqual([
+      'Victory',
+      null,
+      'Open_Palm',
+      'Thumb_Up',
+    ]);
+  });
+
+  test('assigns mirrored camera sections by displayed position', () => {
+    const assignments = assignHandDetectionsToPlayerSections([
+      makeHandDetection(25, 75, 0.9, 'Victory'),
+      makeHandDetection(325, 375, 0.8, 'Closed_Fist'),
+    ], 400, true, 4);
+
+    expect(assignments.map((detection) => detection?.gesture ?? null)).toEqual([
+      'Closed_Fist',
+      null,
+      null,
+      'Victory',
+    ]);
+  });
+
+  test('keeps the highest-confidence hand when multiple hands land in one section', () => {
+    const assignments = assignHandDetectionsToPlayerSections([
+      makeHandDetection(25, 75, 0.6, 'Victory'),
+      makeHandDetection(35, 85, 0.95, 'ILoveYou'),
+    ], 400, false, 4);
+
+    expect(assignments.map((detection) => detection?.gesture ?? null)).toEqual([
+      'ILoveYou',
+      null,
+      null,
+      null,
+    ]);
   });
 });

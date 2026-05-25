@@ -6,7 +6,12 @@ import { loadDetectorClient } from '../pose-detection/detectorClient';
 import type { DetectorTask } from '../pose-detection/detectorConfig';
 import type { AppPreferences } from '../app/appPreferences';
 import { translateDetectorStatus, useI18n } from '../app/i18n';
-import { getDefaultPlayerPositions, getPlayerPositions, getPersonPosition } from '../motion-mapping/playerPositions';
+import {
+  assignHandDetectionsToPlayerSections,
+  getDefaultPlayerPositions,
+  getPlayerPositions,
+  getPersonPosition,
+} from '../motion-mapping/playerPositions';
 import { drawDetections } from '../motion-mapping/poseOverlay';
 import { useLatest } from './useLatest';
 
@@ -149,10 +154,16 @@ export function useMotionDetector({
     const sorted = [...result.detections].sort((a, b) => b.score - a.score);
     setDetections(sorted);
 
-    // Skip player assignment for hand gestures for now, or handle it differently
     if (sorted.length > 0 && sorted[0].label === 'hand') {
+      const playerCount = activePreferences.playerCount;
       const handDetections = sorted.filter((detection): detection is HandGestureDetection => detection.label === 'hand');
-      setPlayerDetections(handDetections.slice(0, activePreferences.playerCount));
+      setPlayerDetections(assignHandDetectionsToPlayerSections(
+        handDetections,
+        frameWidth,
+        activePreferences.cameraMirrored,
+        playerCount
+      ));
+      setPlayerPositions(getDefaultPlayerPositions(playerCount));
       
       const drawStartedAt = performance.now();
       const overlay = overlayRef.current;
