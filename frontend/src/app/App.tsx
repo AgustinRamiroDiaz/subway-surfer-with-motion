@@ -238,6 +238,7 @@ function MotionRunnerApp(): ReactElement {
           <CameraFeedbackPanel
             cameraEnabled={camera.cameraEnabled}
             cameraMirrored={preferences.cameraMirrored}
+            showCameraPreview={preferences.showCameraPreview}
             frameRef={camera.frameRef}
             jumpDuckGuides={jumpDuckGuides}
             overlayRef={camera.overlayRef}
@@ -306,6 +307,7 @@ function MotionRunnerApp(): ReactElement {
             onCameraChange={camera.changeCamera}
             onDevCameraMultiplierChange={camera.changeDevCameraMultiplier}
             onCameraMirrorChange={(cameraMirrored) => setPreferences({ ...preferences, cameraMirrored })}
+            onCameraPreviewChange={(showCameraPreview) => setPreferences({ ...preferences, showCameraPreview })}
             onMediaPipeDelegateChange={handleMediaPipeDelegateChange}
             onMediaPipeModelChange={handleMediaPipeModelChange}
             onModelChange={handleModelChange}

@@ -9,17 +9,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const require = createRequire(path.join(rootDir, 'frontend/package.json'));
 const { chromium } = require('playwright');
-const outputDir = path.join(rootDir, 'profile-results');
+const outputDir = path.resolve(rootDir, process.env.PROFILE_OUTPUT_DIR ?? 'profile-results');
 const durationMs = Number.parseInt(process.env.PROFILE_DURATION_MS ?? '30000', 10);
 const port = Number.parseInt(process.env.PROFILE_PORT ?? '5173', 10);
 const baseUrl = process.env.PROFILE_URL ?? `http://127.0.0.1:${port}`;
 const headless = process.env.PROFILE_HEADLESS !== 'false';
 const videoFile = process.env.PROFILE_VIDEO_FILE;
+const serverMode = process.env.PROFILE_SERVER_MODE ?? 'production';
+const shouldBuild = serverMode === 'production' && process.env.PROFILE_SKIP_BUILD !== 'true' && !process.env.PROFILE_URL;
 const backend = process.env.PROFILE_BACKEND ?? 'mediapipe';
 const mediaPipeDelegate = process.env.PROFILE_MEDIAPIPE_DELEGATE ?? 'GPU';
 const mediaPipeModel = process.env.PROFILE_MEDIAPIPE_MODEL ?? 'lite';
 const runnerGame = process.env.PROFILE_GAME ?? 'sideways';
 const playerCount = Number.parseInt(process.env.PROFILE_PLAYERS ?? '1', 10);
+const showCameraPreview = process.env.PROFILE_SHOW_CAMERA_PREVIEW === 'true';
 const traceCategories = [
   'devtools.timeline',
   'v8',
@@ -59,6 +62,26 @@ function waitForServer(url, timeoutMs = 30000) {
   });
 }
 
+function runCommand(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: rootDir,
+      env: process.env,
+      stdio: 'inherit',
+      ...options,
+    });
+
+    child.on('error', reject);
+    child.on('exit', (code, signal) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(`${command} ${args.join(' ')} failed with ${signal ?? `exit code ${code}`}`));
+    });
+  });
+}
+
 function startDevServer() {
   if (process.env.PROFILE_URL) {
     return null;
@@ -73,13 +96,9 @@ function startDevServer() {
   );
   const child = spawn(
     viteBin,
-    [
-      '--host',
-      '127.0.0.1',
-      '--port',
-      String(port),
-      '--strictPort',
-    ],
+    serverMode === 'production'
+      ? ['preview', '--host', '127.0.0.1', '--port', String(port), '--strictPort']
+      : ['--host', '127.0.0.1', '--port', String(port), '--strictPort'],
     {
       cwd: path.join(rootDir, 'frontend'),
       env: { ...process.env, BROWSER: 'none' },
@@ -201,6 +220,10 @@ async function stopTracing(client) {
 async function main() {
   await mkdir(outputDir, { recursive: true });
 
+  if (shouldBuild) {
+    await runCommand('pnpm', ['--filter', '@subway-surfer-with-motion/frontend', 'build']);
+  }
+
   const server = startDevServer();
   try {
     await waitForServer(baseUrl);
@@ -231,7 +254,7 @@ async function main() {
     const client = await context.newCDPSession(page);
 
     await page.addInitScript(
-      ({ backend, mediaPipeDelegate, mediaPipeModel, playerCount, runnerGame }) => {
+      ({ backend, mediaPipeDelegate, mediaPipeModel, playerCount, runnerGame, showCameraPreview }) => {
         window.localStorage.setItem(
           'motion-runner:detection-preferences:v1',
           JSON.stringify({
@@ -245,13 +268,14 @@ async function main() {
             playerCount,
             threshold: 0.45,
             cameraMirrored: true,
+            showCameraPreview,
             cameraFacingMode: 'user',
             cameraDeviceId: null,
             devCameraMultiplier: 1,
           })
         );
       },
-      { backend, mediaPipeDelegate, mediaPipeModel, playerCount, runnerGame }
+      { backend, mediaPipeDelegate, mediaPipeModel, playerCount, runnerGame, showCameraPreview }
     );
 
     await client.send('Performance.enable');
@@ -304,6 +328,7 @@ async function main() {
       durationMs,
       baseUrl,
       headless,
+      serverMode,
       fakeCamera: videoFile ? { mode: 'file', videoFile: path.resolve(videoFile) } : { mode: 'generated' },
       preferences: {
         backend,
@@ -311,6 +336,7 @@ async function main() {
         mediaPipeModel,
         runnerGame,
         playerCount,
+        showCameraPreview,
       },
       topCpuSelfTime: summarizeCpuProfile(cpuProfileResult.profile),
       topHeapSelfBytes: summarizeHeapSampling(heapProfileResult.profile),

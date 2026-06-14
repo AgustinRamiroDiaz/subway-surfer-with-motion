@@ -47,6 +47,7 @@ type DetectionControlsProps = {
   onCameraChange: (value: string | null) => void;
   onDevCameraMultiplierChange: (value: number) => void;
   onCameraMirrorChange: (value: boolean) => void;
+  onCameraPreviewChange: (value: boolean) => void;
   onMediaPipeDelegateChange: (value: MediaPipeDelegateId) => void;
   onMediaPipeModelChange: (value: MediaPipeModelId) => void;
   onModelChange: (value: YoloModelId) => void;
@@ -108,6 +109,7 @@ export function DetectionControls({
   onCameraChange,
   onDevCameraMultiplierChange,
   onCameraMirrorChange,
+  onCameraPreviewChange,
   onMediaPipeDelegateChange,
   onMediaPipeModelChange,
   onModelChange,
@@ -202,6 +204,15 @@ export function DetectionControls({
             <HelpLabel help={t('controls.mirrorCameraHelp')}>{t('controls.mirrorCamera')}</HelpLabel>
           }
           onChange={(event) => onCameraMirrorChange(event.currentTarget.checked)}
+        />
+
+        <Switch
+          checked={preferences.showCameraPreview}
+          className="toggle-control"
+          label={
+            <HelpLabel help={t('controls.cameraPreviewHelp')}>{t('controls.cameraPreview')}</HelpLabel>
+          }
+          onChange={(event) => onCameraPreviewChange(event.currentTarget.checked)}
         />
 
         <div className="multiplier-control">

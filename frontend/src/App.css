@@ -405,6 +405,25 @@
   background: #080a0b;
 }
 
+.sidebar-camera.preview-hidden {
+  aspect-ratio: auto;
+  min-height: 0;
+  height: 0;
+  border: 0;
+  overflow: hidden;
+}
+
+.sidebar-camera.preview-hidden .sidebar-camera-label {
+  display: none;
+}
+
+.sidebar-camera.preview-hidden .camera-video {
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .mirrored-media {
   transform: scaleX(-1);
 }

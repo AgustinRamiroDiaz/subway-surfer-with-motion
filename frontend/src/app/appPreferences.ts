@@ -42,6 +42,7 @@ export type AppPreferences = {
   playerCount: number;
   threshold: number;
   cameraMirrored: boolean;
+  showCameraPreview: boolean;
   cameraFacingMode: CameraFacingMode;
   cameraDeviceId: string | null;
   devCameraMultiplier: number;
@@ -62,6 +63,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   playerCount: DEFAULT_PLAYER_COUNT,
   threshold: DEFAULT_THRESHOLD,
   cameraMirrored: DEFAULT_CAMERA_MIRRORED,
+  showCameraPreview: true,
   cameraFacingMode: 'user',
   cameraDeviceId: null,
   devCameraMultiplier: 1,
@@ -128,6 +130,8 @@ export function readStoredAppPreferences(): AppPreferences {
           : defaults.threshold,
       cameraMirrored:
         typeof stored.cameraMirrored === 'boolean' ? stored.cameraMirrored : defaults.cameraMirrored,
+      showCameraPreview:
+        typeof stored.showCameraPreview === 'boolean' ? stored.showCameraPreview : defaults.showCameraPreview,
       cameraFacingMode: isCameraFacingMode(stored.cameraFacingMode)
         ? stored.cameraFacingMode
         : defaults.cameraFacingMode,

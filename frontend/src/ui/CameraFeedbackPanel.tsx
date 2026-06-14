@@ -5,6 +5,7 @@ import { useI18n } from '../app/i18n';
 type CameraFeedbackPanelProps = {
   cameraEnabled: boolean;
   cameraMirrored: boolean;
+  showCameraPreview: boolean;
   jumpDuckGuides: JumpDuckGuide[];
   playerPositions: number[];
   selectedTrackerLabel: string;
@@ -17,6 +18,7 @@ type CameraFeedbackPanelProps = {
 export function CameraFeedbackPanel({
   cameraEnabled,
   cameraMirrored,
+  showCameraPreview,
   jumpDuckGuides,
   playerPositions,
   selectedTrackerLabel,
@@ -51,7 +53,10 @@ export function CameraFeedbackPanel({
   };
 
   return (
-    <section className="video-stage sidebar-camera" aria-label={t('camera.feedback')}>
+    <section
+      className={`video-stage sidebar-camera${showCameraPreview ? '' : ' preview-hidden'}`}
+      aria-label={t('camera.feedback')}
+    >
       <div className="sidebar-camera-label">
         <p className="eyebrow">{t('camera.title')}</p>
         <strong>{selectedTrackerLabel}</strong>
@@ -63,6 +68,7 @@ export function CameraFeedbackPanel({
         playsInline
         onLoadedMetadata={onLoadedMetadata}
       />
+      {showCameraPreview && (
       <div className="camera-position-guides" aria-hidden="true">
         <div
           className="camera-player-sections"
@@ -103,14 +109,17 @@ export function CameraFeedbackPanel({
           </div>
         ))}
       </div>
+      )}
+      {showCameraPreview && (
       <canvas
         ref={overlayRef}
         className={`detection-overlay${cameraMirrored ? ' mirrored-media' : ''}`}
         aria-hidden="true"
       />
+      )}
       <canvas ref={frameRef} className="frame-buffer" aria-hidden="true" />
 
-      {!cameraEnabled && (
+      {!cameraEnabled && showCameraPreview && (
         <div className="camera-empty-state">
           <p>{t('camera.off')}</p>
         </div>
