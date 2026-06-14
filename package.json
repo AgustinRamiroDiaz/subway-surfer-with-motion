@@ -12,7 +12,8 @@
     "build": "pnpm --filter @subway-surfer-with-motion/frontend build",
     "test": "pnpm --filter @subway-surfer-with-motion/frontend test",
     "lint": "pnpm --filter @subway-surfer-with-motion/frontend lint",
-    "lint:fix": "pnpm --filter @subway-surfer-with-motion/frontend lint:fix"
+    "lint:fix": "pnpm --filter @subway-surfer-with-motion/frontend lint:fix",
+    "profile:e2e": "node scripts/profile-e2e.mjs"
   },
   "devDependencies": {
     "husky": "^9.1.7"

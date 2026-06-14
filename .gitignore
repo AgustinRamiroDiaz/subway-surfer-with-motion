@@ -9,6 +9,7 @@
 # testing
 /coverage
 /frontend/coverage
+/profile-results
 
 # production
 /build
