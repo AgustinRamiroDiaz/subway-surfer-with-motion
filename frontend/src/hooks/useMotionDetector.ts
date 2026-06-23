@@ -49,7 +49,6 @@ type UseMotionDetectorOptions = {
   cameraEnabled: boolean;
   videoRef: RefObject<HTMLVideoElement | null>;
   overlayRef: RefObject<HTMLCanvasElement | null>;
-  frameRef: RefObject<HTMLCanvasElement | null>;
   streamRef: RefObject<MediaStream | null>;
   startCamera: () => Promise<MediaStream>;
   syncCanvasSize: () => void;
@@ -79,7 +78,6 @@ export function useMotionDetector({
   cameraEnabled,
   videoRef,
   overlayRef,
-  frameRef,
   streamRef,
   startCamera,
   syncCanvasSize,
@@ -327,9 +325,8 @@ export function useMotionDetector({
   const runDetection = useCallback(async () => {
     const detector = detectorRef.current;
     const video = videoRef.current;
-    const frame = frameRef.current;
 
-    if (!detectingRef.current || !detector || !video || !frame) {
+    if (!detectingRef.current || !detector || !video) {
       return;
     }
 
@@ -341,18 +338,14 @@ export function useMotionDetector({
     const loopStartedAt = performance.now();
     syncCanvasSize();
     const detectorFrameSize = getDetectorFrameSize(video.videoWidth, video.videoHeight, task);
-    if (frame.width !== detectorFrameSize.width || frame.height !== detectorFrameSize.height) {
-      frame.width = detectorFrameSize.width;
-      frame.height = detectorFrameSize.height;
-    }
-    const frameContext = frame.getContext('2d', { willReadFrequently: true });
-    if (!frameContext) {
-      return;
-    }
-    frameContext.drawImage(video, 0, 0, frame.width, frame.height);
+    const bitmap = await createImageBitmap(video, {
+      resizeWidth: detectorFrameSize.width,
+      resizeHeight: detectorFrameSize.height,
+      resizeQuality: 'pixelated',
+    });
     const captureDoneAt = performance.now();
     frameSequenceRef.current += 1;
-    const cameraFrame = createCameraFrame(frame, `camera-frame-${frameSequenceRef.current}`, loopStartedAt);
+    const cameraFrame = createCameraFrame(bitmap, `camera-frame-${frameSequenceRef.current}`, loopStartedAt);
 
     try {
       const activePreferences = preferencesRef.current;
@@ -376,7 +369,7 @@ export function useMotionDetector({
     if (detectingRef.current) {
       scheduleDetectionFrame();
     }
-  }, [frameRef, handleDetectorResult, preferencesRef, scheduleDetectionFrame, syncCanvasSize, t, task, videoRef]);
+  }, [handleDetectorResult, preferencesRef, scheduleDetectionFrame, syncCanvasSize, t, task, videoRef]);
 
   useEffect(() => {
     runDetectionRef.current = () => {

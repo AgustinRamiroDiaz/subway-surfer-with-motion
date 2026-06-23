@@ -68,7 +68,10 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
 
   const detector: Detector = async (cameraFrame, detectorOptions) => {
     const id = nextRequestId();
-    const bitmap = await createImageBitmap(cameraFrame.image);
+    const bitmap =
+      cameraFrame.image instanceof ImageBitmap
+        ? cameraFrame.image
+        : await createImageBitmap(cameraFrame.image);
     const frame: TransferredCameraFrame = {
       type: 'camera-frame',
       ...createFrameDescriptor(cameraFrame),

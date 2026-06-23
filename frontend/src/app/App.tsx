@@ -64,7 +64,6 @@ function MotionRunnerApp(): ReactElement {
     cameraEnabled: camera.cameraEnabled,
     videoRef: camera.videoRef,
     overlayRef: camera.overlayRef,
-    frameRef: camera.frameRef,
     streamRef: camera.streamRef,
     startCamera: camera.startCameraWithPreferences,
     syncCanvasSize: camera.syncCanvasSize,
