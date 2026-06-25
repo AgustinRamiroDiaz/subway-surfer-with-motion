@@ -65,6 +65,7 @@ let disposeDetector: (() => void) | null = null;
 let activeBackend: DetectorLoadOptions['backend'] | null = null;
 let frameCanvas: OffscreenCanvas | null = null;
 let frameContext: OffscreenCanvasRenderingContext2D | null = null;
+let isProcessingFrame = false;
 
 function post(message: WorkerOutboundMessage): void {
   self.postMessage(message);
@@ -127,6 +128,17 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
       throw new Error('Detector worker received a frame before the model was loaded');
     }
 
+    if (isProcessingFrame) {
+      message.frame.bitmap.close();
+      post({
+        type: 'error',
+        requestId: message.requestId,
+        message: 'Detector worker is still processing the previous frame',
+      });
+      return;
+    }
+
+    isProcessingFrame = true;
     const { bitmap } = message.frame;
     const directFrame =
       activeBackend === 'mediapipe' || activeBackend === 'mediapipe-gesture'
@@ -145,6 +157,7 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
         requestId: message.requestId,
         result,
       });
+      isProcessingFrame = false;
       return;
     }
 
@@ -175,7 +188,9 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
       requestId: message.requestId,
       result,
     });
+    isProcessingFrame = false;
   } catch (cause: unknown) {
+    isProcessingFrame = false;
     if (message.type === 'detect') {
       message.frame.bitmap.close();
     }

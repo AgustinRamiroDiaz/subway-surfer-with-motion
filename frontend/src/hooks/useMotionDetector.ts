@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Detector, DetectorLoadResult, DetectorResult } from '../pose-detection/aiDetector';
 import type { HandGestureDetection, PersonDetection } from '../pose-detection/detectionSchema';
 import { createCameraFrame } from '../pose-detection/detectionSchema';
-import { loadDetectorClient } from '../pose-detection/detectorClient';
+import { isStaleDetectorResultError, loadDetectorClient } from '../pose-detection/detectorClient';
 import { translateDetectorStatus, useI18n } from '../app/i18n';
 import {
   assignHandDetectionsToPlayerSections,
@@ -332,11 +332,15 @@ export function useMotionDetector({
         loopStartedAt
       );
     } catch (cause: unknown) {
+      if (isStaleDetectorResultError(cause)) {
+        scheduleDetectionFrame();
+        return;
+      }
+
       detectingRef.current = false;
       setIsDetecting(false);
       setError(cause instanceof Error ? cause.message : t('status.detectionFailed'));
       setStatus(t('status.detectionStopped'));
-      return;
     }
 
     if (detectingRef.current) {
@@ -345,9 +349,7 @@ export function useMotionDetector({
   }, [handleDetectorResult, preferencesRef, scheduleDetectionFrame, syncCanvasSize, t, task, videoRef]);
 
   useEffect(() => {
-    runDetectionRef.current = () => {
-      void runDetection();
-    };
+    runDetectionRef.current = () => { void runDetection(); };
   }, [runDetection]);
 
   const loadDetector = useCallback(async () => {
