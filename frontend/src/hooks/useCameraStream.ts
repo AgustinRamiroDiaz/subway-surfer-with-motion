@@ -39,6 +39,10 @@ type StreamPreprocessor = {
   cleanup: () => void;
 };
 
+const CAMERA_IDEAL_WIDTH = 1280;
+const CAMERA_IDEAL_HEIGHT = 720;
+const CAMERA_IDEAL_FRAME_RATE = 30;
+
 function waitForVideoMetadata(video: HTMLVideoElement): Promise<void> {
   if (video.videoWidth && video.videoHeight) {
     return Promise.resolve();
@@ -212,8 +216,12 @@ export function useCameraStream(): CameraStreamControls {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
         ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode }),
-        width: { ideal: 4096 },
-        height: { ideal: 2160 },
+        width: { ideal: CAMERA_IDEAL_WIDTH },
+        height: { ideal: CAMERA_IDEAL_HEIGHT },
+        frameRate: {
+          ideal: CAMERA_IDEAL_FRAME_RATE,
+          max: CAMERA_IDEAL_FRAME_RATE,
+        },
       },
       audio: false,
     });
