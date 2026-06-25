@@ -55,6 +55,7 @@ function boxFromLandmarks(
 
 export async function loadMediaPipeGestureDetector(options: DetectorLoadOptions): Promise<DetectorLoadResult> {
   const { FilesetResolver, GestureRecognizer } = await import('@mediapipe/tasks-vision');
+  const initialThreshold = options.threshold ?? 0.5;
   const startedAt = performance.now();
 
   options.onStatusChange?.({ message: 'Loading MediaPipe Gesture runtime' });
@@ -68,9 +69,9 @@ export async function loadMediaPipeGestureDetector(options: DetectorLoadOptions)
     },
     runningMode: 'VIDEO',
     numHands: options.playerCount,
-    minHandDetectionConfidence: 0.5,
-    minHandPresenceConfidence: 0.5,
-    minTrackingConfidence: 0.5,
+    minHandDetectionConfidence: initialThreshold,
+    minHandPresenceConfidence: initialThreshold,
+    minTrackingConfidence: initialThreshold,
   })) as MediaPipeGestureRecognizer;
   const loadDoneAt = performance.now();
 
@@ -78,7 +79,7 @@ export async function loadMediaPipeGestureDetector(options: DetectorLoadOptions)
     message: `Loaded Gesture Recognizer in ${Math.round(loadDoneAt - startedAt)} ms`,
   });
 
-  let appliedThreshold = 0.5;
+  let appliedThreshold = initialThreshold;
   const detector: Detector = async (frame, detectorOptions) => {
     const startedAt = performance.now();
     if (detectorOptions.threshold !== appliedThreshold) {

@@ -170,6 +170,7 @@ async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOp
 export async function loadMediaPipePoseDetector(options: DetectorLoadOptions): Promise<DetectorLoadResult> {
   const { FilesetResolver, PoseLandmarker } = await import('@mediapipe/tasks-vision');
   const selectedModel = getSelectedMediaPipeModel(options.mediaPipeModelId);
+  const initialThreshold = options.threshold ?? 0.5;
   const startedAt = performance.now();
 
   options.onStatusChange?.({ message: 'Loading MediaPipe runtime' });
@@ -183,9 +184,9 @@ export async function loadMediaPipePoseDetector(options: DetectorLoadOptions): P
     },
     runningMode: 'VIDEO',
     numPoses: options.playerCount,
-    minPoseDetectionConfidence: 0.5,
-    minPosePresenceConfidence: 0.5,
-    minTrackingConfidence: 0.5,
+    minPoseDetectionConfidence: initialThreshold,
+    minPosePresenceConfidence: initialThreshold,
+    minTrackingConfidence: initialThreshold,
     outputSegmentationMasks: false,
   })) as MediaPipePoseLandmarker;
   const loadDoneAt = performance.now();
@@ -194,7 +195,7 @@ export async function loadMediaPipePoseDetector(options: DetectorLoadOptions): P
     message: `Loaded MediaPipe ${selectedModel.label} in ${Math.round(loadDoneAt - startedAt)} ms`,
   });
 
-  let appliedThreshold = 0.5;
+  let appliedThreshold = initialThreshold;
   const detector: Detector = async (frame, detectorOptions) => {
     const startedAt = performance.now();
     if (detectorOptions.threshold !== appliedThreshold) {
