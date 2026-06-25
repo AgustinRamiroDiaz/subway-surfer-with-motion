@@ -20,6 +20,10 @@ function createEmptyTrackIds(playerCount: number): Array<number | null> {
   return Array.from({ length: playerCount }, () => null);
 }
 
+function isMediaPipeBackend(preferences: AppPreferences): boolean {
+  return preferences.selectedBackendId === 'mediapipe' || preferences.selectedBackendId === 'mediapipe-gesture';
+}
+
 function mirrorDetection<T extends PersonDetection | HandGestureDetection>(detection: T, frameWidth: number): T {
   return {
     ...detection,
@@ -337,18 +341,20 @@ export function useMotionDetector({
 
     const loopStartedAt = performance.now();
     syncCanvasSize();
+    const activePreferences = preferencesRef.current;
     const detectorFrameSize = getDetectorFrameSize(video.videoWidth, video.videoHeight, task);
-    const bitmap = await createImageBitmap(video, {
-      resizeWidth: detectorFrameSize.width,
-      resizeHeight: detectorFrameSize.height,
-      resizeQuality: 'pixelated',
-    });
+    const bitmap = isMediaPipeBackend(activePreferences)
+      ? await createImageBitmap(video)
+      : await createImageBitmap(video, {
+          resizeWidth: detectorFrameSize.width,
+          resizeHeight: detectorFrameSize.height,
+          resizeQuality: 'pixelated',
+        });
     const captureDoneAt = performance.now();
     frameSequenceRef.current += 1;
     const cameraFrame = createCameraFrame(bitmap, `camera-frame-${frameSequenceRef.current}`, loopStartedAt);
 
     try {
-      const activePreferences = preferencesRef.current;
       const result = await detector(cameraFrame, {
         threshold: activePreferences.threshold,
         percentage: false,
