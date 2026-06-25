@@ -24,7 +24,7 @@ import type { CameraControlOption } from '../hooks/useCameraController';
 import { formatMs, formatPercent } from '../formatters';
 import { LANGUAGES, type TranslationKey, useI18n } from '../app/i18n';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../motion-mapping/playerPositions';
-import type { FrameTimings } from '../hooks/useMotionDetector';
+import type { FrameTimings } from '../hooks/motionDetectorTypes';
 
 type HelpLabelProps = {
   children: string;

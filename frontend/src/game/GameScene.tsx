@@ -45,8 +45,9 @@ export type { GamePhase };
 
 type GameSceneProps = {
   phase: GamePhase;
-  playerDetections: Array<PersonDetection | HandGestureDetection | null>;
-  playerPositions: number[];
+  playerCount: number;
+  playerDetectionsRef: React.RefObject<Array<PersonDetection | HandGestureDetection | null>>;
+  playerPositionsRef: React.RefObject<number[]>;
   selectedGameId: RunnerGameId;
   onJumpDuckGuidesChange: (guides: JumpDuckGuide[]) => void;
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -89,18 +90,16 @@ function getJumpDuckPieceHitCount(obstacle: Obstacle, playerIndex: number, cell:
 }
 export function GameScene({
   phase,
-  playerDetections,
-  playerPositions,
+  playerCount,
+  playerDetectionsRef,
+  playerPositionsRef,
   selectedGameId,
   onJumpDuckGuidesChange,
   videoRef,
 }: GameSceneProps): ReactElement {
   const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const playerCount = playerPositions.length;
   const selectedGameIdRef = useRef<RunnerGameId>(selectedGameId);
-  const playerPositionsRef = useRef(playerPositions);
-  const playerDetectionsRef = useRef(playerDetections);
   const gamePhaseRef = useRef<GamePhase>(phase);
   const calibrationRef = useRef<CalibrationRun>(createCalibrationRun(playerCount));
   const lastCalibrationProgressRef = useRef(-1);
@@ -112,20 +111,12 @@ export function GameScene({
   const [stats, setStats] = useState<GameStats>(() => createDefaultStats(playerCount));
 
   useEffect(() => {
-    playerPositionsRef.current = playerPositions;
-  }, [playerPositions]);
-
-  useEffect(() => {
     selectedGameIdRef.current = selectedGameId;
     writeStoredRunnerGameId(selectedGameId);
     if (selectedGameId !== 'jump-duck') {
       onJumpDuckGuidesChange([]);
     }
   }, [onJumpDuckGuidesChange, selectedGameId]);
-
-  useEffect(() => {
-    playerDetectionsRef.current = playerDetections;
-  }, [playerDetections]);
 
   useEffect(() => {
     setStats(createDefaultStats(playerCount));
@@ -416,7 +407,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [onJumpDuckGuidesChange, playerCount, selectedGameId, videoRef]);
+  }, [onJumpDuckGuidesChange, playerCount, playerDetectionsRef, playerPositionsRef, selectedGameId, videoRef]);
 
   return (
     <div className="game-scene" ref={mountRef}>

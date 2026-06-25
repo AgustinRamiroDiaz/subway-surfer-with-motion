@@ -225,8 +225,9 @@ function MotionRunnerApp(): ReactElement {
         <section className="game-stage" aria-label={t('app.mainGame')}>
           <GameScene
             phase={gamePhase}
-            playerDetections={detector.playerDetections}
-            playerPositions={detector.playerPositions}
+            playerCount={preferences.playerCount}
+            playerDetectionsRef={detector.playerDetectionsRef}
+            playerPositionsRef={detector.playerPositionsRef}
             selectedGameId={preferences.selectedRunnerGameId}
             onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
             videoRef={camera.videoRef}

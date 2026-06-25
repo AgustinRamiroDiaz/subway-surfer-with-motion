@@ -47,12 +47,24 @@ export type WorkerDetectorLoadResult = DetectorLoadResult & {
   dispose: () => void;
 };
 
+export class StaleDetectorResultError extends Error {
+  constructor(message = 'Detector skipped a stale frame') {
+    super(message);
+    this.name = 'StaleDetectorResultError';
+  }
+}
+
+export function isStaleDetectorResultError(cause: unknown): cause is StaleDetectorResultError {
+  return cause instanceof StaleDetectorResultError;
+}
+
 export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Promise<WorkerDetectorLoadResult> {
   const worker = new Worker(new URL('./detector.worker.ts', import.meta.url), {
     type: 'module',
   });
   const pending = new Map<number, PendingRequest>();
   let requestId = 0;
+  let activeDetectionPromise: Promise<DetectorResult> | null = null;
 
   const nextRequestId = (): number => {
     requestId += 1;
@@ -67,6 +79,14 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
   };
 
   const detector: Detector = async (cameraFrame, detectorOptions) => {
+    if (activeDetectionPromise) {
+      if (cameraFrame.image instanceof ImageBitmap) {
+        cameraFrame.image.close();
+      }
+
+      throw new StaleDetectorResultError('Detector worker is still processing the previous frame');
+    }
+
     const id = nextRequestId();
     const bitmap =
       cameraFrame.image instanceof ImageBitmap
@@ -78,7 +98,7 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
       bitmap,
     };
 
-    return new Promise<DetectorResult>((resolve, reject) => {
+    const detectionPromise = new Promise<DetectorResult>((resolve, reject) => {
       pending.set(id, {
         type: 'detect',
         resolve,
@@ -94,6 +114,13 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
         },
         [bitmap]
       );
+    });
+
+    activeDetectionPromise = detectionPromise;
+    return detectionPromise.finally(() => {
+      if (activeDetectionPromise === detectionPromise) {
+        activeDetectionPromise = null;
+      }
     });
   };
 

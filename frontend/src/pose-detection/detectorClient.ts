@@ -2,6 +2,8 @@ import { type DetectorLoadOptions, type DetectorLoadResult } from './aiDetector'
 import { loadYoloDetectorWorker, type WorkerDetectorLoadResult } from '../workers/detectorWorkerClient';
 import { loadPythonWebRtcDetector, type PythonWebRtcDetectorLoadResult } from './pythonWebRtcDetectorClient';
 
+export { isStaleDetectorResultError } from '../workers/detectorWorkerClient';
+
 export type ClientDetectorLoadResult =
   | WorkerDetectorLoadResult
   | PythonWebRtcDetectorLoadResult

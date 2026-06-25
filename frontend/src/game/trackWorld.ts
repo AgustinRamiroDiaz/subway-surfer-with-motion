@@ -112,7 +112,6 @@ export function createTrackWorld(
 
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
-    preserveDrawingBuffer: true,
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
