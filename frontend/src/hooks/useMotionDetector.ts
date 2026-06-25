@@ -342,14 +342,20 @@ export function useMotionDetector({
     const loopStartedAt = performance.now();
     syncCanvasSize();
     const activePreferences = preferencesRef.current;
-    const detectorFrameSize = getDetectorFrameSize(video.videoWidth, video.videoHeight, task);
-    const bitmap = isMediaPipeBackend(activePreferences)
-      ? await createImageBitmap(video)
-      : await createImageBitmap(video, {
-          resizeWidth: detectorFrameSize.width,
-          resizeHeight: detectorFrameSize.height,
-          resizeQuality: 'pixelated',
-        });
+    const usesFullFrameDetectorInput = isMediaPipeBackend(activePreferences);
+    let bitmap: ImageBitmap;
+
+    if (usesFullFrameDetectorInput) {
+      bitmap = await createImageBitmap(video);
+    } else {
+      const detectorFrameSize = getDetectorFrameSize(video.videoWidth, video.videoHeight, task);
+      bitmap = await createImageBitmap(video, {
+        resizeWidth: detectorFrameSize.width,
+        resizeHeight: detectorFrameSize.height,
+        resizeQuality: 'pixelated',
+      });
+    }
+
     const captureDoneAt = performance.now();
     frameSequenceRef.current += 1;
     const cameraFrame = createCameraFrame(bitmap, `camera-frame-${frameSequenceRef.current}`, loopStartedAt);
@@ -359,8 +365,12 @@ export function useMotionDetector({
         threshold: activePreferences.threshold,
         percentage: false,
       });
+      const displayResult = usesFullFrameDetectorInput
+        ? result
+        : scaleDetectorResultToFrame(result, video.videoWidth, video.videoHeight);
+
       handleDetectorResult(
-        scaleDetectorResultToFrame(result, video.videoWidth, video.videoHeight),
+        displayResult,
         captureDoneAt - loopStartedAt,
         loopStartedAt
       );
