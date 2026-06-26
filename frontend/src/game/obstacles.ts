@@ -6,6 +6,7 @@ import {
   TRACK_MIN_X,
   TRACK_WIDTH,
 } from './gameConstants';
+import { disposeObject } from './playerAvatar';
 import type {
   JumpDuckObstacleCell,
   JumpDuckObstacleColumn,
@@ -105,18 +106,6 @@ function collectMaterials(object: THREE.Object3D): THREE.MeshStandardMaterial[] 
     });
   });
   return materials;
-}
-
-function disposeObject(object: THREE.Object3D): void {
-  object.traverse((child) => {
-    const mesh = child as THREE.Mesh;
-    if (!mesh.isMesh) {
-      return;
-    }
-    mesh.geometry.dispose();
-    const meshMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    meshMaterials.forEach((material) => material.dispose());
-  });
 }
 
 function createJumpDuckObstacleRoot(obstacleCells: JumpDuckObstacleCell[]): {

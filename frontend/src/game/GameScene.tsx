@@ -37,7 +37,7 @@ import {
   GESTURE_TO_EMOJI,
 } from './levels/handRhythmLevel';
 import { createObstacleSystem } from './obstacles';
-import { applyMarkerPose, getPoseAnimationState, updatePlayerGestureEmoji } from './playerAvatar';
+import { applyMarkerPose, disposeObject, getPoseAnimationState, updatePlayerGestureEmoji } from './playerAvatar';
 import { createTrackWorld } from './trackWorld';
 
 export { GAME_SELECTION_STORAGE_KEY };
@@ -365,15 +365,7 @@ export function GameScene({
 
         if (obstacle.root.position.z > OBSTACLE_DESPAWN_Z) {
           world.scene.remove(obstacle.root);
-          obstacle.root.traverse((child) => {
-            const mesh = child as THREE.Mesh;
-            if (!mesh.isMesh) {
-              return;
-            }
-            mesh.geometry.dispose();
-            const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-            materials.forEach((material) => material.dispose());
-          });
+          disposeObject(obstacle.root);
           obstacleSystem.obstacles.splice(index, 1);
           if (!obstacle.hitBy.some(Boolean) && obstacle.hitPieces.size === 0) {
             setStats((current) => ({

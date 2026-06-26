@@ -75,6 +75,9 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
     pending.forEach((request) => request.reject(new Error('Detector worker was disposed')));
     pending.clear();
     worker.postMessage({ type: 'dispose' });
+    worker.onmessage = null;
+    worker.onerror = null;
+    worker.onmessageerror = null;
     worker.terminate();
   };
 

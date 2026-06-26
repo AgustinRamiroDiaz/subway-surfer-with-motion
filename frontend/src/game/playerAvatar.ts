@@ -358,6 +358,7 @@ export async function loadPlayerModels(players: PlayerAvatar[], isDisposed: () =
 export function disposeObject(object: THREE.Object3D): void {
   const geometries = new Set<THREE.BufferGeometry>();
   const materials = new Set<THREE.Material>();
+  const textures = new Set<{ dispose: () => void }>();
 
   object.traverse((child) => {
     const mesh = child as THREE.Mesh;
@@ -370,6 +371,15 @@ export function disposeObject(object: THREE.Object3D): void {
     meshMaterials.forEach((material) => materials.add(material));
   });
 
+  materials.forEach((material) => {
+    Object.values(material as unknown as Record<string, unknown>).forEach((value) => {
+      if (value instanceof THREE.Texture) {
+        textures.add(value);
+      }
+    });
+  });
+
   geometries.forEach((geometry) => geometry.dispose());
+  textures.forEach((texture) => texture.dispose());
   materials.forEach((material) => material.dispose());
 }
