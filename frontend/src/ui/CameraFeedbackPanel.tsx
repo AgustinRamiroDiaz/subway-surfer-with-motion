@@ -1,5 +1,6 @@
 import type { ReactElement, RefObject } from 'react';
 import type { JumpDuckGuide } from '../motion-mapping/jumpDuckActions';
+import type { HandRhythmGridSize } from '../game/levels/handRhythmLevel';
 import { useI18n } from '../app/i18n';
 
 type CameraFeedbackPanelProps = {
@@ -7,6 +8,8 @@ type CameraFeedbackPanelProps = {
   cameraMirrored: boolean;
   showCameraPreview: boolean;
   jumpDuckGuides: JumpDuckGuide[];
+  handRhythmGridSize: HandRhythmGridSize;
+  showHandRhythmGrid: boolean;
   playerPositions: number[];
   selectedTrackerLabel: string;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -20,6 +23,8 @@ export function CameraFeedbackPanel({
   cameraMirrored,
   showCameraPreview,
   jumpDuckGuides,
+  handRhythmGridSize,
+  showHandRhythmGrid,
   playerPositions,
   selectedTrackerLabel,
   videoRef,
@@ -76,6 +81,19 @@ export function CameraFeedbackPanel({
         >
           {playerPositions.map((_, index) => (
             <div className={`camera-player-section player-${index + 1}`} key={`player-section-${index + 1}`}>
+              {showHandRhythmGrid && (
+                <div
+                  className="camera-hand-grid"
+                  style={{
+                    gridTemplateColumns: `repeat(${handRhythmGridSize}, minmax(0, 1fr))`,
+                    gridTemplateRows: `repeat(${handRhythmGridSize}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {Array.from({ length: handRhythmGridSize * handRhythmGridSize }, (_, cellIndex) => (
+                    <span className="camera-hand-grid-cell" key={`hand-grid-cell-${index}-${cellIndex}`} />
+                  ))}
+                </div>
+              )}
               <span>{`P${index + 1}`}</span>
             </div>
           ))}

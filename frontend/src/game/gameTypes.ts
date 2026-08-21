@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { HorizontalAction, JumpDuckCell, VerticalAction } from '../motion-mapping/jumpDuckActions';
+import type { HandRhythmCell } from './levels/handRhythmLevel';
 
 export type GamePhase = 'ready' | 'running' | 'paused';
 
@@ -25,9 +26,12 @@ export type Obstacle = {
   targetPlayerIndex: number | null;
   blockedCells: JumpDuckCell[];
   gesture?: string;
+  handCell?: HandRhythmCell;
+  handResult?: 'pending' | 'hit' | 'missed';
   hitBy: boolean[];
   hitPieces: Set<string>;
   hitMaterials: THREE.MeshStandardMaterial[];
+  feedbackMaterials: THREE.MeshStandardMaterial[];
   pieces: JumpDuckObstaclePiece[];
 };
 

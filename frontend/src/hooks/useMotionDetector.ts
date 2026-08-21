@@ -143,7 +143,9 @@ export function useMotionDetector({
           frameWidth,
           activePreferences.cameraMirrored,
           playerCount
-        )
+        ).map((detection) => detection && activePreferences.cameraMirrored
+          ? mirrorDetection(detection, frameWidth)
+          : detection)
       );
       
       const drawStartedAt = performance.now();

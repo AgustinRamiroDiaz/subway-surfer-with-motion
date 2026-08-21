@@ -226,6 +226,7 @@ function MotionRunnerApp(): ReactElement {
           <GameScene
             phase={gamePhase}
             playerCount={preferences.playerCount}
+            handRhythmGridSize={preferences.handRhythmGridSize}
             playerDetectionsRef={detector.playerDetectionsRef}
             playerPositionsRef={detector.playerPositionsRef}
             selectedGameId={preferences.selectedRunnerGameId}
@@ -241,6 +242,8 @@ function MotionRunnerApp(): ReactElement {
             showCameraPreview={preferences.showCameraPreview}
             frameRef={camera.frameRef}
             jumpDuckGuides={jumpDuckGuides}
+            handRhythmGridSize={preferences.handRhythmGridSize}
+            showHandRhythmGrid={preferences.selectedRunnerGameId === 'hand-rhythm'}
             overlayRef={camera.overlayRef}
             playerPositions={detector.playerPositions}
             selectedTrackerLabel={selectedTrackerLabel}
@@ -312,6 +315,11 @@ function MotionRunnerApp(): ReactElement {
             onMediaPipeModelChange={handleMediaPipeModelChange}
             onModelChange={handleModelChange}
             onPlayerCountChange={handlePlayerCountChange}
+            onHandRhythmGridSizeChange={(handRhythmGridSize) => {
+              if (handRhythmGridSize !== preferences.handRhythmGridSize) {
+                updatePreferences({ ...preferences, handRhythmGridSize }, true);
+              }
+            }}
             onQuantizationChange={handleQuantizationChange}
             onRuntimeChange={handleRuntimeChange}
             onStopCamera={handleStopCamera}

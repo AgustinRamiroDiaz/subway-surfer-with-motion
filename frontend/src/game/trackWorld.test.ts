@@ -33,4 +33,15 @@ describe('lane-based player layout', () => {
       expect(getJumpDuckPlayerMotion(null, undefined, index, playerCount).targetX).toBeCloseTo(expectedX);
     }
   });
+
+  test('quantizes hand rhythm detections to a configurable 2x2 grid', () => {
+    const detection = {
+      label: 'hand' as const,
+      score: 1,
+      gesture: 'Open_Palm',
+      box: { xmin: 20, ymin: 20, xmax: 80, ymax: 80 },
+    };
+
+    expect(getHandRhythmPlayerMotion(detection, 0, 1, 200, 200, 2).cell).toEqual({ row: 0, column: 0 });
+  });
 });

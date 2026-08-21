@@ -52,6 +52,7 @@ type DetectionControlsProps = {
   onMediaPipeModelChange: (value: MediaPipeModelId) => void;
   onModelChange: (value: YoloModelId) => void;
   onPlayerCountChange: (value: number) => void;
+  onHandRhythmGridSizeChange: (value: 2 | 3) => void;
   onQuantizationChange: (value: DetectorQuantizationId) => void;
   onRuntimeChange: (value: DetectorRuntimeId) => void;
   onStopCamera: () => void;
@@ -114,6 +115,7 @@ export function DetectionControls({
   onMediaPipeModelChange,
   onModelChange,
   onPlayerCountChange,
+  onHandRhythmGridSizeChange,
   onQuantizationChange,
   onRuntimeChange,
   onStopCamera,
@@ -240,6 +242,24 @@ export function DetectionControls({
             onChange={onPlayerCountChange}
           />
         </div>
+
+        {task === 'gesture' && (
+          <Select
+            aria-label={t('controls.handRhythmGrid')}
+            className="model-control"
+            data={[
+              { value: '2', label: t('controls.handRhythmGrid2') },
+              { value: '3', label: t('controls.handRhythmGrid3') },
+            ]}
+            label={<HelpLabel help={t('controls.handRhythmGridHelp')}>{t('controls.handRhythmGrid')}</HelpLabel>}
+            value={String(preferences.handRhythmGridSize)}
+            onChange={(value) => {
+              if (value === '2' || value === '3') {
+                onHandRhythmGridSizeChange(Number(value) as 2 | 3);
+              }
+            }}
+          />
+        )}
 
         <div className="threshold-control">
           <HelpLabel help={t('controls.confidenceHelp')}>{t('controls.confidence')}</HelpLabel>

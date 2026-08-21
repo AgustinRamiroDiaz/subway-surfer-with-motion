@@ -23,6 +23,11 @@ import {
 } from '../pose-detection/aiDetector';
 import { DEFAULT_PLAYER_COUNT, normalizePlayerCount } from '../motion-mapping/playerPositions';
 import type { RunnerGameId } from '../game/gameTypes';
+import {
+  DEFAULT_HAND_RHYTHM_GRID_SIZE,
+  HAND_RHYTHM_GRID_SIZES,
+  type HandRhythmGridSize,
+} from '../game/levels/handRhythmLevel';
 
 export const DEFAULT_THRESHOLD = 0.45;
 export const DEFAULT_CAMERA_MIRRORED = true;
@@ -40,6 +45,7 @@ export type AppPreferences = {
   selectedMediaPipeModelId: MediaPipeModelId;
   selectedMediaPipeDelegateId: MediaPipeDelegateId;
   playerCount: number;
+  handRhythmGridSize: HandRhythmGridSize;
   threshold: number;
   cameraMirrored: boolean;
   showCameraPreview: boolean;
@@ -61,6 +67,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   selectedMediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
   selectedMediaPipeDelegateId: DEFAULT_MEDIAPIPE_DELEGATE_ID,
   playerCount: DEFAULT_PLAYER_COUNT,
+  handRhythmGridSize: DEFAULT_HAND_RHYTHM_GRID_SIZE,
   threshold: DEFAULT_THRESHOLD,
   cameraMirrored: DEFAULT_CAMERA_MIRRORED,
   showCameraPreview: true,
@@ -79,6 +86,12 @@ function isQuantizationId(value: unknown): value is DetectorQuantizationId {
 
 function isCameraFacingMode(value: unknown): value is CameraFacingMode {
   return typeof value === 'string' && CAMERA_FACING_MODES.some((mode) => mode === value);
+}
+
+function normalizeHandRhythmGridSize(value: unknown): HandRhythmGridSize {
+  return HAND_RHYTHM_GRID_SIZES.includes(value as HandRhythmGridSize)
+    ? value as HandRhythmGridSize
+    : DEFAULT_HAND_RHYTHM_GRID_SIZE;
 }
 
 export function readStoredAppPreferences(): AppPreferences {
@@ -124,6 +137,7 @@ export function readStoredAppPreferences(): AppPreferences {
         ? stored.selectedMediaPipeDelegateId
         : defaults.selectedMediaPipeDelegateId,
       playerCount: normalizePlayerCount(stored.playerCount),
+      handRhythmGridSize: normalizeHandRhythmGridSize(stored.handRhythmGridSize),
       threshold:
         typeof stored.threshold === 'number' && Number.isFinite(stored.threshold)
           ? Math.min(0.9, Math.max(0.1, stored.threshold))

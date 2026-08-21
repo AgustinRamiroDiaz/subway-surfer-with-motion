@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PLAYER_BASE_Y, PLAYER_Z, TRACK_MAX_X, TRACK_MIN_X, TRACK_WIDTH } from './gameConstants';
 import type { RunnerGameId, TrackWorld } from './gameTypes';
+import type { HandRhythmGridSize } from './levels/handRhythmLevel';
 import { createFallbackPlayer, disposeObject, loadPlayerModels } from './playerAvatar';
 
 function createRailMaterial(color: string): THREE.MeshStandardMaterial {
@@ -91,10 +92,46 @@ function createPlayerLaneMarkers(scene: THREE.Scene, playerCount: number): () =>
   };
 }
 
+function createHandRhythmGrids(scene: THREE.Scene, playerCount: number, gridSize: HandRhythmGridSize): () => void {
+  const objects: THREE.Object3D[] = [];
+  const rowY = [1.72, 1.16, 0.6];
+  const cellWidth = playerTrackWidth(playerCount) / gridSize;
+  const cellHeight = 0.46;
+
+  for (let playerIndex = 0; playerIndex < playerCount; playerIndex += 1) {
+    const centerX = playerTrackX(playerIndex, playerCount);
+    for (let row = 0; row < gridSize; row += 1) {
+      for (let column = 0; column < gridSize; column += 1) {
+        const material = new THREE.MeshBasicMaterial({
+          color: row === 1 && column === 1 ? '#173e38' : '#102a28',
+          transparent: true,
+          opacity: 0.74,
+          side: THREE.DoubleSide,
+        });
+        const cell = new THREE.Mesh(new THREE.PlaneGeometry(cellWidth * 0.9, cellHeight * 0.9), material);
+        const sourceRow = Math.round(row * (rowY.length - 1) / (gridSize - 1));
+        cell.position.set(centerX + (column - (gridSize - 1) / 2) * cellWidth, rowY[sourceRow] ?? 1.16, PLAYER_Z - 0.08);
+        scene.add(cell);
+        objects.push(cell);
+      }
+    }
+  }
+
+  return () => {
+    objects.forEach((object) => {
+      scene.remove(object);
+      const mesh = object as THREE.Mesh;
+      mesh.geometry.dispose();
+      (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((material) => material.dispose());
+    });
+  };
+}
+
 export function createTrackWorld(
   mount: HTMLDivElement,
   initialPlayerPositions: number[],
-  gameId: RunnerGameId
+  gameId: RunnerGameId,
+  handRhythmGridSize: HandRhythmGridSize = 3
 ): TrackWorld {
   let disposed = false;
   const scene = new THREE.Scene();
@@ -142,6 +179,7 @@ export function createTrackWorld(
   });
 
   const disposePlayerLaneMarkers = createPlayerLaneMarkers(scene, playerCount);
+  const disposeHandRhythmGrids = isHandRhythm ? createHandRhythmGrids(scene, playerCount, handRhythmGridSize) : () => undefined;
 
   const playerZoneWidth = playerTrackWidth(playerCount);
   const sleeperWidth = isLaneBased ? playerZoneWidth : 7.6;
@@ -218,6 +256,7 @@ export function createTrackWorld(
       sideRailGeometry.dispose();
       guideGeometry.dispose();
       disposePlayerLaneMarkers();
+      disposeHandRhythmGrids();
       players.forEach((player) => {
         disposeObject(player.root);
       });

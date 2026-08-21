@@ -32,6 +32,7 @@ import {
   type JumpDuckCalibrationState,
 } from './levels/jumpDuckLevel';
 import {
+  type HandRhythmGridSize,
   HAND_RHYTHM_SPAWN_INTERVAL_MS,
   getHandRhythmPlayerMotion,
   GESTURE_TO_EMOJI,
@@ -46,6 +47,7 @@ export type { GamePhase };
 type GameSceneProps = {
   phase: GamePhase;
   playerCount: number;
+  handRhythmGridSize: HandRhythmGridSize;
   playerDetectionsRef: React.RefObject<Array<PersonDetection | HandGestureDetection | null>>;
   playerPositionsRef: React.RefObject<number[]>;
   selectedGameId: RunnerGameId;
@@ -88,9 +90,20 @@ function getJumpDuckPieceHitCount(obstacle: Obstacle, playerIndex: number, cell:
 
   return hitCount;
 }
+
+function setHandRhythmFeedback(obstacle: Obstacle, hit: boolean): void {
+  const color = hit ? '#2fffb2' : '#ff4d6d';
+  const emissive = hit ? '#0b5a3f' : '#6d1024';
+  obstacle.feedbackMaterials.forEach((material) => {
+    material.color.set(color);
+    material.emissive.set(emissive);
+    material.emissiveIntensity = 1.15;
+  });
+}
 export function GameScene({
   phase,
   playerCount,
+  handRhythmGridSize,
   playerDetectionsRef,
   playerPositionsRef,
   selectedGameId,
@@ -165,11 +178,12 @@ export function GameScene({
     let lastTime = performance.now();
     let lastSpawnAt = performance.now() - SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS;
     let statusResetAt = 0;
-    const world = createTrackWorld(mount, playerPositionsRef.current, selectedGameId);
+    const world = createTrackWorld(mount, playerPositionsRef.current, selectedGameId, handRhythmGridSize);
     const obstacleSystem = createObstacleSystem(
       world.scene,
       () => selectedGameIdRef.current,
-      () => playerPositionsRef.current.length
+      () => playerPositionsRef.current.length,
+      () => handRhythmGridSize
     );
 
     const resize = (): void => {
@@ -231,7 +245,8 @@ export function GameScene({
           index,
           world.players.length,
           videoRef.current?.videoWidth ?? 640,
-          videoRef.current?.videoHeight ?? 480
+          videoRef.current?.videoHeight ?? 480,
+          handRhythmGridSize
         );
         jumpDuckActionsRef.current[index] = jumpDuckMotion.cell;
 
@@ -328,14 +343,30 @@ export function GameScene({
             Math.abs(obstacle.root.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
           
           let hitCount = 0;
-          if (isInCollisionRange) {
-            if (obstacle.kind === 'hand-rhythm') {
+          if (obstacle.kind === 'hand-rhythm') {
+            const isHandHitZone = obstacle.targetPlayerIndex === playerIndex &&
+              Math.abs(obstacle.root.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
+            if (isHandHitZone && obstacle.handResult === 'pending') {
               const detection = playerDetectionsRef.current[playerIndex] as HandGestureDetection | null;
-              // Only check if it's the target player
-              if (obstacle.targetPlayerIndex === playerIndex && detection?.gesture === obstacle.gesture) {
+              const motion = getHandRhythmPlayerMotion(
+                detection,
+                playerIndex,
+                world.players.length,
+                videoRef.current?.videoWidth ?? 640,
+                videoRef.current?.videoHeight ?? 480,
+                handRhythmGridSize
+              );
+              const isCorrectCell = motion.cell.row === obstacle.handCell?.row && motion.cell.column === obstacle.handCell?.column;
+              const wasHit = detection?.gesture === obstacle.gesture && isCorrectCell;
+              obstacle.handResult = wasHit ? 'hit' : 'missed';
+              obstacle.hitBy[playerIndex] = true;
+              setHandRhythmFeedback(obstacle, wasHit);
+              if (wasHit) {
                 hitCount = 1;
               }
-            } else if (obstacle.kind === 'jump-duck') {
+            }
+          } else if (isInCollisionRange) {
+            if (obstacle.kind === 'jump-duck') {
               hitCount = getJumpDuckPieceHitCount(obstacle, playerIndex, jumpDuckActionsRef.current[playerIndex] ?? 'run-center');
             } else if (obstacle.kind === 'sideways') {
               hitCount = 1;
@@ -347,7 +378,7 @@ export function GameScene({
           }
 
           obstacle.hitBy[playerIndex] = true;
-          if (obstacle.kind === 'sideways' || obstacle.kind === 'hand-rhythm') {
+          if (obstacle.kind === 'sideways') {
             obstacle.hitMaterials.forEach((material) => {
               material.color.set('#ffd166');
               material.emissive.set('#6b3e00');
@@ -399,7 +430,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [onJumpDuckGuidesChange, playerCount, playerDetectionsRef, playerPositionsRef, selectedGameId, videoRef]);
+  }, [handRhythmGridSize, onJumpDuckGuidesChange, playerCount, playerDetectionsRef, playerPositionsRef, selectedGameId, videoRef]);
 
   return (
     <div className="game-scene" ref={mountRef}>

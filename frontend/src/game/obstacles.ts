@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import type { HorizontalAction, JumpDuckCell, VerticalAction } from '../motion-mapping/jumpDuckActions';
-import { GESTURE_TO_EMOJI, HAND_RHYTHM_GESTURES } from './levels/handRhythmLevel';
+import {
+  GESTURE_TO_EMOJI,
+  getHandRhythmCellWorldPosition,
+  HAND_RHYTHM_GESTURES,
+  type HandRhythmCell,
+  type HandRhythmGridSize,
+} from './levels/handRhythmLevel';
 import {
   OBSTACLE_SPAWN_Z,
   TRACK_MIN_X,
@@ -175,11 +181,11 @@ function createEmojiSprite(emoji: string): THREE.Sprite {
   return sprite;
 }
 
-function createGestureObstacleRoot(gesture: string): THREE.Group {
+function createGestureObstacleRoot(gesture: string): { root: THREE.Group; feedbackMaterial: THREE.MeshStandardMaterial } {
   const root = new THREE.Group();
   const emoji = GESTURE_TO_EMOJI[gesture] ?? '❓';
   const sprite = createEmojiSprite(emoji);
-  sprite.position.y = 0.5;
+  sprite.position.y = 0;
   root.add(sprite);
 
   // Background glow
@@ -201,17 +207,18 @@ function createGestureObstacleRoot(gesture: string): THREE.Group {
     opacity: 0.4,
   });
   const glow = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.05, 16, 32), material);
-  glow.position.y = 0.5;
+  glow.position.y = 0;
   glow.rotation.x = Math.PI / 2;
   root.add(glow);
 
-  return root;
+  return { root, feedbackMaterial: material };
 }
 
 export function createObstacleSystem(
   scene: THREE.Scene,
   getGameId: () => RunnerGameId,
-  getPlayerCount: () => number
+  getPlayerCount: () => number,
+  getHandRhythmGridSize: () => HandRhythmGridSize = () => 3
 ): ObstacleSystem {
   const obstacles: ObstacleSystem['obstacles'] = [];
   const obstaclePatterns: JumpDuckObstacleCell[][] = [
@@ -242,15 +249,34 @@ export function createObstacleSystem(
         ? toBlockedPlayerCells(obstacleCells)
         : [];
       const gesture = isHandRhythm ? HAND_RHYTHM_GESTURES[Math.floor(Math.random() * HAND_RHYTHM_GESTURES.length)] : undefined;
+      const simultaneousHands = isHandRhythm && playerCount > 1 && Math.random() < 0.45;
+      const handTargetPlayers = isHandRhythm
+        ? simultaneousHands
+          ? Array.from({ length: playerCount }, (_, index) => index)
+          : [Math.floor(Math.random() * playerCount)]
+        : [];
+      const handCells: HandRhythmCell[] = [];
+      if (isHandRhythm) {
+        while (handCells.length < handTargetPlayers.length) {
+          const gridSize = getHandRhythmGridSize();
+          const candidate = { row: Math.floor(Math.random() * gridSize), column: Math.floor(Math.random() * gridSize) };
+          if (!handCells.some((cell) => cell.row === candidate.row && cell.column === candidate.column)) {
+            handCells.push(candidate);
+          }
+        }
+      }
 
-      const spawnObstacleForPlayer = (targetPlayerIndex: number | null): void => {
-        const x = (isJumpDuck || isHandRhythm) && targetPlayerIndex !== null
+      const spawnObstacleForPlayer = (targetPlayerIndex: number | null, handCell?: HandRhythmCell): void => {
+        const handPosition = isHandRhythm && targetPlayerIndex !== null && handCell
+          ? getHandRhythmCellWorldPosition(handCell, targetPlayerIndex, playerCount, getHandRhythmGridSize())
+          : null;
+        const x = handPosition?.x ?? ((isJumpDuck || isHandRhythm) && targetPlayerIndex !== null
           ? playerTrackX(targetPlayerIndex, playerCount)
-          : TRACK_MIN_X + Math.random() * TRACK_WIDTH;
+          : TRACK_MIN_X + Math.random() * TRACK_WIDTH);
         const jumpDuckObstacle = isJumpDuck ? createJumpDuckObstacleRoot(obstacleCells) : null;
         const gestureObstacle = isHandRhythm && gesture ? createGestureObstacleRoot(gesture) : null;
-        const root = jumpDuckObstacle?.root ?? gestureObstacle ?? createSidewaysObstacleRoot();
-        const y = isJumpDuck ? 0 : isHandRhythm ? 0.8 : 0.82;
+        const root = jumpDuckObstacle?.root ?? gestureObstacle?.root ?? createSidewaysObstacleRoot();
+        const y = handPosition?.y ?? (isJumpDuck ? 0 : isHandRhythm ? 0.8 : 0.82);
         root.position.set(x, y, OBSTACLE_SPAWN_Z);
         scene.add(root);
         obstacles.push({
@@ -260,17 +286,23 @@ export function createObstacleSystem(
           targetPlayerIndex,
           blockedCells,
           gesture,
+          handCell,
+          handResult: isHandRhythm ? 'pending' : undefined,
           hitBy: [],
           hitPieces: new Set<string>(),
           hitMaterials: collectMaterials(root),
+          feedbackMaterials: gestureObstacle ? [gestureObstacle.feedbackMaterial] : [],
           pieces: jumpDuckObstacle?.pieces ?? [],
         });
       };
 
       if (isJumpDuck || isHandRhythm) {
-        for (let playerIndex = 0; playerIndex < playerCount; playerIndex += 1) {
-          spawnObstacleForPlayer(playerIndex);
-        }
+        const targetPlayers = isHandRhythm
+          ? handTargetPlayers
+          : Array.from({ length: playerCount }, (_, index) => index);
+        targetPlayers.forEach((playerIndex, targetIndex) => {
+          spawnObstacleForPlayer(playerIndex, isHandRhythm ? handCells[targetIndex] : undefined);
+        });
         return;
       }
 

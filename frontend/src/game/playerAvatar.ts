@@ -293,7 +293,7 @@ export function createFallbackPlayer(index: number): PlayerAvatar {
   const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
   const gestureSprite = new THREE.Sprite(spriteMaterial);
   gestureSprite.scale.set(2, 2, 1);
-  gestureSprite.position.y = 1.2;
+  gestureSprite.position.y = 0;
   gestureSprite.visible = false;
   root.add(gestureSprite);
 
