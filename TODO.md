@@ -12,9 +12,7 @@ Examples:
 
 Allow to move around prior to start playing
 
-## Explain to the user how to configure the backend
-
-[x] Package the Python backend so that it's a binary in releases tha people can download from GitHub
+## Add low alpha body into the game scene for better estimation
 
 # New levels
 
