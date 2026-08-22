@@ -1,15 +1,15 @@
-import json
 import asyncio
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pose_estimation_tracker_server.server import (
-    LatestFrameBuffer,
-    handle_message,
+from pose_estimation_tracker_server.signaling import (
     handle_binary_message,
+    handle_message,
     parse_webrtc_config,
 )
+from pose_estimation_tracker_server.webrtc_session import LatestFrameBuffer
 
 
 def test_handle_message_rejects_invalid_json():
@@ -41,7 +41,7 @@ def test_handle_message_rejects_missing_image_data():
     assert response["message"] == "image.data must be a base64 string"
 
 
-@patch("pose_estimation_tracker_server.server.decode_image_bytes")
+@patch("pose_estimation_tracker_server.signaling.decode_image_bytes")
 def test_handle_binary_message_success(mock_decode):
     mock_decode.return_value = MagicMock()  # Mock numpy array
     tracker = MagicMock()

@@ -111,7 +111,13 @@ def _box_from_keypoints(keypoints: list[dict[str, float]], width: int, height: i
     }
 
 
-def extract_detections(result: Any, width: int, height: int, threshold: float, max_poses: int = 2) -> list[dict[str, Any]]:
+def extract_detections(
+    result: Any,
+    width: int,
+    height: int,
+    threshold: float,
+    max_poses: int = 2,
+) -> list[dict[str, Any]]:
     boxes = getattr(result, "boxes", None)
     keypoints = getattr(result, "keypoints", None)
 
@@ -127,7 +133,7 @@ def extract_detections(result: Any, width: int, height: int, threshold: float, m
     for index in range(candidate_count):
         points = keypoint_xy[index] if index < len(keypoint_xy) else []
         scores = keypoint_scores[index] if index < len(keypoint_scores) else []
-        keypoint_items: list[dict[str, float]] = []
+        keypoint_items: list[dict[str, Any]] = []
 
         for keypoint_index, label in enumerate(KEYPOINT_LABELS):
             point = points[keypoint_index] if keypoint_index < len(points) else [0, 0]
