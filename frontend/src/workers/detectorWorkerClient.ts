@@ -196,7 +196,7 @@ export async function loadYoloDetectorWorker(options: DetectorLoadOptions): Prom
       },
       reject: (reason) => {
         window.clearTimeout(timeoutId);
-        reject(reason);
+        reject(reason instanceof Error ? reason : new Error(String(reason)));
       },
     });
 

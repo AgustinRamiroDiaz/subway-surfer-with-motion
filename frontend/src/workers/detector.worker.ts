@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-globals */
 import {
   loadMediaPipePoseDetector,
   loadYoloDetector,
@@ -161,7 +160,7 @@ self.onmessage = async (event: MessageEvent<WorkerInboundMessage>): Promise<void
       return;
     }
 
-    if (!frameCanvas || frameCanvas.width !== bitmap.width || frameCanvas.height !== bitmap.height) {
+    if (frameCanvas?.width !== bitmap.width || frameCanvas?.height !== bitmap.height) {
       frameCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
       frameContext = frameCanvas.getContext('2d');
     }

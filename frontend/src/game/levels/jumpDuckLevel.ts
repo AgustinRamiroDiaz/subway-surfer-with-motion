@@ -81,9 +81,7 @@ export function updateJumpDuckCalibration(
   now: number,
   lastProgress: number
 ): JumpDuckCalibrationUpdate {
-  if (calibration.startedAt === null) {
-    calibration.startedAt = now;
-  }
+  calibration.startedAt ??= now;
 
   poses.forEach((pose, index) => {
     const metrics = getPoseVerticalMetrics(pose);

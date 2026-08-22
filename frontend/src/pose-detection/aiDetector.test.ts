@@ -70,7 +70,7 @@ vi.mock('@mediapipe/tasks-vision', () => ({
 }));
 
 function makePoseLogits(): MockLogits {
-  const data = new Array(57).fill(0);
+  const data = Array.from({ length: 57 }, () => 0);
   data[0] = 0.1;
   data[1] = 0.2;
   data[2] = 0.8;

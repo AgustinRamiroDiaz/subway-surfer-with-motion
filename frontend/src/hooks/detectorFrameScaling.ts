@@ -38,7 +38,7 @@ function scaleDetectionToFrame<T extends PersonDetection | HandGestureDetection>
       x: keypoint.x * scaleX,
       y: keypoint.y * scaleY,
     })),
-  } as T;
+  };
 }
 
 export function scaleDetectorResultToFrame(

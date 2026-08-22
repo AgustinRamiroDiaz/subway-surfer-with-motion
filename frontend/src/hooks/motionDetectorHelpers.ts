@@ -27,7 +27,7 @@ export function mirrorDetection<T extends PersonDetection | HandGestureDetection
       ...keypoint,
       x: frameWidth - keypoint.x,
     })),
-  } as T;
+  };
 }
 
 export function createFrameTimings(

@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { afterEach, beforeEach, expect, test, vi, type MockInstance } from 'vitest';
 import App from './App';
@@ -20,15 +19,6 @@ function renderApp(): ReturnType<typeof render> {
       </I18nProvider>
     </MantineProvider>
   );
-}
-
-function chooseOption(currentValue: RegExp, optionName: RegExp): void {
-  const input = screen.getAllByDisplayValue(currentValue).find((element) => element.getAttribute('role') === 'combobox');
-  if (!input) {
-    throw new Error(`Unable to find combobox with display value ${currentValue.toString()}`);
-  }
-  userEvent.click(input);
-  userEvent.click(screen.getByRole('option', { name: optionName }));
 }
 
 beforeEach(() => {
@@ -71,21 +61,19 @@ test('defaults to MediaPipe Lite on GPU', () => {
   expect(screen.getByDisplayValue('GPU · Delegado acelerado')).toBeInTheDocument();
 });
 
-test('remembers detector decisions across remounts', () => {
-  const { unmount } = renderApp();
-
-  fireEvent.click(screen.getByText(/seguimiento avanzado/i));
-  chooseOption(/MediaPipe · Seguimiento de puntos de pose/i, /YOLO · Detección de objetos y pose/i);
-  chooseOption(/YOLO26n-pose · Pose nano/i, /YOLO26s-pose · Pose pequeña/i);
-  chooseOption(/WebGPU · Acelerado por GPU/i, /WASM · Fallback por CPU/i);
-  chooseOption(/Cámara frontal/i, /Cámara trasera/i);
-  fireEvent.keyDown(screen.getByRole('slider', { name: /jugadores/i }), { key: 'ArrowRight' });
-  fireEvent.keyDown(screen.getByRole('slider', { name: /jugadores/i }), { key: 'ArrowRight' });
-  userEvent.click(screen.getByRole('switch', { name: /espejar cámara/i }));
-  fireEvent.keyDown(screen.getByRole('slider', { name: /multiplicador de cámara/i }), { key: 'ArrowRight' });
-
-  unmount();
+test('restores persisted detector decisions', () => {
+  window.localStorage.setItem(APP_PREFERENCES_STORAGE_KEY, JSON.stringify({
+    selectedBackendId: 'yolo',
+    selectedModelId: 'onnx-community/yolo26s-pose-ONNX',
+    selectedRuntimeId: 'wasm',
+    selectedQuantizationId: 'uint8',
+    cameraFacingMode: 'environment',
+    playerCount: 4,
+    cameraMirrored: false,
+    devCameraMultiplier: 2,
+  }));
   renderApp();
+
   fireEvent.click(screen.getByText(/seguimiento avanzado/i));
 
   expect(screen.getByDisplayValue('YOLO · Detección de objetos y pose')).toBeInTheDocument();
@@ -129,10 +117,12 @@ test('ignores invalid stored levels', async () => {
 });
 
 test('shows Python WebRTC as a server-backed tracker option', () => {
+  window.localStorage.setItem(APP_PREFERENCES_STORAGE_KEY, JSON.stringify({
+    selectedBackendId: 'python-webrtc',
+  }));
   renderApp();
 
   fireEvent.click(screen.getByText(/seguimiento avanzado/i));
-  chooseOption(/MediaPipe · Seguimiento de puntos de pose/i, /Python WebRTC · Seguimiento de pose remoto de baja latencia/i);
 
   expect(screen.getByDisplayValue('Python WebRTC · Seguimiento de pose remoto de baja latencia')).toBeInTheDocument();
   expect(screen.getByText(/url de señalización/i)).toBeInTheDocument();

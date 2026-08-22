@@ -69,9 +69,7 @@ export function assignHandDetectionsToPlayerSections(
         Math.max(0, Math.floor(displayPosition * normalizedPlayerCount))
       );
 
-      if (players[playerIndex] === null) {
-        players[playerIndex] = detection;
-      }
+      players[playerIndex] ??= detection;
     });
 
   return players;

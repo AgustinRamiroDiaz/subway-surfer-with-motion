@@ -18,3 +18,18 @@ test('opens the tracking documentation route', async ({ page }) => {
   await expect(page.getByLabel(/documentación interna de seguimiento/i)).toBeVisible();
   await expect(page.getByLabel(/juego principal/i)).toHaveCount(0);
 });
+
+test('selects and persists a detector backend', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /seguimiento avanzado/i }).click();
+
+  const detectorSelect = page.getByRole('combobox', { name: /detector/i });
+  await detectorSelect.click();
+  await page.getByRole('option', { name: /Python WebRTC/i }).click();
+  await expect(detectorSelect).toHaveValue(/Python WebRTC/i);
+  await expect(page.getByText('ws://127.0.0.1:8765')).toBeVisible();
+
+  await page.reload();
+  await page.getByRole('button', { name: /seguimiento avanzado/i }).click();
+  await expect(page.getByRole('combobox', { name: /detector/i })).toHaveValue(/Python WebRTC/i);
+});
