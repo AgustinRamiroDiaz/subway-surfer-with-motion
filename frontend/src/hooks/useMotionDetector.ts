@@ -7,9 +7,11 @@ import { translateDetectorStatus, useI18n } from '../app/i18n';
 import {
   assignHandDetectionsToPlayerSections,
   getDefaultPlayerPositions,
-  getPlayerPositions,
-  getPersonPosition,
 } from '../motion-mapping/playerPositions';
+import {
+  assignPlayerDetections,
+  createPlayerTrackingState,
+} from '../motion-mapping/playerTracking';
 import { drawDetections } from '../motion-mapping/poseOverlay';
 import {
   createEmptyGameplayInputFrame,
@@ -18,7 +20,7 @@ import {
   type GameplayInputFrame,
 } from '../motion-mapping/gameplayInput';
 import { getDetectorFrameSize, scaleDetectorResultToFrame } from './detectorFrameScaling';
-import { DETECTOR_UI_UPDATE_INTERVAL_MS, createEmptyPlayerDetections, createEmptyTrackIds, createFrameTimings, isMediaPipeBackend, mirrorDetection } from './motionDetectorHelpers';
+import { DETECTOR_UI_UPDATE_INTERVAL_MS, createEmptyPlayerDetections, createFrameTimings, isMediaPipeBackend, mirrorDetection } from './motionDetectorHelpers';
 import type { FrameTimings, MotionDetectorControls, UseMotionDetectorOptions } from './motionDetectorTypes';
 import { useLatest } from './useLatest';
 
@@ -60,8 +62,7 @@ export function useMotionDetector({
     createEmptyGameplayInputFrame(task, initialPlayerPositions)
   );
   const [error, setError] = useState<string | null>(null);
-  const playerTrackIdsRef = useRef<Array<number | null>>(createEmptyTrackIds(initialPlayerPositions.length));
-  const trackIdLastSeenRef = useRef<Map<number, number>>(new Map());
+  const playerTrackingStateRef = useRef(createPlayerTrackingState(initialPlayerPositions.length));
   const lastUiPublishAtRef = useRef(0);
 
   const clearDetectionState = useCallback(() => {
@@ -75,8 +76,7 @@ export function useMotionDetector({
     setLastInferenceMs(null);
     setFrameTimings(null);
     setPlayerPositions(fallbackPositions);
-    playerTrackIdsRef.current = createEmptyTrackIds(fallbackPositions.length);
-    trackIdLastSeenRef.current.clear();
+    playerTrackingStateRef.current = createPlayerTrackingState(fallbackPositions.length);
     clearOverlay();
   }, [clearOverlay, preferencesRef, task]);
 
@@ -177,95 +177,18 @@ export function useMotionDetector({
 
     const persons = sorted.filter((d): d is PersonDetection => d.label === 'person');
     const playerCount = activePreferences.playerCount;
-    const fallbackPositions = getDefaultPlayerPositions(playerCount);
-    if (playerTrackIdsRef.current.length !== playerCount) {
-      playerTrackIdsRef.current = createEmptyTrackIds(playerCount);
-    }
-
-    const hasTrackingIds = persons.some((d) => d.id !== undefined);
-    let finalPositions: number[];
-    let finalDetections: Array<PersonDetection | null> = Array.from(
-      { length: playerCount },
-      (): PersonDetection | null => null
-    );
-
-    if (hasTrackingIds) {
-      const now = performance.now();
-      const TRACK_TIMEOUT_MS = 2000;
-
-      persons.forEach((d) => {
-        if (d.id !== undefined) {
-          trackIdLastSeenRef.current.set(d.id, now);
-        }
-      });
-
-      trackIdLastSeenRef.current.forEach((lastSeen, id) => {
-        if (now - lastSeen > TRACK_TIMEOUT_MS) {
-          trackIdLastSeenRef.current.delete(id);
-          const index = playerTrackIdsRef.current.indexOf(id);
-          if (index !== -1) {
-            playerTrackIdsRef.current[index] = null;
-          }
-        }
-      });
-
-      const nextPositions = fallbackPositions.map(
-        (fallbackPosition, index) => playerPositionsRef.current[index] ?? fallbackPosition
-      );
-      const assigned = new Set<PersonDetection>();
-
-      playerTrackIdsRef.current.forEach((trackedId, index) => {
-        if (trackedId === null) {
-          return;
-        }
-        const match = persons.find((d) => d.id === trackedId);
-        if (match) {
-          const pos = getPersonPosition(match, frameWidth);
-          nextPositions[index] = activePreferences.cameraMirrored ? 1 - pos : pos;
-          finalDetections[index] = match;
-          assigned.add(match);
-        }
-      });
-
-      const unassignedDetections = persons
-        .filter((d) => !assigned.has(d))
-        .sort((a, b) => {
-          const posA = getPersonPosition(a, frameWidth);
-          const posB = getPersonPosition(b, frameWidth);
-          return activePreferences.cameraMirrored ? posB - posA : posA - posB;
-        });
-
-      const emptySlots = playerTrackIdsRef.current
-        .map((id, index) => (id === null ? index : -1))
-        .filter((index) => index !== -1);
-
-      unassignedDetections.forEach((d, i) => {
-        if (i < emptySlots.length) {
-          const emptySlot = emptySlots[i];
-          if (emptySlot !== undefined) {
-            if (d.id !== undefined) {
-              playerTrackIdsRef.current[emptySlot] = d.id;
-            }
-            const pos = getPersonPosition(d, frameWidth);
-            nextPositions[emptySlot] = activePreferences.cameraMirrored ? 1 - pos : pos;
-            finalDetections[emptySlot] = d;
-            assigned.add(d);
-          }
-        }
-      });
-
-      finalPositions = nextPositions;
-    } else {
-      finalPositions = getPlayerPositions(persons, frameWidth, activePreferences.cameraMirrored, playerCount);
-      const sortedByPosition = persons
-        .slice(0, playerCount)
-        .sort((left, right) => {
-          const leftPosition = getPersonPosition(left, frameWidth);
-          const rightPosition = getPersonPosition(right, frameWidth);
-          return activePreferences.cameraMirrored ? rightPosition - leftPosition : leftPosition - rightPosition;
-        });
-      finalDetections = finalPositions.map((_, index) => sortedByPosition[index] ?? null);
-    }
+    const trackingResult = assignPlayerDetections({
+      detections: persons,
+      frameWidth,
+      mirrored: activePreferences.cameraMirrored,
+      playerCount,
+      previousPositions: playerPositionsRef.current,
+      previousState: playerTrackingStateRef.current,
+      nowMs: analysisStartedAt,
+    });
+    const finalPositions = trackingResult.positions;
+    const finalDetections = trackingResult.detections;
+    playerTrackingStateRef.current = trackingResult.state;
 
     const displayDetections =
       activePreferences.cameraMirrored
@@ -500,8 +423,7 @@ export function useMotionDetector({
     gameplayInputRef.current = createEmptyGameplayInputFrame(task, fallbackPositions);
     lastUiPublishAtRef.current = 0;
     setPlayerPositions(fallbackPositions);
-    playerTrackIdsRef.current = createEmptyTrackIds(fallbackPositions.length);
-    trackIdLastSeenRef.current.clear();
+    playerTrackingStateRef.current = createPlayerTrackingState(fallbackPositions.length);
   }, [preferences.playerCount, task]);
 
   return {
