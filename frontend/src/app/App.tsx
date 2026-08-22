@@ -21,6 +21,7 @@ import { CameraFeedbackPanel } from '../ui/CameraFeedbackPanel';
 import { DetectionControls } from '../ui/DetectionControls';
 import { GameScene, type GamePhase } from '../game/GameScene';
 import type { RunnerGameId } from '../game/gameTypes';
+import { getRunnerLevel, RUNNER_LEVELS } from '../game/levelRegistry';
 import { useI18n } from './i18n';
 import { TrackingInternalsDocs } from '../ui/TrackingInternalsDocs';
 import { useCameraController } from '../hooks/useCameraController';
@@ -46,7 +47,7 @@ function MotionRunnerApp(): ReactElement {
   const [jumpDuckGuides, setJumpDuckGuides] = useState<JumpDuckGuide[]>([]);
 
   const detectorTask = useMemo(() => {
-    return preferences.selectedRunnerGameId === 'hand-rhythm' ? 'gesture' : 'pose';
+    return getRunnerLevel(preferences.selectedRunnerGameId).detectorTask;
   }, [preferences.selectedRunnerGameId]);
 
   const camera = useCameraController({
@@ -109,14 +110,13 @@ function MotionRunnerApp(): ReactElement {
       return;
     }
 
-    const nextTask = selectedRunnerGameId === 'hand-rhythm' ? 'gesture' : 'pose';
-    const nextBackendId = nextTask === 'gesture' ? 'mediapipe-gesture' : 'mediapipe';
+    const nextLevel = getRunnerLevel(selectedRunnerGameId);
 
     updatePreferences(
       {
         ...preferences,
         selectedRunnerGameId,
-        selectedBackendId: nextBackendId,
+        selectedBackendId: nextLevel.defaultBackend,
       },
       true
     );
@@ -251,30 +251,17 @@ function MotionRunnerApp(): ReactElement {
 
           <section className="run-panel" aria-label={t('game.controls')}>
             <div className="game-mode-selector" aria-label={t('game.modeSelector')}>
-              <button
-                type="button"
-                className={preferences.selectedRunnerGameId === 'sideways' ? 'active' : ''}
-                aria-pressed={preferences.selectedRunnerGameId === 'sideways'}
-                onClick={() => handleGameSelection('sideways')}
-              >
-                {t('game.sidewaysMode')}
-              </button>
-              <button
-                type="button"
-                className={preferences.selectedRunnerGameId === 'jump-duck' ? 'active' : ''}
-                aria-pressed={preferences.selectedRunnerGameId === 'jump-duck'}
-                onClick={() => handleGameSelection('jump-duck')}
-              >
-                {t('game.jumpDuckMode')}
-              </button>
-              <button
-                type="button"
-                className={preferences.selectedRunnerGameId === 'hand-rhythm' ? 'active' : ''}
-                aria-pressed={preferences.selectedRunnerGameId === 'hand-rhythm'}
-                onClick={() => handleGameSelection('hand-rhythm')}
-              >
-                {t('game.handRhythmMode')}
-              </button>
+              {RUNNER_LEVELS.map((level) => (
+                <button
+                  key={level.id}
+                  type="button"
+                  className={preferences.selectedRunnerGameId === level.id ? 'active' : ''}
+                  aria-pressed={preferences.selectedRunnerGameId === level.id}
+                  onClick={() => handleGameSelection(level.id)}
+                >
+                  {t(level.modeLabelKey)}
+                </button>
+              ))}
             </div>
             <div className="run-controls">
               <button

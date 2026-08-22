@@ -14,7 +14,6 @@ import {
   COLLISION_RADIUS_Z,
   OBSTACLE_DESPAWN_Z,
   OBSTACLE_SPEED,
-  PLAYER_BASE_Y,
   PLAYER_Z,
 } from './gameConstants';
 import type { GamePhase, GameStats, Obstacle, RunnerGameId } from './gameTypes';
@@ -31,20 +30,17 @@ import {
   recordPlayerHit,
   scheduleHitStatusReset,
 } from './gameSimulation';
-import { SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS, getSidewaysPlayerTargetX } from './levels/sidewaysLevel';
 import {
-  JUMP_DUCK_SPAWN_INTERVAL_MS,
   getInitialJumpDuckActions,
-  getJumpDuckPlayerMotion,
   updateJumpDuckCalibration,
   type JumpDuckCalibrationState,
 } from './levels/jumpDuckLevel';
 import {
   type HandRhythmGridSize,
-  HAND_RHYTHM_SPAWN_INTERVAL_MS,
   getHandRhythmPlayerMotion,
   GESTURE_TO_EMOJI,
 } from './levels/handRhythmLevel';
+import { getRunnerLevel } from './levelRegistry';
 import { createObstacleSystem } from './obstacles';
 import { applyMarkerPose, disposeObject, getPoseAnimationState, updatePlayerGestureEmoji } from './playerAvatar';
 import { createTrackWorld } from './trackWorld';
@@ -118,8 +114,8 @@ export function GameScene({
     jumpDuckActionsRef.current = getInitialJumpDuckActions(playerCount);
     lastCalibrationProgressRef.current = -1;
     setCalibrationState({
-      calibrated: selectedGameId !== 'jump-duck',
-      progress: selectedGameId !== 'jump-duck' ? 1 : 0,
+      calibrated: !getRunnerLevel(selectedGameId).requiresCalibration,
+      progress: getRunnerLevel(selectedGameId).requiresCalibration ? 0 : 1,
     });
     onJumpDuckGuidesChange([]);
   }, [onJumpDuckGuidesChange, playerCount, selectedGameId]);
@@ -128,8 +124,9 @@ export function GameScene({
     gamePhaseRef.current = phase;
   }, [phase]);
 
-  const isJumpDuckGame = selectedGameId === 'jump-duck';
-  const isHandRhythmGame = selectedGameId === 'hand-rhythm';
+  const selectedLevel = getRunnerLevel(selectedGameId);
+  const isJumpDuckGame = selectedLevel.requiresCalibration;
+  const isHandRhythmGame = selectedLevel.inputKind === 'gesture';
   
   const statusLabel = phase === 'ready'
     ? isJumpDuckGame && !calibrationState.calibrated
@@ -157,7 +154,7 @@ export function GameScene({
 
     let animationFrame = 0;
     const startedAt = performance.now();
-    let simulationClock = createGameSimulationClock(startedAt, SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS);
+    let simulationClock = createGameSimulationClock(startedAt, selectedLevel.spawnIntervalMs);
     const initialPositions = gameplayInputRef.current.kind === 'pose'
       ? gameplayInputRef.current.players.map((player) => player.normalizedX)
       : getDefaultPlayerPositions(playerCount);
@@ -185,18 +182,14 @@ export function GameScene({
 
     const animate = (now: number): void => {
       const activeGameId = selectedGameIdRef.current;
+      const activeLevel = getRunnerLevel(activeGameId);
       const calibration = calibrationRef.current;
-      const isCalibrating = activeGameId === 'jump-duck' && calibration.players === null;
-      const spawnInterval = activeGameId === 'hand-rhythm'
-        ? HAND_RHYTHM_SPAWN_INTERVAL_MS
-        : activeGameId === 'jump-duck'
-          ? JUMP_DUCK_SPAWN_INTERVAL_MS
-          : SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS;
+      const isCalibrating = activeLevel.requiresCalibration && calibration.players === null;
       const simulationStep = advanceGameSimulation(
         simulationClock,
         now,
         gamePhaseRef.current,
-        spawnInterval,
+        activeLevel.spawnIntervalMs,
         !isCalibrating
       );
       simulationClock = simulationStep.clock;
@@ -211,11 +204,14 @@ export function GameScene({
       const inputFrame = gameplayInputRef.current;
 
       world.players.forEach((player, index) => {
-        const posePlayer = inputFrame.kind === 'pose' ? inputFrame.players[index] : undefined;
-        const handPlayer = inputFrame.kind === 'gesture' ? inputFrame.players[index] : undefined;
-        const pose = posePlayer?.pose ?? null;
-        const hand = handPlayer?.hand ?? null;
-        const isHandRhythm = activeGameId === 'hand-rhythm';
+        const motion = activeLevel.getPlayerMotion({
+          inputFrame,
+          playerIndex: index,
+          playerCount: world.players.length,
+          calibration: calibration.players?.[index],
+          handRhythmGridSize,
+        });
+        const isHandRhythm = activeLevel.inputKind === 'gesture';
 
         // Toggle visibility based on game mode
         if (player.gestureSprite) {
@@ -231,50 +227,30 @@ export function GameScene({
           });
         }
 
-        const poseState = getPoseAnimationState(pose);
-        const jumpDuckMotion = getJumpDuckPlayerMotion(
-          pose,
-          calibration.players?.[index],
-          index,
-          world.players.length
-        );
-        const handRhythmMotion = getHandRhythmPlayerMotion(
-          hand,
-          index,
-          world.players.length,
-          handRhythmGridSize
-        );
-        jumpDuckActionsRef.current[index] = jumpDuckMotion.cell;
+        const poseState = getPoseAnimationState(motion.pose);
+        if (motion.jumpDuckCell) {
+          jumpDuckActionsRef.current[index] = motion.jumpDuckCell;
+        }
 
-        const targetX = isHandRhythm
-          ? handRhythmMotion.targetX
-          : activeGameId === 'jump-duck'
-            ? jumpDuckMotion.targetX
-            : getSidewaysPlayerTargetX(posePlayer?.normalizedX ?? 0.5);
-        const targetY = isHandRhythm
-          ? handRhythmMotion.targetY
-          : PLAYER_BASE_Y + (activeGameId === 'jump-duck' ? jumpDuckMotion.actionOffsetY : 0);
-        const targetScaleY = activeGameId === 'jump-duck' ? jumpDuckMotion.scaleY : 1;
-
-        if (isHandRhythm) {
-          const emoji = GESTURE_TO_EMOJI[handRhythmMotion.gesture] ?? GESTURE_TO_EMOJI['None'];
+        if (motion.gesture) {
+          const emoji = GESTURE_TO_EMOJI[motion.gesture] ?? GESTURE_TO_EMOJI['None'];
           updatePlayerGestureEmoji(player, emoji);
         }
 
         player.poseEnergy = THREE.MathUtils.lerp(player.poseEnergy, poseState.energy, 0.18);
-        player.root.position.x = THREE.MathUtils.lerp(player.root.position.x, targetX, 0.22);
+        player.root.position.x = THREE.MathUtils.lerp(player.root.position.x, motion.targetX, 0.22);
         player.root.position.y = THREE.MathUtils.lerp(
           player.root.position.y,
-          targetY + (isHandRhythm ? 0 : Math.sin(now * 0.012 + index) * 0.045 * player.poseEnergy),
+          motion.targetY + (isHandRhythm ? 0 : Math.sin(now * 0.012 + index) * 0.045 * player.poseEnergy),
           0.28
         );
-        player.root.scale.y = THREE.MathUtils.lerp(player.root.scale.y, targetScaleY, 0.24);
+        player.root.scale.y = THREE.MathUtils.lerp(player.root.scale.y, motion.targetScaleY, 0.24);
         player.root.rotation.z = THREE.MathUtils.lerp(player.root.rotation.z, -poseState.lean * 0.5, 0.2);
         player.root.rotation.y = THREE.MathUtils.lerp(player.root.rotation.y, poseState.turn * 0.45, 0.16);
         player.fallback.rotation.y += delta * (2 + index * 0.35);
         
         if (!isHandRhythm) {
-          applyMarkerPose(player, pose);
+          applyMarkerPose(player, motion.pose);
         }
       });
 
@@ -415,7 +391,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [gameplayInputRef, handRhythmGridSize, onJumpDuckGuidesChange, playerCount, selectedGameId]);
+  }, [gameplayInputRef, handRhythmGridSize, onJumpDuckGuidesChange, playerCount, selectedGameId, selectedLevel.spawnIntervalMs]);
 
   return (
     <div
@@ -424,13 +400,7 @@ export function GameScene({
     >
       <div className="stage-heading">
         <p className="eyebrow">{t('game.heading')}</p>
-        <h1>
-          {selectedGameId === 'sideways'
-            ? t('game.sidewaysTitle')
-            : selectedGameId === 'hand-rhythm'
-              ? t('game.handRhythmTitle')
-              : t('game.jumpDuckTitle')}
-        </h1>
+        <h1>{t(selectedLevel.titleKey)}</h1>
       </div>
       <div className="game-hud" aria-label={t('game.status')}>
         <span>{statusLabel}</span>
