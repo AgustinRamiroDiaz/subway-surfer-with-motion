@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import { PLAYER_BASE_Y, PLAYER_Z, TRACK_MAX_X, TRACK_MIN_X, TRACK_WIDTH } from './gameConstants';
+import { PLAYER_BASE_Y, PLAYER_Z } from './gameConstants';
 import type { RunnerGameId, TrackWorld } from './gameTypes';
 import type { HandRhythmGridSize } from './levels/handRhythmLevel';
 import { handRhythmPlayerWidth, HAND_RHYTHM_ROW_Y } from './levels/handRhythmLayout';
 import { createFallbackPlayer, disposeObject, loadPlayerModels } from './playerAvatar';
+import { playerTrackWidth, playerTrackX, positionToWorldX } from './trackLayout';
 
 function createRailMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
@@ -11,27 +12,6 @@ function createRailMaterial(color: string): THREE.MeshStandardMaterial {
     roughness: 0.58,
     metalness: 0.32,
   });
-}
-
-export function positionToWorldX(position: number): number {
-  return THREE.MathUtils.lerp(TRACK_MIN_X, TRACK_MAX_X, THREE.MathUtils.clamp(position, 0, 1));
-}
-
-export function playerTrackX(index: number, playerCount: number): number {
-  const normalizedPlayerCount = Math.max(1, playerCount);
-
-  if (normalizedPlayerCount <= 1) {
-    return 0;
-  }
-
-  const clampedIndex = THREE.MathUtils.clamp(index, 0, normalizedPlayerCount - 1);
-  const segmentWidth = TRACK_WIDTH / normalizedPlayerCount;
-  return TRACK_MIN_X + segmentWidth * (clampedIndex + 0.5);
-}
-
-export function playerTrackWidth(playerCount: number): number {
-  const normalizedPlayerCount = Math.max(1, playerCount);
-  return normalizedPlayerCount <= 1 ? 4.6 : TRACK_WIDTH / normalizedPlayerCount;
 }
 
 function createPlayerLaneMarkers(scene: THREE.Scene, playerCount: number): () => void {

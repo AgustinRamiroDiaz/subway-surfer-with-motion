@@ -1,5 +1,5 @@
 import type { HandInput } from '../../motion-mapping/gameplayInput';
-import { playerTrackX } from '../trackWorld';
+import { playerTrackX } from '../trackLayout';
 import { handRhythmPlayerWidth, HAND_RHYTHM_ROW_Y } from './handRhythmLayout';
 
 export type HandRhythmGesture =

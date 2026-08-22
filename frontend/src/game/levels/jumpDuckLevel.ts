@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import {
   averageMetrics,
   calibrationToGuides,
@@ -12,11 +11,15 @@ import {
   type VerticalAction,
 } from '../../motion-mapping/jumpDuckActions';
 import type { PoseInput } from '../../motion-mapping/gameplayInput';
-import { playerTrackX } from '../trackWorld';
+import { playerTrackX } from '../trackLayout';
 
 export const JUMP_DUCK_SPAWN_INTERVAL_MS = 1700;
 export const JUMP_DUCK_CALIBRATION_MS = 3000;
 export const JUMP_DUCK_MIN_SAMPLES = 10;
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
+}
 
 export type JumpDuckCalibrationState = {
   calibrated: boolean;
@@ -89,9 +92,9 @@ export function updateJumpDuckCalibration(
     }
   });
 
-  const elapsedRatio = THREE.MathUtils.clamp((now - calibration.startedAt) / JUMP_DUCK_CALIBRATION_MS, 0, 1);
+  const elapsedRatio = clamp((now - calibration.startedAt) / JUMP_DUCK_CALIBRATION_MS, 0, 1);
   const sampleRatio = Math.min(
-    ...calibration.samples.map((samples) => THREE.MathUtils.clamp(samples.length / JUMP_DUCK_MIN_SAMPLES, 0, 1))
+    ...calibration.samples.map((samples) => clamp(samples.length / JUMP_DUCK_MIN_SAMPLES, 0, 1))
   );
   const progress = Math.min(elapsedRatio, sampleRatio);
   const roundedProgress = Math.round(progress * 100) / 100;

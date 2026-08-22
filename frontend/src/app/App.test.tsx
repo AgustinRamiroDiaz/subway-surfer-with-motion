@@ -43,9 +43,9 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-test('renders the motion game shell', () => {
+test('renders the motion game shell', async () => {
   renderApp();
-  expect(screen.getByRole('heading', { name: /carrera lateral/i })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: /carrera lateral/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /carrera lateral/i })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByRole('button', { name: /saltar y agacharse/i })).toHaveAttribute('aria-pressed', 'false');
   expect(screen.getByLabelText(/juego principal/i)).toBeInTheDocument();
@@ -102,29 +102,29 @@ test('remembers detector decisions across remounts', () => {
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"devCameraMultiplier":2');
 });
 
-test('remembers the selected level across remounts', () => {
+test('remembers the selected level across remounts', async () => {
   const { unmount } = renderApp();
 
   fireEvent.click(screen.getByRole('button', { name: /saltar y agacharse/i }));
 
-  expect(screen.getByRole('heading', { name: /saltos y agaches/i })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: /saltos y agaches/i })).toBeInTheDocument();
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"selectedRunnerGameId":"jump-duck"');
 
   unmount();
   renderApp();
 
-  expect(screen.getByRole('heading', { name: /saltos y agaches/i })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: /saltos y agaches/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /saltar y agacharse/i })).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('ignores invalid stored levels', () => {
+test('ignores invalid stored levels', async () => {
   window.localStorage.setItem(APP_PREFERENCES_STORAGE_KEY, JSON.stringify({
     selectedRunnerGameId: 'training-room',
   }));
 
   renderApp();
 
-  expect(screen.getByRole('heading', { name: /carrera lateral/i })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: /carrera lateral/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /carrera lateral/i })).toHaveAttribute('aria-pressed', 'true');
 });
 
@@ -153,12 +153,12 @@ test('opens tracking internals in the documentation view', () => {
   expect(docsLink).toHaveAttribute('target', '_blank');
 });
 
-test('renders tracking internals as a dedicated docs page', () => {
+test('renders tracking internals as a dedicated docs page', async () => {
   window.history.pushState({}, '', '/docs/tracking-internals');
 
   renderApp();
 
-  expect(screen.getByLabelText(/documentación interna de seguimiento/i)).toBeInTheDocument();
+  expect(await screen.findByLabelText(/documentación interna de seguimiento/i)).toBeInTheDocument();
   expect(screen.getByText(/el navegador posee el permiso de cámara/i)).toBeInTheDocument();
   expect(screen.getByText(/el backend conserva un único espacio/i)).toBeInTheDocument();
   expect(screen.queryByLabelText(/juego principal/i)).not.toBeInTheDocument();

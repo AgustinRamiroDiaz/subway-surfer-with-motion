@@ -1,4 +1,14 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactElement } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ReactElement,
+} from 'react';
 import {
   MEDIAPIPE_MODELS,
   YOLO_MODELS,
@@ -20,20 +30,33 @@ import {
 import type { JumpDuckGuide } from '../motion-mapping/jumpDuckActions';
 import { CameraFeedbackPanel } from '../ui/CameraFeedbackPanel';
 import { DetectionControls } from '../ui/DetectionControls';
-import { GameScene, type GamePhase } from '../game/GameScene';
-import type { RunnerGameId } from '../game/gameTypes';
+import type { GamePhase, RunnerGameId } from '../game/gameTypes';
 import { getRunnerLevel, RUNNER_LEVELS } from '../game/levelRegistry';
 import { useI18n } from './i18n';
-import { TrackingInternalsDocs } from '../ui/TrackingInternalsDocs';
 import { useCameraController } from '../hooks/useCameraController';
 import { useMotionDetector } from '../hooks/useMotionDetector';
 import '../App.css';
+
+const GameScene = lazy(async () => {
+  const module = await import('../game/GameScene');
+  return { default: module.GameScene };
+});
+const TrackingInternalsDocs = lazy(async () => {
+  const module = await import('../ui/TrackingInternalsDocs');
+  return { default: module.TrackingInternalsDocs };
+});
+
+function LoadingRegion(): ReactElement {
+  return <div aria-busy="true" className="loading-region" />;
+}
 
 function App(): ReactElement {
   if (window.location.pathname === '/docs/tracking-internals') {
     return (
       <main className="app-shell docs-page-shell">
-        <TrackingInternalsDocs />
+        <Suspense fallback={<LoadingRegion />}>
+          <TrackingInternalsDocs />
+        </Suspense>
       </main>
     );
   }
@@ -183,14 +206,16 @@ function MotionRunnerApp(): ReactElement {
     <main className="app-shell">
       <section className="workspace" aria-label={t('app.workspace')}>
         <section className="game-stage" aria-label={t('app.mainGame')}>
-          <GameScene
-            phase={gamePhase}
-            playerCount={preferences.playerCount}
-            handRhythmGridSize={preferences.handRhythmGridSize}
-            gameplayInputRef={detector.gameplayInputRef}
-            selectedGameId={preferences.selectedRunnerGameId}
-            onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
-          />
+          <Suspense fallback={<LoadingRegion />}>
+            <GameScene
+              phase={gamePhase}
+              playerCount={preferences.playerCount}
+              handRhythmGridSize={preferences.handRhythmGridSize}
+              gameplayInputRef={detector.gameplayInputRef}
+              selectedGameId={preferences.selectedRunnerGameId}
+              onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
+            />
+          </Suspense>
         </section>
 
         <aside className="control-panel" aria-label={t('app.detectionControls')}>

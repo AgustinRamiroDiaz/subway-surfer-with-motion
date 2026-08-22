@@ -3,7 +3,7 @@ import { TRACK_MAX_X, TRACK_MIN_X, TRACK_WIDTH } from './gameConstants';
 import { getHandRhythmPlayerMotion } from './levels/handRhythmLevel';
 import { handRhythmPlayerWidth } from './levels/handRhythmLayout';
 import { getJumpDuckPlayerMotion } from './levels/jumpDuckLevel';
-import { playerTrackWidth, playerTrackX } from './trackWorld';
+import { playerTrackWidth, playerTrackX } from './trackLayout';
 
 describe('lane-based player layout', () => {
   test('splits the track width into one centered segment per player', () => {

@@ -22,7 +22,7 @@ import type {
   ObstacleSystem,
   RunnerGameId,
 } from './gameTypes';
-import { playerTrackX } from './trackWorld';
+import { playerTrackX } from './trackLayout';
 
 const JUMP_DUCK_LANE_OFFSETS: Record<JumpDuckObstacleColumn, number> = {
   left: -0.48,
