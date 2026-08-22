@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { HorizontalAction, JumpDuckCell, VerticalAction } from '../motion-mapping/jumpDuckActions';
+import { randomIndex, type RandomSource } from './gameSimulation';
 import {
   GESTURE_TO_EMOJI,
   getHandRhythmCellWorldPosition,
@@ -218,7 +219,8 @@ export function createObstacleSystem(
   scene: THREE.Scene,
   getGameId: () => RunnerGameId,
   getPlayerCount: () => number,
-  getHandRhythmGridSize: () => HandRhythmGridSize = () => 3
+  getHandRhythmGridSize: () => HandRhythmGridSize = () => 3,
+  random: RandomSource = Math.random
 ): ObstacleSystem {
   const obstacles: ObstacleSystem['obstacles'] = [];
   const obstaclePatterns: JumpDuckObstacleCell[][] = [
@@ -244,24 +246,28 @@ export function createObstacleSystem(
       const isJumpDuck = gameId === 'jump-duck';
       const isHandRhythm = gameId === 'hand-rhythm';
       const kind = isHandRhythm ? 'hand-rhythm' : isJumpDuck ? 'jump-duck' : 'sideways';
-      const obstacleCells = obstaclePatterns[Math.floor(Math.random() * obstaclePatterns.length)] ?? ['bottom-left'];
+      const obstacleCells = obstaclePatterns[randomIndex(obstaclePatterns.length, random)] ?? ['bottom-left'];
       const blockedCells = isJumpDuck
         ? toBlockedPlayerCells(obstacleCells)
         : [];
-      const gesture = isHandRhythm ? HAND_RHYTHM_GESTURES[Math.floor(Math.random() * HAND_RHYTHM_GESTURES.length)] : undefined;
-      const simultaneousHands = isHandRhythm && playerCount > 1 && Math.random() < 0.45;
+      const gesture = isHandRhythm ? HAND_RHYTHM_GESTURES[randomIndex(HAND_RHYTHM_GESTURES.length, random)] : undefined;
+      const simultaneousHands = isHandRhythm && playerCount > 1 && random() < 0.45;
       const handTargetPlayers = isHandRhythm
         ? simultaneousHands
           ? Array.from({ length: playerCount }, (_, index) => index)
-          : [Math.floor(Math.random() * playerCount)]
+          : [randomIndex(playerCount, random)]
         : [];
       const handCells: HandRhythmCell[] = [];
       if (isHandRhythm) {
-        while (handCells.length < handTargetPlayers.length) {
-          const gridSize = getHandRhythmGridSize();
-          const candidate = { row: Math.floor(Math.random() * gridSize), column: Math.floor(Math.random() * gridSize) };
-          if (!handCells.some((cell) => cell.row === candidate.row && cell.column === candidate.column)) {
-            handCells.push(candidate);
+        const gridSize = getHandRhythmGridSize();
+        const availableCells = Array.from({ length: gridSize * gridSize }, (_, index) => ({
+          row: Math.floor(index / gridSize),
+          column: index % gridSize,
+        }));
+        while (handCells.length < handTargetPlayers.length && availableCells.length > 0) {
+          const [cell] = availableCells.splice(randomIndex(availableCells.length, random), 1);
+          if (cell) {
+            handCells.push(cell);
           }
         }
       }
@@ -272,7 +278,7 @@ export function createObstacleSystem(
           : null;
         const x = handPosition?.x ?? ((isJumpDuck || isHandRhythm) && targetPlayerIndex !== null
           ? playerTrackX(targetPlayerIndex, playerCount)
-          : TRACK_MIN_X + Math.random() * TRACK_WIDTH);
+          : TRACK_MIN_X + random() * TRACK_WIDTH);
         const jumpDuckObstacle = isJumpDuck ? createJumpDuckObstacleRoot(obstacleCells) : null;
         const gestureObstacle = isHandRhythm && gesture ? createGestureObstacleRoot(gesture) : null;
         const root = jumpDuckObstacle?.root ?? gestureObstacle?.root ?? createSidewaysObstacleRoot();

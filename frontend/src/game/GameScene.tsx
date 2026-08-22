@@ -4,10 +4,8 @@ import { useI18n } from '../app/i18n';
 import {
   createCalibrationRun,
   type CalibrationRun,
-  type HorizontalAction,
   type JumpDuckCell,
   type JumpDuckGuide,
-  type VerticalAction,
 } from '../motion-mapping/jumpDuckActions';
 import type { GameplayInputFrame } from '../motion-mapping/gameplayInput';
 import { getDefaultPlayerPositions } from '../motion-mapping/playerPositions';
@@ -20,6 +18,19 @@ import {
   PLAYER_Z,
 } from './gameConstants';
 import type { GamePhase, GameStats, Obstacle, RunnerGameId } from './gameTypes';
+import {
+  advanceGameSimulation,
+  clearHitStatus,
+  createDefaultStats,
+  createGameSimulationClock,
+  delayNextSpawn,
+  findJumpDuckPieceHits,
+  isHandRhythmTargetMatch,
+  isPlayerInCollisionRange,
+  recordDodgedObstacle,
+  recordPlayerHit,
+  scheduleHitStatusReset,
+} from './gameSimulation';
 import { SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS, getSidewaysPlayerTargetX } from './levels/sidewaysLevel';
 import {
   JUMP_DUCK_SPAWN_INTERVAL_MS,
@@ -49,40 +60,19 @@ type GameSceneProps = {
   onJumpDuckGuidesChange: (guides: JumpDuckGuide[]) => void;
 };
 
-function createDefaultStats(playerCount: number): GameStats {
-  return {
-    dodged: 0,
-    hits: Array.from({ length: playerCount }, () => 0),
-    status: 'running',
-    hitPlayer: null,
-  };
-}
-
 function getJumpDuckPieceHitCount(obstacle: Obstacle, playerIndex: number, cell: JumpDuckCell): number {
-  const [verticalAction, horizontalAction] = cell.split('-') as [VerticalAction, HorizontalAction];
-  let hitCount = 0;
-
-  obstacle.pieces.forEach((piece) => {
-    const hitKey = `${playerIndex}:${piece.cell}`;
-    const isHit =
-      !obstacle.hitPieces.has(hitKey) &&
-      piece.blockedVerticals.includes(verticalAction) &&
-      piece.blockedHorizontals.includes(horizontalAction);
-
-    if (!isHit) {
-      return;
-    }
-
-    obstacle.hitPieces.add(hitKey);
+  const hits = findJumpDuckPieceHits(obstacle.pieces, obstacle.hitPieces, playerIndex, cell);
+  hits.forEach(({ key, pieceIndex }) => {
+    obstacle.hitPieces.add(key);
+    const piece = obstacle.pieces[pieceIndex];
     piece.materials.forEach((material) => {
       material.color.set('#ffd166');
       material.emissive.set('#6b3e00');
       material.roughness = 0.34;
     });
-    hitCount += 1;
   });
 
-  return hitCount;
+  return hits.length;
 }
 
 function setHandRhythmFeedback(obstacle: Obstacle, hit: boolean): void {
@@ -166,9 +156,8 @@ export function GameScene({
     }
 
     let animationFrame = 0;
-    let lastTime = performance.now();
-    let lastSpawnAt = performance.now() - SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS;
-    let statusResetAt = 0;
+    const startedAt = performance.now();
+    let simulationClock = createGameSimulationClock(startedAt, SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS);
     const initialPositions = gameplayInputRef.current.kind === 'pose'
       ? gameplayInputRef.current.players.map((player) => player.normalizedX)
       : getDefaultPlayerPositions(playerCount);
@@ -195,19 +184,30 @@ export function GameScene({
     resize();
 
     const animate = (now: number): void => {
-      const delta = Math.min(0.05, (now - lastTime) / 1000);
-      lastTime = now;
-      const isRunning = gamePhaseRef.current === 'running';
       const activeGameId = selectedGameIdRef.current;
+      const calibration = calibrationRef.current;
+      const isCalibrating = activeGameId === 'jump-duck' && calibration.players === null;
+      const spawnInterval = activeGameId === 'hand-rhythm'
+        ? HAND_RHYTHM_SPAWN_INTERVAL_MS
+        : activeGameId === 'jump-duck'
+          ? JUMP_DUCK_SPAWN_INTERVAL_MS
+          : SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS;
+      const simulationStep = advanceGameSimulation(
+        simulationClock,
+        now,
+        gamePhaseRef.current,
+        spawnInterval,
+        !isCalibrating
+      );
+      simulationClock = simulationStep.clock;
 
-      if (!isRunning) {
+      if (gamePhaseRef.current !== 'running') {
         world.renderer.render(world.scene, world.camera);
         animationFrame = window.requestAnimationFrame(animate);
         return;
       }
 
-      const calibration = calibrationRef.current;
-      const isCalibrating = activeGameId === 'jump-duck' && calibration.players === null;
+      const delta = simulationStep.deltaSeconds;
       const inputFrame = gameplayInputRef.current;
 
       world.players.forEach((player, index) => {
@@ -292,7 +292,7 @@ export function GameScene({
         } else if (calibrationUpdate.status === 'calibrated') {
           setCalibrationState({ calibrated: true, progress: 1 });
           onJumpDuckGuidesChange(calibrationUpdate.guides);
-          lastSpawnAt = now;
+          simulationClock = delayNextSpawn(simulationClock, now);
         }
 
         world.renderer.render(world.scene, world.camera);
@@ -300,14 +300,8 @@ export function GameScene({
         return;
       }
 
-      const spawnInterval = activeGameId === 'hand-rhythm'
-        ? HAND_RHYTHM_SPAWN_INTERVAL_MS
-        : activeGameId === 'jump-duck'
-          ? JUMP_DUCK_SPAWN_INTERVAL_MS
-          : SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS;
-      if (now - lastSpawnAt > spawnInterval) {
+      if (simulationStep.shouldSpawn) {
         obstacleSystem.spawnObstacle();
-        lastSpawnAt = now;
       }
 
       for (let index = obstacleSystem.obstacles.length - 1; index >= 0; index -= 1) {
@@ -331,12 +325,18 @@ export function GameScene({
 
         for (let playerIndex = firstPlayerIndex; playerIndex <= lastPlayerIndex; playerIndex += 1) {
           const player = world.players[playerIndex];
-          const canHitPlayer = obstacle.kind === 'jump-duck' || obstacle.kind === 'hand-rhythm' || !obstacle.hitBy[playerIndex];
-          const isInCollisionRange =
-            canHitPlayer &&
-            Math.abs(obstacle.x - player.root.position.x) < (obstacle.kind === 'hand-rhythm' ? 0.6 : COLLISION_RADIUS_X) &&
-            Math.abs(obstacle.root.position.y - player.root.position.y) < (obstacle.kind === 'hand-rhythm' ? 0.6 : 100) &&
-            Math.abs(obstacle.root.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
+          const isInCollisionRange = isPlayerInCollisionRange({
+            kind: obstacle.kind,
+            obstacleX: obstacle.x,
+            obstacleY: obstacle.root.position.y,
+            obstacleZ: obstacle.root.position.z,
+            playerX: player.root.position.x,
+            playerY: player.root.position.y,
+            playerZ: PLAYER_Z,
+            alreadyHit: Boolean(obstacle.hitBy[playerIndex]),
+            radiusX: COLLISION_RADIUS_X,
+            radiusZ: COLLISION_RADIUS_Z,
+          });
           
           let hitCount = 0;
           if (obstacle.kind === 'hand-rhythm') {
@@ -352,8 +352,12 @@ export function GameScene({
                 world.players.length,
                 handRhythmGridSize
               );
-              const isCorrectCell = motion.cell.row === obstacle.handCell?.row && motion.cell.column === obstacle.handCell?.column;
-              const wasHit = hand?.gesture === obstacle.gesture && isCorrectCell;
+              const wasHit = isHandRhythmTargetMatch(
+                hand,
+                motion.cell,
+                obstacle.gesture,
+                obstacle.handCell
+              );
               obstacle.handResult = wasHit ? 'hit' : 'missed';
               obstacle.hitBy[playerIndex] = true;
               setHandRhythmFeedback(obstacle, wasHit);
@@ -381,13 +385,8 @@ export function GameScene({
               material.roughness = 0.34;
             });
           }
-          statusResetAt = now + 650;
-          setStats((current) => ({
-            dodged: current.dodged,
-            hits: current.hits.map((hits, index) => index === playerIndex ? hits + hitCount : hits),
-            status: 'hit',
-            hitPlayer: playerIndex + 1,
-          }));
+          simulationClock = scheduleHitStatusReset(simulationClock, now, 650);
+          setStats((current) => recordPlayerHit(current, playerIndex, hitCount));
         }
 
         if (obstacle.root.position.z > OBSTACLE_DESPAWN_Z) {
@@ -395,23 +394,13 @@ export function GameScene({
           disposeObject(obstacle.root);
           obstacleSystem.obstacles.splice(index, 1);
           if (!obstacle.hitBy.some(Boolean) && obstacle.hitPieces.size === 0) {
-            setStats((current) => ({
-              dodged: current.dodged + 1,
-              hits: current.hits,
-              status: current.status,
-              hitPlayer: current.hitPlayer,
-            }));
+            setStats(recordDodgedObstacle);
           }
         }
       }
 
-      if (statusResetAt && now > statusResetAt) {
-        statusResetAt = 0;
-        setStats((current) => ({
-          ...current,
-          status: 'running',
-          hitPlayer: null,
-        }));
+      if (simulationStep.shouldClearHitStatus) {
+        setStats(clearHitStatus);
       }
 
       world.renderer.render(world.scene, world.camera);
