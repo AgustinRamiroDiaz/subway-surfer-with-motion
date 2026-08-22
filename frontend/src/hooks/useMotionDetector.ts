@@ -11,6 +11,12 @@ import {
   getPersonPosition,
 } from '../motion-mapping/playerPositions';
 import { drawDetections } from '../motion-mapping/poseOverlay';
+import {
+  createEmptyGameplayInputFrame,
+  toHandInput,
+  toPoseInput,
+  type GameplayInputFrame,
+} from '../motion-mapping/gameplayInput';
 import { getDetectorFrameSize, scaleDetectorResultToFrame } from './detectorFrameScaling';
 import { DETECTOR_UI_UPDATE_INTERVAL_MS, createEmptyPlayerDetections, createEmptyTrackIds, createFrameTimings, isMediaPipeBackend, mirrorDetection } from './motionDetectorHelpers';
 import type { FrameTimings, MotionDetectorControls, UseMotionDetectorOptions } from './motionDetectorTypes';
@@ -45,13 +51,14 @@ export function useMotionDetector({
   const [status, setStatus] = useState(t('status.cameraIdle'));
   const [modelStatus, setModelStatus] = useState(t('status.modelNotLoaded'));
   const [detections, setDetections] = useState<Array<PersonDetection | HandGestureDetection>>([]);
-  const [playerDetections, setPlayerDetections] =
-    useState<Array<PersonDetection | HandGestureDetection | null>>(initialPlayerDetections);
   const [lastInferenceMs, setLastInferenceMs] = useState<number | null>(null);
   const [frameTimings, setFrameTimings] = useState<FrameTimings | null>(null);
   const [playerPositions, setPlayerPositions] = useState<number[]>(initialPlayerPositions);
   const playerPositionsRef = useRef<number[]>(initialPlayerPositions);
   const playerDetectionsRef = useRef<Array<PersonDetection | HandGestureDetection | null>>(initialPlayerDetections);
+  const gameplayInputRef = useRef<GameplayInputFrame>(
+    createEmptyGameplayInputFrame(task, initialPlayerPositions)
+  );
   const [error, setError] = useState<string | null>(null);
   const playerTrackIdsRef = useRef<Array<number | null>>(createEmptyTrackIds(initialPlayerPositions.length));
   const trackIdLastSeenRef = useRef<Map<number, number>>(new Map());
@@ -62,16 +69,16 @@ export function useMotionDetector({
     const fallbackDetections = createEmptyPlayerDetections(fallbackPositions.length);
     playerPositionsRef.current = fallbackPositions;
     playerDetectionsRef.current = fallbackDetections;
+    gameplayInputRef.current = createEmptyGameplayInputFrame(task, fallbackPositions);
     lastUiPublishAtRef.current = 0;
     setDetections([]);
-    setPlayerDetections(fallbackDetections);
     setLastInferenceMs(null);
     setFrameTimings(null);
     setPlayerPositions(fallbackPositions);
     playerTrackIdsRef.current = createEmptyTrackIds(fallbackPositions.length);
     trackIdLastSeenRef.current.clear();
     clearOverlay();
-  }, [clearOverlay, preferencesRef]);
+  }, [clearOverlay, preferencesRef, task]);
 
   const cancelScheduledDetectionFrame = useCallback(() => {
     if (videoFrameCallbackRef.current !== null) {
@@ -122,7 +129,6 @@ export function useMotionDetector({
 
       if (shouldPublishUi) {
         setPlayerPositions(positions);
-        setPlayerDetections(detectionsForPlayers);
       }
     };
 
@@ -147,6 +153,16 @@ export function useMotionDetector({
           ? mirrorDetection(detection, frameWidth)
           : detection)
       );
+      gameplayInputRef.current = {
+        kind: 'gesture',
+        players: playerDetectionsRef.current.map((detection) => ({
+          hand: toHandInput(
+            detection?.label === 'hand' ? detection : null,
+            result.frame.width,
+            result.frame.height
+          ),
+        })),
+      };
       
       const drawStartedAt = performance.now();
       const analysisMs = drawStartedAt - analysisStartedAt;
@@ -256,6 +272,13 @@ export function useMotionDetector({
         ? finalDetections.map((detection) => detection ? mirrorDetection(detection, frameWidth) : null)
         : finalDetections;
     publishPlayerState(finalPositions, displayDetections);
+    gameplayInputRef.current = {
+      kind: 'pose',
+      players: finalPositions.map((normalizedX, index) => ({
+        normalizedX,
+        pose: toPoseInput(displayDetections[index] ?? null),
+      })),
+    };
 
     if (shouldPublishUi) {
       setStatus(sorted.length ? tn('status.detectedPeople', sorted.length) : t('status.scanning'));
@@ -474,12 +497,12 @@ export function useMotionDetector({
     const fallbackDetections = createEmptyPlayerDetections(fallbackPositions.length);
     playerPositionsRef.current = fallbackPositions;
     playerDetectionsRef.current = fallbackDetections;
+    gameplayInputRef.current = createEmptyGameplayInputFrame(task, fallbackPositions);
     lastUiPublishAtRef.current = 0;
     setPlayerPositions(fallbackPositions);
-    setPlayerDetections(fallbackDetections);
     playerTrackIdsRef.current = createEmptyTrackIds(fallbackPositions.length);
     trackIdLastSeenRef.current.clear();
-  }, [preferences.playerCount]);
+  }, [preferences.playerCount, task]);
 
   return {
     isDetecting,
@@ -487,12 +510,11 @@ export function useMotionDetector({
     status,
     modelStatus,
     detections,
-    playerDetections,
-    playerDetectionsRef,
     lastInferenceMs,
     frameTimings,
     playerPositions,
     playerPositionsRef,
+    gameplayInputRef,
     error,
     clearDetectionState,
     resetDetector,

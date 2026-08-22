@@ -9,7 +9,8 @@ import {
   type JumpDuckGuide,
   type VerticalAction,
 } from '../motion-mapping/jumpDuckActions';
-import type { HandGestureDetection, PersonDetection } from '../pose-detection/detectionSchema';
+import type { GameplayInputFrame } from '../motion-mapping/gameplayInput';
+import { getDefaultPlayerPositions } from '../motion-mapping/playerPositions';
 import {
   COLLISION_RADIUS_X,
   COLLISION_RADIUS_Z,
@@ -43,11 +44,9 @@ type GameSceneProps = {
   phase: GamePhase;
   playerCount: number;
   handRhythmGridSize: HandRhythmGridSize;
-  playerDetectionsRef: React.RefObject<Array<PersonDetection | HandGestureDetection | null>>;
-  playerPositionsRef: React.RefObject<number[]>;
+  gameplayInputRef: React.RefObject<GameplayInputFrame>;
   selectedGameId: RunnerGameId;
   onJumpDuckGuidesChange: (guides: JumpDuckGuide[]) => void;
-  videoRef: React.RefObject<HTMLVideoElement | null>;
 };
 
 function createDefaultStats(playerCount: number): GameStats {
@@ -99,11 +98,9 @@ export function GameScene({
   phase,
   playerCount,
   handRhythmGridSize,
-  playerDetectionsRef,
-  playerPositionsRef,
+  gameplayInputRef,
   selectedGameId,
   onJumpDuckGuidesChange,
-  videoRef,
 }: GameSceneProps): ReactElement {
   const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -172,11 +169,14 @@ export function GameScene({
     let lastTime = performance.now();
     let lastSpawnAt = performance.now() - SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS;
     let statusResetAt = 0;
-    const world = createTrackWorld(mount, playerPositionsRef.current, selectedGameId, handRhythmGridSize);
+    const initialPositions = gameplayInputRef.current.kind === 'pose'
+      ? gameplayInputRef.current.players.map((player) => player.normalizedX)
+      : getDefaultPlayerPositions(playerCount);
+    const world = createTrackWorld(mount, initialPositions, selectedGameId, handRhythmGridSize);
     const obstacleSystem = createObstacleSystem(
       world.scene,
       () => selectedGameIdRef.current,
-      () => playerPositionsRef.current.length,
+      () => gameplayInputRef.current.players.length,
       () => handRhythmGridSize
     );
 
@@ -208,9 +208,13 @@ export function GameScene({
 
       const calibration = calibrationRef.current;
       const isCalibrating = activeGameId === 'jump-duck' && calibration.players === null;
+      const inputFrame = gameplayInputRef.current;
 
       world.players.forEach((player, index) => {
-        const detection = playerDetectionsRef.current[index] ?? null;
+        const posePlayer = inputFrame.kind === 'pose' ? inputFrame.players[index] : undefined;
+        const handPlayer = inputFrame.kind === 'gesture' ? inputFrame.players[index] : undefined;
+        const pose = posePlayer?.pose ?? null;
+        const hand = handPlayer?.hand ?? null;
         const isHandRhythm = activeGameId === 'hand-rhythm';
 
         // Toggle visibility based on game mode
@@ -227,19 +231,17 @@ export function GameScene({
           });
         }
 
-        const poseState = getPoseAnimationState(detection as PersonDetection | null);
+        const poseState = getPoseAnimationState(pose);
         const jumpDuckMotion = getJumpDuckPlayerMotion(
-          detection as PersonDetection | null,
+          pose,
           calibration.players?.[index],
           index,
           world.players.length
         );
         const handRhythmMotion = getHandRhythmPlayerMotion(
-          detection as HandGestureDetection | null,
+          hand,
           index,
           world.players.length,
-          videoRef.current?.videoWidth ?? 640,
-          videoRef.current?.videoHeight ?? 480,
           handRhythmGridSize
         );
         jumpDuckActionsRef.current[index] = jumpDuckMotion.cell;
@@ -248,7 +250,7 @@ export function GameScene({
           ? handRhythmMotion.targetX
           : activeGameId === 'jump-duck'
             ? jumpDuckMotion.targetX
-            : getSidewaysPlayerTargetX(playerPositionsRef.current[index] ?? playerPositionsRef.current[0] ?? 0.5);
+            : getSidewaysPlayerTargetX(posePlayer?.normalizedX ?? 0.5);
         const targetY = isHandRhythm
           ? handRhythmMotion.targetY
           : PLAYER_BASE_Y + (activeGameId === 'jump-duck' ? jumpDuckMotion.actionOffsetY : 0);
@@ -272,14 +274,14 @@ export function GameScene({
         player.fallback.rotation.y += delta * (2 + index * 0.35);
         
         if (!isHandRhythm) {
-          applyMarkerPose(player, detection as PersonDetection | null);
+          applyMarkerPose(player, pose);
         }
       });
 
       if (isCalibrating) {
         const calibrationUpdate = updateJumpDuckCalibration(
           calibration,
-          playerDetectionsRef.current,
+          inputFrame.kind === 'pose' ? inputFrame.players.map((player) => player.pose) : [],
           now,
           lastCalibrationProgressRef.current
         );
@@ -341,17 +343,17 @@ export function GameScene({
             const isHandHitZone = obstacle.targetPlayerIndex === playerIndex &&
               Math.abs(obstacle.root.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
             if (isHandHitZone && obstacle.handResult === 'pending') {
-              const detection = playerDetectionsRef.current[playerIndex] as HandGestureDetection | null;
+              const hand = inputFrame.kind === 'gesture'
+                ? inputFrame.players[playerIndex]?.hand ?? null
+                : null;
               const motion = getHandRhythmPlayerMotion(
-                detection,
+                hand,
                 playerIndex,
                 world.players.length,
-                videoRef.current?.videoWidth ?? 640,
-                videoRef.current?.videoHeight ?? 480,
                 handRhythmGridSize
               );
               const isCorrectCell = motion.cell.row === obstacle.handCell?.row && motion.cell.column === obstacle.handCell?.column;
-              const wasHit = detection?.gesture === obstacle.gesture && isCorrectCell;
+              const wasHit = hand?.gesture === obstacle.gesture && isCorrectCell;
               obstacle.handResult = wasHit ? 'hit' : 'missed';
               obstacle.hitBy[playerIndex] = true;
               setHandRhythmFeedback(obstacle, wasHit);
@@ -424,7 +426,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [handRhythmGridSize, onJumpDuckGuidesChange, playerCount, playerDetectionsRef, playerPositionsRef, selectedGameId, videoRef]);
+  }, [gameplayInputRef, handRhythmGridSize, onJumpDuckGuidesChange, playerCount, selectedGameId]);
 
   return (
     <div

@@ -1,4 +1,4 @@
-import type { HandGestureDetection, PersonDetection, PoseKeypoint } from '../pose-detection/detectionSchema';
+import type { PoseInput, PoseInputKeypoint } from './gameplayInput';
 
 const KEYPOINT_CONFIDENCE = 0.2;
 
@@ -34,16 +34,16 @@ export type CalibrationRun = {
   players: PlayerCalibration[] | null;
 };
 
-function findKeypoint(detection: PersonDetection | HandGestureDetection | null, label: string): PoseKeypoint | null {
-  const keypoint = detection?.keypoints?.find((item) => item.label === label);
+function findKeypoint(pose: PoseInput | null, label: string): PoseInputKeypoint | null {
+  const keypoint = pose?.keypoints.find((item) => item.label === label);
   if (!keypoint || keypoint.score < KEYPOINT_CONFIDENCE) {
     return null;
   }
   return keypoint;
 }
 
-function averageKeypointY(keypoints: Array<PoseKeypoint | null>): number | null {
-  const visibleKeypoints = keypoints.filter((keypoint): keypoint is PoseKeypoint => keypoint !== null);
+function averageKeypointY(keypoints: Array<PoseInputKeypoint | null>): number | null {
+  const visibleKeypoints = keypoints.filter((keypoint): keypoint is PoseInputKeypoint => keypoint !== null);
   if (!visibleKeypoints.length) {
     return null;
   }
@@ -51,8 +51,8 @@ function averageKeypointY(keypoints: Array<PoseKeypoint | null>): number | null 
   return visibleKeypoints.reduce((sum, keypoint) => sum + keypoint.y, 0) / visibleKeypoints.length;
 }
 
-function averageKeypointX(keypoints: Array<PoseKeypoint | null>): number | null {
-  const visibleKeypoints = keypoints.filter((keypoint): keypoint is PoseKeypoint => keypoint !== null);
+function averageKeypointX(keypoints: Array<PoseInputKeypoint | null>): number | null {
+  const visibleKeypoints = keypoints.filter((keypoint): keypoint is PoseInputKeypoint => keypoint !== null);
   if (!visibleKeypoints.length) {
     return null;
   }
@@ -60,17 +60,14 @@ function averageKeypointX(keypoints: Array<PoseKeypoint | null>): number | null 
   return visibleKeypoints.reduce((sum, keypoint) => sum + keypoint.x, 0) / visibleKeypoints.length;
 }
 
-export function getPoseVerticalMetrics(detection: PersonDetection | HandGestureDetection | null): PoseVerticalMetrics | null {
-  if (detection?.label === 'hand') {
-    return null;
-  }
-  const leftEye = findKeypoint(detection, 'Left Eye');
-  const rightEye = findKeypoint(detection, 'Right Eye');
-  const nose = findKeypoint(detection, 'Nose');
-  const leftShoulder = findKeypoint(detection, 'Left Shoulder');
-  const rightShoulder = findKeypoint(detection, 'Right Shoulder');
-  const leftWrist = findKeypoint(detection, 'Left Wrist');
-  const rightWrist = findKeypoint(detection, 'Right Wrist');
+export function getPoseVerticalMetrics(pose: PoseInput | null): PoseVerticalMetrics | null {
+  const leftEye = findKeypoint(pose, 'Left Eye');
+  const rightEye = findKeypoint(pose, 'Right Eye');
+  const nose = findKeypoint(pose, 'Nose');
+  const leftShoulder = findKeypoint(pose, 'Left Shoulder');
+  const rightShoulder = findKeypoint(pose, 'Right Shoulder');
+  const leftWrist = findKeypoint(pose, 'Left Wrist');
+  const rightWrist = findKeypoint(pose, 'Right Wrist');
   const eyesY = averageKeypointY([leftEye, rightEye]) ?? nose?.y ?? null;
   const shouldersY = averageKeypointY([leftShoulder, rightShoulder]);
   const faceCenterX = averageKeypointX([leftEye, rightEye]) ?? nose?.x ?? null;
@@ -141,10 +138,10 @@ export function calibrationToGuides(players: PlayerCalibration[]): JumpDuckGuide
 }
 
 export function getVerticalAction(
-  detection: PersonDetection | HandGestureDetection | null,
+  pose: PoseInput | null,
   calibration: PlayerCalibration | undefined
 ): VerticalAction {
-  const metrics = getPoseVerticalMetrics(detection);
+  const metrics = getPoseVerticalMetrics(pose);
   if (!metrics || !calibration || calibration.eyeToShoulderDistance <= 0) {
     return 'run';
   }
@@ -164,10 +161,10 @@ export function getVerticalAction(
 }
 
 export function getHorizontalAction(
-  detection: PersonDetection | HandGestureDetection | null,
+  pose: PoseInput | null,
   calibration: PlayerCalibration | undefined
 ): HorizontalAction {
-  const metrics = getPoseVerticalMetrics(detection);
+  const metrics = getPoseVerticalMetrics(pose);
   if (!metrics || !calibration || calibration.shoulderHalfWidth <= 0) {
     return 'center';
   }
@@ -187,8 +184,8 @@ export function getHorizontalAction(
 }
 
 export function getJumpDuckCell(
-  detection: PersonDetection | HandGestureDetection | null,
+  pose: PoseInput | null,
   calibration: PlayerCalibration | undefined
 ): JumpDuckCell {
-  return `${getVerticalAction(detection, calibration)}-${getHorizontalAction(detection, calibration)}`;
+  return `${getVerticalAction(pose, calibration)}-${getHorizontalAction(pose, calibration)}`;
 }

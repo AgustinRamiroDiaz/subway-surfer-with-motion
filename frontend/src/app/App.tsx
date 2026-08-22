@@ -227,11 +227,9 @@ function MotionRunnerApp(): ReactElement {
             phase={gamePhase}
             playerCount={preferences.playerCount}
             handRhythmGridSize={preferences.handRhythmGridSize}
-            playerDetectionsRef={detector.playerDetectionsRef}
-            playerPositionsRef={detector.playerPositionsRef}
+            gameplayInputRef={detector.gameplayInputRef}
             selectedGameId={preferences.selectedRunnerGameId}
             onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
-            videoRef={camera.videoRef}
           />
         </section>
 
