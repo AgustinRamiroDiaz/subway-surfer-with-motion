@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PLAYER_BASE_Y, PLAYER_Z, TRACK_MAX_X, TRACK_MIN_X, TRACK_WIDTH } from './gameConstants';
 import type { RunnerGameId, TrackWorld } from './gameTypes';
 import type { HandRhythmGridSize } from './levels/handRhythmLevel';
+import { handRhythmPlayerWidth, HAND_RHYTHM_ROW_Y } from './levels/handRhythmLayout';
 import { createFallbackPlayer, disposeObject, loadPlayerModels } from './playerAvatar';
 
 function createRailMaterial(color: string): THREE.MeshStandardMaterial {
@@ -94,25 +95,34 @@ function createPlayerLaneMarkers(scene: THREE.Scene, playerCount: number): () =>
 
 function createHandRhythmGrids(scene: THREE.Scene, playerCount: number, gridSize: HandRhythmGridSize): () => void {
   const objects: THREE.Object3D[] = [];
-  const rowY = [1.72, 1.16, 0.6];
-  const cellWidth = playerTrackWidth(playerCount) / gridSize;
-  const cellHeight = 0.46;
+  const cellWidth = handRhythmPlayerWidth(playerCount) / gridSize;
+  const cellHeight = (HAND_RHYTHM_ROW_Y[0] - HAND_RHYTHM_ROW_Y[2]) / Math.max(1, gridSize - 1);
 
   for (let playerIndex = 0; playerIndex < playerCount; playerIndex += 1) {
     const centerX = playerTrackX(playerIndex, playerCount);
     for (let row = 0; row < gridSize; row += 1) {
       for (let column = 0; column < gridSize; column += 1) {
+        const isCenter = row === Math.floor(gridSize / 2) && column === Math.floor(gridSize / 2);
         const material = new THREE.MeshBasicMaterial({
-          color: row === 1 && column === 1 ? '#173e38' : '#102a28',
+          color: isCenter ? '#17463e' : '#102d2a',
           transparent: true,
-          opacity: 0.74,
+          opacity: isCenter ? 0.88 : 0.76,
           side: THREE.DoubleSide,
         });
-        const cell = new THREE.Mesh(new THREE.PlaneGeometry(cellWidth * 0.9, cellHeight * 0.9), material);
-        const sourceRow = Math.round(row * (rowY.length - 1) / (gridSize - 1));
-        cell.position.set(centerX + (column - (gridSize - 1) / 2) * cellWidth, rowY[sourceRow] ?? 1.16, PLAYER_Z - 0.08);
+        const cell = new THREE.Mesh(new THREE.PlaneGeometry(cellWidth * 0.93, cellHeight * 0.88), material);
+        const sourceRow = Math.round(row * (HAND_RHYTHM_ROW_Y.length - 1) / (gridSize - 1));
+        cell.position.set(centerX + (column - (gridSize - 1) / 2) * cellWidth, HAND_RHYTHM_ROW_Y[sourceRow] ?? HAND_RHYTHM_ROW_Y[1], PLAYER_Z - 0.08);
         scene.add(cell);
         objects.push(cell);
+
+        const outline = new THREE.LineSegments(
+          new THREE.EdgesGeometry(cell.geometry),
+          new THREE.LineBasicMaterial({ color: playerIndex === 0 ? '#2fffb2' : '#66a3ff', transparent: true, opacity: 0.48 })
+        );
+        outline.position.copy(cell.position);
+        outline.position.z += 0.01;
+        scene.add(outline);
+        objects.push(outline);
       }
     }
   }
@@ -120,9 +130,9 @@ function createHandRhythmGrids(scene: THREE.Scene, playerCount: number, gridSize
   return () => {
     objects.forEach((object) => {
       scene.remove(object);
-      const mesh = object as THREE.Mesh;
-      mesh.geometry.dispose();
-      (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((material) => material.dispose());
+      const renderable = object as THREE.Mesh | THREE.LineSegments;
+      renderable.geometry.dispose();
+      (Array.isArray(renderable.material) ? renderable.material : [renderable.material]).forEach((material) => material.dispose());
     });
   };
 }
@@ -144,8 +154,8 @@ export function createTrackWorld(
   const isLaneBased = isJumpDuck || isHandRhythm;
 
   const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 100);
-  camera.position.set(0, 5.2, 9.6);
-  camera.lookAt(0, 0.2, -5);
+  camera.position.set(0, isHandRhythm ? 4.4 : 5.2, isHandRhythm ? 10.6 : 9.6);
+  camera.lookAt(0, isHandRhythm ? 1.85 : 0.2, isHandRhythm ? 0 : -5);
 
   const renderer = new THREE.WebGLRenderer({
     antialias: true,

@@ -433,7 +433,10 @@ export function GameScene({
   }, [handRhythmGridSize, onJumpDuckGuidesChange, playerCount, playerDetectionsRef, playerPositionsRef, selectedGameId, videoRef]);
 
   return (
-    <div className="game-scene" ref={mountRef}>
+    <div
+      className={`game-scene${isHandRhythmGame ? ` hand-rhythm-scene players-${playerCount}` : ''}`}
+      ref={mountRef}
+    >
       <div className="stage-heading">
         <p className="eyebrow">{t('game.heading')}</p>
         <h1>

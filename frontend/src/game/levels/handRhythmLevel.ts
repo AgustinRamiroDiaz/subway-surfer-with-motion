@@ -1,5 +1,6 @@
 import type { HandGestureDetection } from '../../pose-detection/detectionSchema';
-import { playerTrackWidth, playerTrackX } from '../trackWorld';
+import { playerTrackX } from '../trackWorld';
+import { handRhythmPlayerWidth, HAND_RHYTHM_ROW_Y } from './handRhythmLayout';
 
 export type HandRhythmGesture =
   | 'Closed_Fist'
@@ -35,8 +36,6 @@ export const HAND_RHYTHM_SPAWN_INTERVAL_MS = 1500;
 export const HAND_RHYTHM_GRID_SIZES = [2, 3] as const;
 export type HandRhythmGridSize = (typeof HAND_RHYTHM_GRID_SIZES)[number];
 export const DEFAULT_HAND_RHYTHM_GRID_SIZE: HandRhythmGridSize = 3;
-export const HAND_RHYTHM_ROW_Y = [1.72, 1.16, 0.6] as const;
-
 export type HandRhythmCell = { row: number; column: number };
 
 export type HandRhythmPlayerMotion = {
@@ -75,7 +74,7 @@ export function getHandRhythmCellWorldPosition(
   playerCount: number,
   gridSize: HandRhythmGridSize = DEFAULT_HAND_RHYTHM_GRID_SIZE
 ): { x: number; y: number } {
-  const cellWidth = playerTrackWidth(playerCount) / gridSize;
+  const cellWidth = handRhythmPlayerWidth(playerCount) / gridSize;
   return {
     x: playerTrackX(playerIndex, playerCount) + (cell.column - (gridSize - 1) / 2) * cellWidth,
     y: HAND_RHYTHM_ROW_Y[Math.round(cell.row * (HAND_RHYTHM_ROW_Y.length - 1) / (gridSize - 1))] ?? HAND_RHYTHM_ROW_Y[1],

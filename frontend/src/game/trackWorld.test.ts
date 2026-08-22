@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { TRACK_MAX_X, TRACK_MIN_X, TRACK_WIDTH } from './gameConstants';
 import { getHandRhythmPlayerMotion } from './levels/handRhythmLevel';
+import { handRhythmPlayerWidth } from './levels/handRhythmLayout';
 import { getJumpDuckPlayerMotion } from './levels/jumpDuckLevel';
 import { playerTrackWidth, playerTrackX } from './trackWorld';
 
@@ -43,5 +44,10 @@ describe('lane-based player layout', () => {
     };
 
     expect(getHandRhythmPlayerMotion(detection, 0, 1, 200, 200, 2).cell).toEqual({ row: 0, column: 0 });
+  });
+
+  test('expands one-player hand rhythm while splitting the arena for multiple players', () => {
+    expect(handRhythmPlayerWidth(1)).toBe(7.2);
+    expect(handRhythmPlayerWidth(2)).toBeCloseTo(TRACK_WIDTH / 2);
   });
 });
