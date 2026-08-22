@@ -18,10 +18,6 @@ import {
   PLAYER_BASE_Y,
   PLAYER_Z,
 } from './gameConstants';
-import {
-  GAME_SELECTION_STORAGE_KEY,
-  writeStoredRunnerGameId,
-} from './gameStorage';
 import type { GamePhase, GameStats, Obstacle, RunnerGameId } from './gameTypes';
 import { SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS, getSidewaysPlayerTargetX } from './levels/sidewaysLevel';
 import {
@@ -41,7 +37,6 @@ import { createObstacleSystem } from './obstacles';
 import { applyMarkerPose, disposeObject, getPoseAnimationState, updatePlayerGestureEmoji } from './playerAvatar';
 import { createTrackWorld } from './trackWorld';
 
-export { GAME_SELECTION_STORAGE_KEY };
 export type { GamePhase };
 
 type GameSceneProps = {
@@ -125,7 +120,6 @@ export function GameScene({
 
   useEffect(() => {
     selectedGameIdRef.current = selectedGameId;
-    writeStoredRunnerGameId(selectedGameId);
     if (selectedGameId !== 'jump-duck') {
       onJumpDuckGuidesChange([]);
     }

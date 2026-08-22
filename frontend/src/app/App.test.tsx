@@ -3,14 +3,13 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { afterEach, beforeEach, expect, test, vi, type MockInstance } from 'vitest';
 import App from './App';
-import { GAME_SELECTION_STORAGE_KEY } from '../game/GameScene';
 import { I18nProvider } from './i18n';
+import { APP_PREFERENCES_STORAGE_KEY } from './appPreferences';
 
 vi.mock('../pose-detection/detectorClient', () => ({
   loadDetectorClient: vi.fn(),
 }));
 
-const APP_PREFERENCES_STORAGE_KEY = 'motion-runner:detection-preferences:v1';
 let getContextSpy: MockInstance;
 
 function renderApp(): ReturnType<typeof render> {
@@ -109,7 +108,7 @@ test('remembers the selected level across remounts', () => {
   fireEvent.click(screen.getByRole('button', { name: /saltar y agacharse/i }));
 
   expect(screen.getByRole('heading', { name: /saltos y agaches/i })).toBeInTheDocument();
-  expect(window.localStorage.getItem(GAME_SELECTION_STORAGE_KEY)).toBe('jump-duck');
+  expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"selectedRunnerGameId":"jump-duck"');
 
   unmount();
   renderApp();
@@ -119,7 +118,9 @@ test('remembers the selected level across remounts', () => {
 });
 
 test('ignores invalid stored levels', () => {
-  window.localStorage.setItem(GAME_SELECTION_STORAGE_KEY, 'training-room');
+  window.localStorage.setItem(APP_PREFERENCES_STORAGE_KEY, JSON.stringify({
+    selectedRunnerGameId: 'training-room',
+  }));
 
   renderApp();
 

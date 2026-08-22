@@ -36,6 +36,10 @@ export const APP_PREFERENCES_STORAGE_KEY = 'motion-runner:detection-preferences:
 
 export type CameraFacingMode = (typeof CAMERA_FACING_MODES)[number];
 
+function isRunnerGameId(value: unknown): value is RunnerGameId {
+  return value === 'sideways' || value === 'jump-duck' || value === 'hand-rhythm';
+}
+
 export type AppPreferences = {
   selectedRunnerGameId: RunnerGameId;
   selectedBackendId: DetectorBackendId;
@@ -122,7 +126,9 @@ export function readStoredAppPreferences(): AppPreferences {
         : getDefaultQuantizationForRuntime(selectedRuntimeId);
 
     return {
-      selectedRunnerGameId: (stored.selectedRunnerGameId as RunnerGameId) || defaults.selectedRunnerGameId,
+      selectedRunnerGameId: isRunnerGameId(stored.selectedRunnerGameId)
+        ? stored.selectedRunnerGameId
+        : defaults.selectedRunnerGameId,
       selectedBackendId:
         isOptionId(stored.selectedBackendId, POSE_BACKENDS) || isOptionId(stored.selectedBackendId, GESTURE_BACKENDS)
           ? stored.selectedBackendId
