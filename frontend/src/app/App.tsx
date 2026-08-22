@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactElement } from 'react';
 import {
   MEDIAPIPE_MODELS,
   YOLO_MODELS,
@@ -8,14 +8,15 @@ import {
   type MediaPipeDelegateId,
   type MediaPipeModelId,
   type YoloModelId,
-  getAvailableQuantizations,
-  getDefaultQuantizationForRuntime,
 } from '../pose-detection/aiDetector';
 import {
-  type AppPreferences,
   readStoredAppPreferences,
   writeStoredAppPreferences,
 } from './appPreferences';
+import {
+  appPreferencesReducer,
+  getDetectorConfigurationKey,
+} from './appPreferencesReducer';
 import type { JumpDuckGuide } from '../motion-mapping/jumpDuckActions';
 import { CameraFeedbackPanel } from '../ui/CameraFeedbackPanel';
 import { DetectionControls } from '../ui/DetectionControls';
@@ -42,17 +43,26 @@ function App(): ReactElement {
 
 function MotionRunnerApp(): ReactElement {
   const { t } = useI18n();
-  const [preferences, setPreferences] = useState<AppPreferences>(readStoredAppPreferences);
+  const [preferences, dispatchPreferences] = useReducer(
+    appPreferencesReducer,
+    undefined,
+    readStoredAppPreferences
+  );
   const [gamePhase, setGamePhase] = useState<GamePhase>('ready');
   const [jumpDuckGuides, setJumpDuckGuides] = useState<JumpDuckGuide[]>([]);
+  const detectorConfigurationKey = getDetectorConfigurationKey(preferences);
+  const previousDetectorConfigurationKeyRef = useRef(detectorConfigurationKey);
 
   const detectorTask = useMemo(() => {
     return getRunnerLevel(preferences.selectedRunnerGameId).detectorTask;
   }, [preferences.selectedRunnerGameId]);
+  const handlePreferencesReplacement = useCallback((nextPreferences: typeof preferences) => {
+    dispatchPreferences({ type: 'replace', preferences: nextPreferences });
+  }, []);
 
   const camera = useCameraController({
     preferences,
-    setPreferences,
+    onPreferencesChange: handlePreferencesReplacement,
     onCameraRestart: () => {
       detector.stopDetection();
       detector.clearDetectionState();
@@ -75,6 +85,15 @@ function MotionRunnerApp(): ReactElement {
     writeStoredAppPreferences(preferences);
   }, [preferences]);
 
+  useEffect(() => {
+    if (previousDetectorConfigurationKeyRef.current === detectorConfigurationKey) {
+      return;
+    }
+    previousDetectorConfigurationKeyRef.current = detectorConfigurationKey;
+    detector.resetDetector();
+    setGamePhase('ready');
+  }, [detector, detectorConfigurationKey]);
+
   const selectedTrackerLabel = useMemo(() => {
     if (preferences.selectedBackendId === 'python-webrtc') {
       return 'Python WebRTC';
@@ -90,100 +109,41 @@ function MotionRunnerApp(): ReactElement {
     return model.label;
   }, [preferences.selectedBackendId, preferences.selectedMediaPipeModelId, preferences.selectedModelId]);
 
-  const updatePreferences = useCallback((nextPreferences: AppPreferences, shouldResetDetector: boolean) => {
-    setPreferences(nextPreferences);
-    if (shouldResetDetector) {
-      detector.resetDetector();
-      setGamePhase('ready');
-    }
-  }, [detector]);
-
   const handleBackendChange = useCallback((selectedBackendId: DetectorBackendId) => {
-    if (selectedBackendId === preferences.selectedBackendId) {
-      return;
-    }
-    updatePreferences({ ...preferences, selectedBackendId }, true);
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'backendSelected', backendId: selectedBackendId });
+  }, []);
 
   const handleGameIdChange = useCallback((selectedRunnerGameId: RunnerGameId) => {
-    if (selectedRunnerGameId === preferences.selectedRunnerGameId) {
-      return;
-    }
-
-    const nextLevel = getRunnerLevel(selectedRunnerGameId);
-
-    updatePreferences(
-      {
-        ...preferences,
-        selectedRunnerGameId,
-        selectedBackendId: nextLevel.defaultBackend,
-      },
-      true
-    );
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'gameSelected', gameId: selectedRunnerGameId });
+  }, []);
 
   const handleModelChange = useCallback((selectedModelId: YoloModelId) => {
-    if (selectedModelId === preferences.selectedModelId) {
-      return;
-    }
-
-    const nextQuantizations = getAvailableQuantizations(selectedModelId);
-    const hasCurrentQuantization = nextQuantizations.some(
-      (quantization) => quantization.dtype === preferences.selectedQuantizationId
-    );
-    const selectedQuantizationId = hasCurrentQuantization
-      ? preferences.selectedQuantizationId
-      : getDefaultQuantizationForRuntime(preferences.selectedRuntimeId);
-
-    updatePreferences({ ...preferences, selectedModelId, selectedQuantizationId }, true);
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'yoloModelSelected', modelId: selectedModelId });
+  }, []);
 
   const handleMediaPipeModelChange = useCallback((selectedMediaPipeModelId: MediaPipeModelId) => {
-    if (selectedMediaPipeModelId === preferences.selectedMediaPipeModelId) {
-      return;
-    }
-    updatePreferences({ ...preferences, selectedMediaPipeModelId }, true);
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'mediaPipeModelSelected', modelId: selectedMediaPipeModelId });
+  }, []);
 
   const handleMediaPipeDelegateChange = useCallback((selectedMediaPipeDelegateId: MediaPipeDelegateId) => {
-    if (selectedMediaPipeDelegateId === preferences.selectedMediaPipeDelegateId) {
-      return;
-    }
-    updatePreferences({ ...preferences, selectedMediaPipeDelegateId }, true);
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'mediaPipeDelegateSelected', delegateId: selectedMediaPipeDelegateId });
+  }, []);
 
   const handleRuntimeChange = useCallback((selectedRuntimeId: DetectorRuntimeId) => {
-    if (selectedRuntimeId === preferences.selectedRuntimeId) {
-      return;
-    }
-
-    updatePreferences(
-      {
-        ...preferences,
-        selectedRuntimeId,
-        selectedQuantizationId: getDefaultQuantizationForRuntime(selectedRuntimeId),
-      },
-      true
-    );
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'runtimeSelected', runtimeId: selectedRuntimeId });
+  }, []);
 
   const handleQuantizationChange = useCallback((selectedQuantizationId: DetectorQuantizationId) => {
-    if (selectedQuantizationId === preferences.selectedQuantizationId) {
-      return;
-    }
-    updatePreferences({ ...preferences, selectedQuantizationId }, true);
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'quantizationSelected', quantizationId: selectedQuantizationId });
+  }, []);
 
   const handlePlayerCountChange = useCallback((playerCount: number) => {
-    if (playerCount === preferences.playerCount) {
-      return;
-    }
-    updatePreferences({ ...preferences, playerCount }, true);
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'playerCountChanged', playerCount });
+  }, []);
 
   const handleThresholdChange = useCallback((threshold: number) => {
-    updatePreferences({ ...preferences, threshold }, preferences.selectedBackendId === 'python-webrtc');
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'thresholdChanged', threshold });
+  }, []);
 
   const handleStopCamera = useCallback(() => {
     detector.stopDetection();
@@ -294,17 +254,13 @@ function MotionRunnerApp(): ReactElement {
             selectedCameraValue={camera.selectedCameraValue}
             onCameraChange={camera.changeCamera}
             onDevCameraMultiplierChange={camera.changeDevCameraMultiplier}
-            onCameraMirrorChange={(cameraMirrored) => setPreferences({ ...preferences, cameraMirrored })}
-            onCameraPreviewChange={(showCameraPreview) => setPreferences({ ...preferences, showCameraPreview })}
+            onCameraMirrorChange={(mirrored) => dispatchPreferences({ type: 'cameraMirrorChanged', mirrored })}
+            onCameraPreviewChange={(visible) => dispatchPreferences({ type: 'cameraPreviewChanged', visible })}
             onMediaPipeDelegateChange={handleMediaPipeDelegateChange}
             onMediaPipeModelChange={handleMediaPipeModelChange}
             onModelChange={handleModelChange}
             onPlayerCountChange={handlePlayerCountChange}
-            onHandRhythmGridSizeChange={(handRhythmGridSize) => {
-              if (handRhythmGridSize !== preferences.handRhythmGridSize) {
-                updatePreferences({ ...preferences, handRhythmGridSize }, true);
-              }
-            }}
+            onHandRhythmGridSizeChange={(gridSize) => dispatchPreferences({ type: 'handRhythmGridChanged', gridSize })}
             onQuantizationChange={handleQuantizationChange}
             onRuntimeChange={handleRuntimeChange}
             onStopCamera={handleStopCamera}

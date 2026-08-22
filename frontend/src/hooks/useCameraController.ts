@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { AppPreferences } from '../app/appPreferences';
 import { useI18n } from '../app/i18n';
 import { useCameraStream } from './useCameraStream';
@@ -10,7 +10,7 @@ export type CameraControlOption = {
 
 type CameraControllerOptions = {
   preferences: AppPreferences;
-  setPreferences: Dispatch<SetStateAction<AppPreferences>>;
+  onPreferencesChange: (preferences: AppPreferences) => void;
   onCameraRestart: () => void;
 };
 
@@ -32,7 +32,7 @@ function getCameraValue(preferences: AppPreferences): string {
 
 export function useCameraController({
   preferences,
-  setPreferences,
+  onPreferencesChange,
   onCameraRestart,
 }: CameraControllerOptions): CameraController {
   const { t } = useI18n();
@@ -103,9 +103,9 @@ export function useCameraController({
           cameraDeviceId: null,
         };
 
-    setPreferences(nextPreferences);
+    onPreferencesChange(nextPreferences);
     void restartCameraIfEnabled(nextPreferences);
-  }, [preferences, restartCameraIfEnabled, setPreferences]);
+  }, [onPreferencesChange, preferences, restartCameraIfEnabled]);
 
   const changeDevCameraMultiplier = useCallback((devCameraMultiplier: number) => {
     const nextPreferences: AppPreferences = {
@@ -113,9 +113,9 @@ export function useCameraController({
       devCameraMultiplier,
     };
 
-    setPreferences(nextPreferences);
+    onPreferencesChange(nextPreferences);
     void restartCameraIfEnabled(nextPreferences);
-  }, [preferences, restartCameraIfEnabled, setPreferences]);
+  }, [onPreferencesChange, preferences, restartCameraIfEnabled]);
 
   return {
     ...stream,
