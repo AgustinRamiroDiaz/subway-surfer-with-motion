@@ -9,6 +9,8 @@
 # testing
 /coverage
 /frontend/coverage
+/frontend/playwright-report
+/frontend/test-results
 /profile-results*
 
 # production

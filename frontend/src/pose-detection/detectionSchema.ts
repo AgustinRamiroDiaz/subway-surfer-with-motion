@@ -71,6 +71,7 @@ export type ModelPredictionOptions = {
 };
 
 export type ModelPrediction = {
+  protocolVersion: 1;
   type: 'model-prediction';
   frame: CameraFrameDescriptor;
   detections: Array<PersonDetection | HandGestureDetection>;

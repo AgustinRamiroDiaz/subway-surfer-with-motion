@@ -119,6 +119,7 @@ export async function loadMediaPipeGestureDetector(options: DetectorLoadOptions)
     const postprocessDoneAt = performance.now();
 
     return {
+      protocolVersion: 1,
       type: 'model-prediction',
       frame: createFrameDescriptor(frame),
       detections,

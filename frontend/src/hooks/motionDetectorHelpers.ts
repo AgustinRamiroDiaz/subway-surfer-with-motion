@@ -5,10 +5,6 @@ import type { FrameTimings } from './motionDetectorTypes';
 
 export const DETECTOR_UI_UPDATE_INTERVAL_MS = 200;
 
-export function createEmptyTrackIds(playerCount: number): Array<number | null> {
-  return Array.from({ length: playerCount }, () => null);
-}
-
 export function createEmptyPlayerDetections(
   playerCount: number
 ): Array<PersonDetection | HandGestureDetection | null> {

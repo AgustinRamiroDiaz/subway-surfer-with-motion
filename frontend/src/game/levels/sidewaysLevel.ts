@@ -1,5 +1,5 @@
 import { SPAWN_INTERVAL_MS } from '../gameConstants';
-import { positionToWorldX } from '../trackWorld';
+import { positionToWorldX } from '../trackLayout';
 
 export const SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS = SPAWN_INTERVAL_MS;
 

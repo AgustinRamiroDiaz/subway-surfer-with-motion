@@ -1,4 +1,14 @@
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ReactElement,
+} from 'react';
 import {
   MEDIAPIPE_MODELS,
   YOLO_MODELS,
@@ -8,30 +18,45 @@ import {
   type MediaPipeDelegateId,
   type MediaPipeModelId,
   type YoloModelId,
-  getAvailableQuantizations,
-  getDefaultQuantizationForRuntime,
 } from '../pose-detection/aiDetector';
 import {
-  type AppPreferences,
   readStoredAppPreferences,
   writeStoredAppPreferences,
 } from './appPreferences';
+import {
+  appPreferencesReducer,
+  getDetectorConfigurationKey,
+} from './appPreferencesReducer';
 import type { JumpDuckGuide } from '../motion-mapping/jumpDuckActions';
 import { CameraFeedbackPanel } from '../ui/CameraFeedbackPanel';
 import { DetectionControls } from '../ui/DetectionControls';
-import { GameScene, type GamePhase } from '../game/GameScene';
-import type { RunnerGameId } from '../game/gameTypes';
+import type { GamePhase, RunnerGameId } from '../game/gameTypes';
+import { getRunnerLevel, RUNNER_LEVELS } from '../game/levelRegistry';
 import { useI18n } from './i18n';
-import { TrackingInternalsDocs } from '../ui/TrackingInternalsDocs';
 import { useCameraController } from '../hooks/useCameraController';
 import { useMotionDetector } from '../hooks/useMotionDetector';
 import '../App.css';
+
+const GameScene = lazy(async () => {
+  const module = await import('../game/GameScene');
+  return { default: module.GameScene };
+});
+const TrackingInternalsDocs = lazy(async () => {
+  const module = await import('../ui/TrackingInternalsDocs');
+  return { default: module.TrackingInternalsDocs };
+});
+
+function LoadingRegion(): ReactElement {
+  return <div aria-busy="true" className="loading-region" />;
+}
 
 function App(): ReactElement {
   if (window.location.pathname === '/docs/tracking-internals') {
     return (
       <main className="app-shell docs-page-shell">
-        <TrackingInternalsDocs />
+        <Suspense fallback={<LoadingRegion />}>
+          <TrackingInternalsDocs />
+        </Suspense>
       </main>
     );
   }
@@ -41,17 +66,26 @@ function App(): ReactElement {
 
 function MotionRunnerApp(): ReactElement {
   const { t } = useI18n();
-  const [preferences, setPreferences] = useState<AppPreferences>(readStoredAppPreferences);
+  const [preferences, dispatchPreferences] = useReducer(
+    appPreferencesReducer,
+    undefined,
+    readStoredAppPreferences
+  );
   const [gamePhase, setGamePhase] = useState<GamePhase>('ready');
   const [jumpDuckGuides, setJumpDuckGuides] = useState<JumpDuckGuide[]>([]);
+  const detectorConfigurationKey = getDetectorConfigurationKey(preferences);
+  const previousDetectorConfigurationKeyRef = useRef(detectorConfigurationKey);
 
   const detectorTask = useMemo(() => {
-    return preferences.selectedRunnerGameId === 'hand-rhythm' ? 'gesture' : 'pose';
+    return getRunnerLevel(preferences.selectedRunnerGameId).detectorTask;
   }, [preferences.selectedRunnerGameId]);
+  const handlePreferencesReplacement = useCallback((nextPreferences: typeof preferences) => {
+    dispatchPreferences({ type: 'replace', preferences: nextPreferences });
+  }, []);
 
   const camera = useCameraController({
     preferences,
-    setPreferences,
+    onPreferencesChange: handlePreferencesReplacement,
     onCameraRestart: () => {
       detector.stopDetection();
       detector.clearDetectionState();
@@ -74,6 +108,15 @@ function MotionRunnerApp(): ReactElement {
     writeStoredAppPreferences(preferences);
   }, [preferences]);
 
+  useEffect(() => {
+    if (previousDetectorConfigurationKeyRef.current === detectorConfigurationKey) {
+      return;
+    }
+    previousDetectorConfigurationKeyRef.current = detectorConfigurationKey;
+    detector.resetDetector();
+    setGamePhase('ready');
+  }, [detector, detectorConfigurationKey]);
+
   const selectedTrackerLabel = useMemo(() => {
     if (preferences.selectedBackendId === 'python-webrtc') {
       return 'Python WebRTC';
@@ -89,101 +132,41 @@ function MotionRunnerApp(): ReactElement {
     return model.label;
   }, [preferences.selectedBackendId, preferences.selectedMediaPipeModelId, preferences.selectedModelId]);
 
-  const updatePreferences = useCallback((nextPreferences: AppPreferences, shouldResetDetector: boolean) => {
-    setPreferences(nextPreferences);
-    if (shouldResetDetector) {
-      detector.resetDetector();
-      setGamePhase('ready');
-    }
-  }, [detector]);
-
   const handleBackendChange = useCallback((selectedBackendId: DetectorBackendId) => {
-    if (selectedBackendId === preferences.selectedBackendId) {
-      return;
-    }
-    updatePreferences({ ...preferences, selectedBackendId }, true);
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'backendSelected', backendId: selectedBackendId });
+  }, []);
 
   const handleGameIdChange = useCallback((selectedRunnerGameId: RunnerGameId) => {
-    if (selectedRunnerGameId === preferences.selectedRunnerGameId) {
-      return;
-    }
-
-    const nextTask = selectedRunnerGameId === 'hand-rhythm' ? 'gesture' : 'pose';
-    const nextBackendId = nextTask === 'gesture' ? 'mediapipe-gesture' : 'mediapipe';
-
-    updatePreferences(
-      {
-        ...preferences,
-        selectedRunnerGameId,
-        selectedBackendId: nextBackendId,
-      },
-      true
-    );
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'gameSelected', gameId: selectedRunnerGameId });
+  }, []);
 
   const handleModelChange = useCallback((selectedModelId: YoloModelId) => {
-    if (selectedModelId === preferences.selectedModelId) {
-      return;
-    }
-
-    const nextQuantizations = getAvailableQuantizations(selectedModelId);
-    const hasCurrentQuantization = nextQuantizations.some(
-      (quantization) => quantization.dtype === preferences.selectedQuantizationId
-    );
-    const selectedQuantizationId = hasCurrentQuantization
-      ? preferences.selectedQuantizationId
-      : getDefaultQuantizationForRuntime(preferences.selectedRuntimeId);
-
-    updatePreferences({ ...preferences, selectedModelId, selectedQuantizationId }, true);
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'yoloModelSelected', modelId: selectedModelId });
+  }, []);
 
   const handleMediaPipeModelChange = useCallback((selectedMediaPipeModelId: MediaPipeModelId) => {
-    if (selectedMediaPipeModelId === preferences.selectedMediaPipeModelId) {
-      return;
-    }
-    updatePreferences({ ...preferences, selectedMediaPipeModelId }, true);
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'mediaPipeModelSelected', modelId: selectedMediaPipeModelId });
+  }, []);
 
   const handleMediaPipeDelegateChange = useCallback((selectedMediaPipeDelegateId: MediaPipeDelegateId) => {
-    if (selectedMediaPipeDelegateId === preferences.selectedMediaPipeDelegateId) {
-      return;
-    }
-    updatePreferences({ ...preferences, selectedMediaPipeDelegateId }, true);
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'mediaPipeDelegateSelected', delegateId: selectedMediaPipeDelegateId });
+  }, []);
 
   const handleRuntimeChange = useCallback((selectedRuntimeId: DetectorRuntimeId) => {
-    if (selectedRuntimeId === preferences.selectedRuntimeId) {
-      return;
-    }
-
-    updatePreferences(
-      {
-        ...preferences,
-        selectedRuntimeId,
-        selectedQuantizationId: getDefaultQuantizationForRuntime(selectedRuntimeId),
-      },
-      true
-    );
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'runtimeSelected', runtimeId: selectedRuntimeId });
+  }, []);
 
   const handleQuantizationChange = useCallback((selectedQuantizationId: DetectorQuantizationId) => {
-    if (selectedQuantizationId === preferences.selectedQuantizationId) {
-      return;
-    }
-    updatePreferences({ ...preferences, selectedQuantizationId }, true);
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'quantizationSelected', quantizationId: selectedQuantizationId });
+  }, []);
 
   const handlePlayerCountChange = useCallback((playerCount: number) => {
-    if (playerCount === preferences.playerCount) {
-      return;
-    }
-    updatePreferences({ ...preferences, playerCount }, true);
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'playerCountChanged', playerCount });
+  }, []);
 
   const handleThresholdChange = useCallback((threshold: number) => {
-    updatePreferences({ ...preferences, threshold }, preferences.selectedBackendId === 'python-webrtc');
-  }, [preferences, updatePreferences]);
+    dispatchPreferences({ type: 'thresholdChanged', threshold });
+  }, []);
 
   const handleStopCamera = useCallback(() => {
     detector.stopDetection();
@@ -223,16 +206,16 @@ function MotionRunnerApp(): ReactElement {
     <main className="app-shell">
       <section className="workspace" aria-label={t('app.workspace')}>
         <section className="game-stage" aria-label={t('app.mainGame')}>
-          <GameScene
-            phase={gamePhase}
-            playerCount={preferences.playerCount}
-            handRhythmGridSize={preferences.handRhythmGridSize}
-            playerDetectionsRef={detector.playerDetectionsRef}
-            playerPositionsRef={detector.playerPositionsRef}
-            selectedGameId={preferences.selectedRunnerGameId}
-            onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
-            videoRef={camera.videoRef}
-          />
+          <Suspense fallback={<LoadingRegion />}>
+            <GameScene
+              phase={gamePhase}
+              playerCount={preferences.playerCount}
+              handRhythmGridSize={preferences.handRhythmGridSize}
+              gameplayInputRef={detector.gameplayInputRef}
+              selectedGameId={preferences.selectedRunnerGameId}
+              onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
+            />
+          </Suspense>
         </section>
 
         <aside className="control-panel" aria-label={t('app.detectionControls')}>
@@ -253,30 +236,17 @@ function MotionRunnerApp(): ReactElement {
 
           <section className="run-panel" aria-label={t('game.controls')}>
             <div className="game-mode-selector" aria-label={t('game.modeSelector')}>
-              <button
-                type="button"
-                className={preferences.selectedRunnerGameId === 'sideways' ? 'active' : ''}
-                aria-pressed={preferences.selectedRunnerGameId === 'sideways'}
-                onClick={() => handleGameSelection('sideways')}
-              >
-                {t('game.sidewaysMode')}
-              </button>
-              <button
-                type="button"
-                className={preferences.selectedRunnerGameId === 'jump-duck' ? 'active' : ''}
-                aria-pressed={preferences.selectedRunnerGameId === 'jump-duck'}
-                onClick={() => handleGameSelection('jump-duck')}
-              >
-                {t('game.jumpDuckMode')}
-              </button>
-              <button
-                type="button"
-                className={preferences.selectedRunnerGameId === 'hand-rhythm' ? 'active' : ''}
-                aria-pressed={preferences.selectedRunnerGameId === 'hand-rhythm'}
-                onClick={() => handleGameSelection('hand-rhythm')}
-              >
-                {t('game.handRhythmMode')}
-              </button>
+              {RUNNER_LEVELS.map((level) => (
+                <button
+                  key={level.id}
+                  type="button"
+                  className={preferences.selectedRunnerGameId === level.id ? 'active' : ''}
+                  aria-pressed={preferences.selectedRunnerGameId === level.id}
+                  onClick={() => handleGameSelection(level.id)}
+                >
+                  {t(level.modeLabelKey)}
+                </button>
+              ))}
             </div>
             <div className="run-controls">
               <button
@@ -309,17 +279,13 @@ function MotionRunnerApp(): ReactElement {
             selectedCameraValue={camera.selectedCameraValue}
             onCameraChange={camera.changeCamera}
             onDevCameraMultiplierChange={camera.changeDevCameraMultiplier}
-            onCameraMirrorChange={(cameraMirrored) => setPreferences({ ...preferences, cameraMirrored })}
-            onCameraPreviewChange={(showCameraPreview) => setPreferences({ ...preferences, showCameraPreview })}
+            onCameraMirrorChange={(mirrored) => dispatchPreferences({ type: 'cameraMirrorChanged', mirrored })}
+            onCameraPreviewChange={(visible) => dispatchPreferences({ type: 'cameraPreviewChanged', visible })}
             onMediaPipeDelegateChange={handleMediaPipeDelegateChange}
             onMediaPipeModelChange={handleMediaPipeModelChange}
             onModelChange={handleModelChange}
             onPlayerCountChange={handlePlayerCountChange}
-            onHandRhythmGridSizeChange={(handRhythmGridSize) => {
-              if (handRhythmGridSize !== preferences.handRhythmGridSize) {
-                updatePreferences({ ...preferences, handRhythmGridSize }, true);
-              }
-            }}
+            onHandRhythmGridSizeChange={(gridSize) => dispatchPreferences({ type: 'handRhythmGridChanged', gridSize })}
             onQuantizationChange={handleQuantizationChange}
             onRuntimeChange={handleRuntimeChange}
             onStopCamera={handleStopCamera}

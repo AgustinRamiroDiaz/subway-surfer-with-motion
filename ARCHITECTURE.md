@@ -1,203 +1,146 @@
-# Frontend Architecture
+# System Architecture
 
-The frontend is a React/Vite motion-controlled runner game. It captures camera frames, runs person/pose detection, maps detections into player state, and renders a Three.js game scene plus camera/debug controls.
+Subway Surfer with Motion is a React/Vite runner game backed by browser or Python pose detection. The code is organized around explicit boundaries: detector output is validated at the transport edge, converted into detector-independent gameplay input, then consumed by deterministic game rules and a Three.js renderer.
 
 ## High-Level Flow
 
 ```mermaid
 flowchart LR
-  Camera["Camera stream"] --> CameraHooks["useCameraStream<br/>useCameraController"]
-  CameraHooks --> MotionDetector["useMotionDetector"]
-  MotionDetector --> DetectorClient["detectorClient"]
-  DetectorClient --> Backend["Pose detector backend"]
-  Backend --> MotionMapping["motion-mapping"]
-  MotionMapping --> Game["GameScene"]
-  MotionMapping --> Feedback["CameraFeedbackPanel"]
-  MotionDetector --> Feedback
-  App["App.tsx"] --> CameraHooks
-  App --> MotionDetector
-  App --> Game
-  App --> Feedback
-  App --> Controls["DetectionControls"]
-  Controls --> App
+  Camera[Camera stream] --> CameraHooks[Camera hooks]
+  CameraHooks --> MotionDetector[useMotionDetector]
+  MotionDetector --> Session[useDetectorSession]
+  Session --> Client[Detector client]
+  Client --> Local[Browser worker]
+  Client --> Remote[Python WebRTC server]
+  Local --> Protocol[Validated ModelPrediction]
+  Remote --> Protocol
+  Protocol --> Tracking[Stable player tracking]
+  Tracking --> Input[Gameplay input adapter]
+  Input --> Game[Lazy-loaded GameScene]
+  Protocol --> Overlay[Camera feedback overlay]
 ```
 
-`frontend/src/app/App.tsx` is the composition root. It owns app preferences, the current game phase, and the calibration guide state shown on the camera preview. It wires the camera hooks, detector hook, game scene, camera feedback panel, and detector controls together.
+`frontend/src/app/App.tsx` is the frontend composition root. It owns preferences and app-level game phase, wires the camera and detector hooks to UI components, and lazy-loads the game and documentation route. Backend code and Three.js objects do not leak into app-level state.
 
-## Source Layout
+## Frontend Boundaries
 
-- `frontend/src/app/`
-  - App-level wiring, persisted preferences, and i18n.
-  - `App.tsx` composes the running app.
-  - `appPreferences.ts` reads/writes detector, camera, threshold, and player preferences from `localStorage`.
-  - `i18n.tsx` provides Spanish/English translations and language persistence.
+### App and preferences
 
-- `frontend/src/hooks/`
-  - React hooks for browser/camera state and detector orchestration.
-  - `useCameraStream.ts` owns `getUserMedia`, camera device discovery, video/canvas refs, and optional developer camera multiplication.
-  - `useCameraController.ts` applies preferences to the stream and restarts the camera when camera-related settings change.
-  - `useMotionDetector.ts` owns the detection loop, model loading/reset, player assignment, frame timings, and detector status.
+`frontend/src/app/` contains composition, persistence, localization, and preference transitions.
 
-- `frontend/src/pose-detection/`
-  - Detector contracts and backend implementations.
-  - `detectionSchema.ts` defines the shared frame, detection, keypoint, and prediction types.
-  - `aiDetector.ts` loads and decodes YOLO and MediaPipe detectors.
-  - `detectorClient.ts` chooses the right client path for the selected backend.
-  - `pythonWebRtcDetectorClient.ts` connects to the remote Python/WebRTC tracker.
+- `App.tsx` connects hooks, controls, camera feedback, and gameplay.
+- `appPreferences.ts` is the single persistence boundary for detector, camera, player-count, and selected-level preferences. Stored values are validated and merged with defaults.
+- `appPreferencesReducer.ts` expresses preference changes as typed actions and derives the detector configuration key used to decide when a session must reset.
+- `i18n.tsx` owns translated strings and language persistence.
 
-- `frontend/src/workers/`
-  - Worker entrypoint and browser-side worker client.
-  - `detectorWorkerClient.ts` sends frames to the worker using `ImageBitmap` transfer.
-  - `detector.worker.ts` loads YOLO/MediaPipe detector code off the main thread and returns prediction results.
+### Camera and detector lifecycle
 
-- `frontend/src/motion-mapping/`
-  - Converts detections into gameplay-friendly signals.
-  - `playerPositions.ts` normalizes player counts and maps detections to stable horizontal player positions.
-  - `poseOverlay.ts` draws boxes, skeletons, IDs, and confidence labels on the camera overlay.
-  - `jumpDuckActions.ts` handles jump/duck calibration, guide line positions, and per-player action cells such as `jump-left` or `run-center`.
+`frontend/src/hooks/` separates browser media ownership from detector ownership.
 
-- `frontend/src/game/`
-  - Three.js runner scene and gameplay rules.
-  - `GameScene.tsx` renders players, tracks, obstacles, HUD, game mode selection, collisions, and jump/duck calibration flow.
+- `useCameraStream.ts` owns `getUserMedia`, device discovery, media refs, and canvas sizing.
+- `useCameraController.ts` translates preference changes into camera operations.
+- `useMotionDetector.ts` owns the camera-frame loop and converts predictions into UI/game state.
+- `useDetectorSession.ts` owns detector creation, startup, replacement, failure, and disposal. Its lifecycle is tested independently of the frame loop.
+- `motionDetectorHelpers.ts`, `motionDetectorTypes.ts`, and `detectorFrameScaling.ts` keep pure calculations and shared contracts outside React effects.
 
-- `frontend/src/ui/`
-  - React UI outside the Three.js scene.
-  - `CameraFeedbackPanel.tsx` renders the camera preview, overlay canvases, player markers, and jump/duck/side calibration guide lines.
-  - `DetectionControls.tsx` renders camera, backend, model, language, threshold, player-count, and diagnostics controls.
-  - `TrackingInternalsDocs.tsx` renders the internal tracking documentation route.
+### Detection and transport protocol
 
-Root-level files are bootstrapping or shared presentation assets: `index.tsx`, `index.css`, `App.css`, `setupTests.ts`, `reportWebVitals.ts`, `vite-env.d.ts`, and `logo.svg`.
+`frontend/src/pose-detection/` contains detector-facing code only.
+
+- `detectorClient.ts` selects a local worker or remote WebRTC implementation.
+- `aiDetector.ts`, `detectorConfig.ts`, and `detectorDecoders.ts` load and decode browser YOLO/MediaPipe models.
+- `pythonWebRtcDetectorClient.ts` implements the remote transport.
+- `detectionSchema.ts` defines frontend detection types.
+- `protocolValidation.ts` validates remote data before it enters application state.
+
+The transport contract is versioned independently in `protocol/`:
+
+- `model-prediction.schema.json` is the canonical JSON Schema.
+- `model-prediction.fixture.json` is shared by frontend and Python contract tests.
+- `protocolVersion` must match the supported version before a prediction is accepted.
+
+MediaPipe must retain `numPoses: 2`; YOLO naturally returns multiple detections.
+
+### Motion mapping and gameplay input
+
+`frontend/src/motion-mapping/` is the anti-corruption layer between detectors and gameplay.
+
+- `playerTracking.ts` assigns stable player tracks using pure functions and an injected clock.
+- `playerPositions.ts` maps tracks to normalized horizontal positions from `0` to `1`.
+- `gameplayInput.ts` converts detector records into the small, detector-independent input contract consumed by the game.
+- `jumpDuckActions.ts` derives calibrated jump, duck, and side actions.
+- `poseOverlay.ts` draws camera diagnostics without affecting gameplay state.
+
+Camera mirroring is applied while assigning player positions, so both camera markers and gameplay receive the same orientation.
+
+### Game domain and rendering
+
+`frontend/src/game/` separates deterministic rules from Three.js side effects.
+
+- `gameTypes.ts` defines the game-facing domain contract.
+- `gameSimulation.ts` contains pure time, score, collision, and action transitions. Time and randomness are injected so tests are deterministic.
+- `levelRegistry.ts` is the extension point for runner modes. It binds each level's metadata, detector task, movement policy, and labels.
+- `levels/` contains behavior specific to sideways, jump/duck, and hand-rhythm modes.
+- `trackLayout.ts` contains pure coordinate calculations and has no Three.js dependency.
+- `trackWorld.ts`, `obstacles.ts`, and `playerAvatar.ts` own Three.js construction and disposal.
+- `GameScene.tsx` coordinates rendering and delegates rules and level behavior to those modules.
+
+Adding a runner mode should normally mean adding a level module and registry entry rather than adding another conditional branch throughout `GameScene` or `App`.
 
 ```mermaid
 flowchart TB
-  Root["root bootstrap<br/>index.tsx, CSS, tests setup"]
-  AppFolder["app/<br/>App, preferences, i18n"]
-  Hooks["hooks/<br/>camera + detector orchestration"]
-  PoseDetection["pose-detection/<br/>schemas + detector backends"]
-  Workers["workers/<br/>local detector worker"]
-  Mapping["motion-mapping/<br/>player/action mapping + overlay"]
-  Game["game/<br/>Three.js gameplay"]
-  UI["ui/<br/>controls, camera panel, docs"]
-
-  Root --> AppFolder
-  AppFolder --> Hooks
-  AppFolder --> Game
-  AppFolder --> UI
-  Hooks --> PoseDetection
-  Hooks --> Mapping
-  PoseDetection --> Workers
-  Workers --> PoseDetection
-  Game --> Mapping
-  UI --> Mapping
+  Input[GameplayInput] --> Registry[Level registry]
+  Registry --> Level[Level behavior]
+  Input --> Simulation[Pure simulation]
+  Level --> Simulation
+  Simulation --> Scene[GameScene renderer]
+  Layout[Pure track layout] --> Scene
+  Scene --> World[Three.js world and avatars]
 ```
 
-## Runtime Responsibilities
+### UI
 
-`App.tsx` coordinates state without doing low-level camera or detector work. Preference changes flow from `DetectionControls` into `App`, and `App` decides whether the detector must reset. Game start/pause/stop actions also flow through `App`.
+`frontend/src/ui/` contains presentation components outside the game canvas.
 
-Camera ownership is split intentionally:
+- `CameraFeedbackPanel.tsx` renders the preview, overlay, markers, and calibration guides.
+- `DetectionControls.tsx` composes focused controls from `ui/detection-controls/`.
+- `TrackingInternalsDocs.tsx` renders the documentation route.
 
-- `useCameraStream` owns raw browser media APIs and canvas sizing.
-- `useCameraController` translates stored preferences into camera operations.
-- `CameraFeedbackPanel` only renders the current refs and visual guides.
+The game scene and documentation page are lazy-loaded. This keeps Three.js out of the initial application bundle until gameplay is rendered.
 
-Detection ownership is also split:
+## Python Tracker Server
 
-- `useMotionDetector` controls when frames are captured and how results update React state.
-- `detectorClient` selects local worker detection or remote WebRTC detection.
-- `aiDetector` and `pythonWebRtcDetectorClient` know backend-specific loading and result formats.
-- `detectionSchema` is the shared boundary between those layers.
+`pose-estimation-tracker-server/src/pose_estimation_tracker_server/` follows the same separation of concerns:
 
-Motion mapping sits between detection and gameplay. This keeps detector output generic while giving the game simple inputs:
+- `server.py` is the composition and CLI entrypoint.
+- `signaling.py` owns WebSocket offer/answer messaging.
+- `webrtc_session.py` owns peer-connection and media-track lifecycle.
+- `tracker.py` owns model loading and frame inference.
+- `protocol.py` serializes the versioned prediction contract.
+- `preview.py` provides the local preview command.
 
-- `playerPositions`: normalized horizontal positions from `0` to `1`.
-- `playerDetections`: per-player detections used by the game for pose animation and jump/duck action classification.
-- `jumpDuckActions`: calibrated action cells and guide lines for the obstacle game.
+This split lets signaling, protocol serialization, and server coordination be tested without loading a real model or opening a real peer connection.
 
-## Detector Modes
+## Extension Guide
 
-The detector can run in two modes:
+- New detector: implement the detector client contract, validate its output at the boundary, and register its preference metadata.
+- New game mode: create a module under `game/levels/`, register it in `levelRegistry.ts`, and test the behavior without Three.js where possible.
+- New persisted setting: add it to `AppPreferences`, validate it in `appPreferences.ts`, and model its transition in `appPreferencesReducer.ts`.
+- Protocol change: increment the protocol version, update the schema and fixture, then update both frontend and Python validators/tests.
 
-- Pull mode: `useMotionDetector` captures a frame from the video/canvas loop and awaits a result. YOLO and MediaPipe use this path through the worker.
-- Stream mode: the backend pushes results asynchronously. Python WebRTC uses this path, and `useMotionDetector` listens through the `onResult` callback.
+## Testing and Verification
 
-Both modes emit the same `ModelPrediction` shape, so downstream player assignment, overlays, and game logic do not need backend-specific branches.
+Tests live beside frontend source as `*.test.ts` or `*.test.tsx`. Python tests live in `pose-estimation-tracker-server/tests/`, and browser smoke tests live in `frontend/e2e/`.
 
-```mermaid
-flowchart LR
-  Preferences["AppPreferences<br/>selected backend"] --> DetectorClient["detectorClient"]
-
-  DetectorClient -->|YOLO / MediaPipe| WorkerClient["detectorWorkerClient"]
-  WorkerClient --> Worker["detector.worker"]
-  Worker --> LocalDetector["aiDetector<br/>YOLO or MediaPipe"]
-  LocalDetector --> PullResult["ModelPrediction"]
-
-  DetectorClient -->|Python WebRTC| WebRtc["pythonWebRtcDetectorClient"]
-  WebRtc --> RemoteTracker["Remote Python tracker"]
-  RemoteTracker --> StreamResult["ModelPrediction"]
-
-  PullResult --> MotionDetector["useMotionDetector"]
-  StreamResult --> MotionDetector
-```
-
-## Game Interaction
-
-`GameScene` receives:
-
-- `playerPositions` for the classic sideways runner.
-- `playerDetections` for pose animation and jump/duck/side classification.
-- `phase` and start/pause callbacks from `App`.
-
-The jump/duck game calibrates each player by sampling pose metrics while arms are raised. Those samples become per-player thresholds for:
-
-- jumping: eyes above the calibrated jump line
-- ducking: eyes below the calibrated duck line
-- side movement: face center beyond calibrated shoulder-side thresholds
-
-`GameScene` sends `JumpDuckGuide[]` back to `App`, and `App` passes those guides into `CameraFeedbackPanel` so players can see the active thresholds over the camera preview.
-
-```mermaid
-flowchart TB
-  Detections["playerDetections"] --> Metrics["jumpDuckActions<br/>pose metrics"]
-  Metrics --> Calibration["3-second arms-up calibration"]
-  Calibration --> Guides["JumpDuckGuide[]"]
-  Calibration --> Thresholds["per-player thresholds"]
-  Thresholds --> Cells["action cells<br/>jump-left, run-center, duck-right"]
-  Cells --> Obstacles["GameScene collision checks"]
-  Guides --> App["App state"]
-  App --> CameraPanel["CameraFeedbackPanel guide lines"]
-```
-
-## Persistence
-
-The frontend persists small user preferences in `localStorage`:
-
-- detector/camera/player preferences in `appPreferences.ts`
-- selected language in `i18n.tsx`
-- selected game mode in `GameScene.tsx`
-
-Stored values are validated or clamped before use so stale values fall back to safe defaults.
-
-## Testing And Verification
-
-Tests live next to the modules they cover:
-
-- `app/App.test.tsx`
-- `pose-detection/aiDetector.test.ts`
-- `motion-mapping/poseOverlay.test.ts`
-
-For behavior changes, run:
+Run the normal gates from the repository root:
 
 ```bash
+pnpm lint
 pnpm test
 pnpm build
-pnpm lint
+pnpm lint:python
+pnpm test:python
+pnpm test:e2e
 ```
 
-For UI/gameplay changes, also start the app with:
-
-```bash
-pnpm start
-```
-
-Then manually verify camera preview, player markers, MediaPipe detection, both game modes, and selected-level persistence.
+`pnpm verify` runs the static, unit, build, and Python gates. CI runs the same layers and installs Chromium for Playwright smoke coverage. For camera or gameplay changes, also run `pnpm start` and manually verify the preview, mirrored markers, supported player count, and game scene with suitable camera hardware.

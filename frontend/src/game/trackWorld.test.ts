@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import { TRACK_MAX_X, TRACK_MIN_X, TRACK_WIDTH } from './gameConstants';
 import { getHandRhythmPlayerMotion } from './levels/handRhythmLevel';
+import { handRhythmPlayerWidth } from './levels/handRhythmLayout';
 import { getJumpDuckPlayerMotion } from './levels/jumpDuckLevel';
-import { playerTrackWidth, playerTrackX } from './trackWorld';
+import { playerTrackWidth, playerTrackX } from './trackLayout';
 
 describe('lane-based player layout', () => {
   test('splits the track width into one centered segment per player', () => {
@@ -29,19 +30,23 @@ describe('lane-based player layout', () => {
     for (let index = 0; index < playerCount; index += 1) {
       const expectedX = playerTrackX(index, playerCount);
 
-      expect(getHandRhythmPlayerMotion(null, index, playerCount, 640, 480).targetX).toBeCloseTo(expectedX);
+      expect(getHandRhythmPlayerMotion(null, index, playerCount).targetX).toBeCloseTo(expectedX);
       expect(getJumpDuckPlayerMotion(null, undefined, index, playerCount).targetX).toBeCloseTo(expectedX);
     }
   });
 
   test('quantizes hand rhythm detections to a configurable 2x2 grid', () => {
-    const detection = {
-      label: 'hand' as const,
-      score: 1,
+    const hand = {
       gesture: 'Open_Palm',
-      box: { xmin: 20, ymin: 20, xmax: 80, ymax: 80 },
+      normalizedX: 0.25,
+      normalizedY: 0.25,
     };
 
-    expect(getHandRhythmPlayerMotion(detection, 0, 1, 200, 200, 2).cell).toEqual({ row: 0, column: 0 });
+    expect(getHandRhythmPlayerMotion(hand, 0, 1, 2).cell).toEqual({ row: 0, column: 0 });
+  });
+
+  test('expands one-player hand rhythm while splitting the arena for multiple players', () => {
+    expect(handRhythmPlayerWidth(1)).toBe(7.2);
+    expect(handRhythmPlayerWidth(2)).toBeCloseTo(TRACK_WIDTH / 2);
   });
 });

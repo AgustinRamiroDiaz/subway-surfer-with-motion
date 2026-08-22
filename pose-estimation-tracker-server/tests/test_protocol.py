@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
 from pose_estimation_tracker_server.protocol import DetectionTimings, extract_detections, make_prediction
@@ -52,6 +54,7 @@ def test_make_prediction_uses_frontend_timing_keys():
         timings=DetectionTimings(raw_image_ms=1, preprocess_ms=2, model_ms=3, postprocess_ms=4),
     )
 
+    assert prediction["protocolVersion"] == 1
     assert prediction["type"] == "model-prediction"
     assert prediction["frame"] == frame
     assert prediction["detections"] == []
@@ -62,3 +65,12 @@ def test_make_prediction_uses_frontend_timing_keys():
         "postprocessMs": 4,
         "totalMs": 10,
     }
+
+
+def test_shared_contract_fixture_uses_the_python_protocol_version():
+    fixture_path = Path(__file__).parents[2] / "protocol" / "model-prediction.fixture.json"
+    fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+
+    assert fixture["protocolVersion"] == 1
+    assert fixture["type"] == "model-prediction"
+    assert set(fixture) == {"protocolVersion", "type", "frame", "detections", "timings"}

@@ -41,10 +41,30 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Build
         run: pnpm run build
         env:
           PUBLIC_URL: /subway-surfer-with-motion
+
+      - name: Install Chromium
+        run: pnpm --filter @subway-surfer-with-motion/frontend exec playwright install --with-deps chromium
+
+      - name: Browser smoke tests
+        run: pnpm test:e2e
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Python quality checks
+        run: pnpm lint:python
+
+      - name: Python tests
+        run: pnpm test:python
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

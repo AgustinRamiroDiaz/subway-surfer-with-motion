@@ -17,7 +17,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--conf", type=float, default=0.35, help="Detection confidence threshold.")
     parser.add_argument("--imgsz", type=int, default=640, help="Inference image size.")
     parser.add_argument("--tracker", default="botsort.yaml", help="Tracker config, for example botsort.yaml.")
-    parser.add_argument("--max-frames", type=int, default=0, help="Stop after this many frames. Use 0 to run until q/Escape.")
+    parser.add_argument(
+        "--max-frames",
+        type=int,
+        default=0,
+        help="Stop after this many frames. Use 0 to run until q/Escape.",
+    )
     parser.add_argument("--window-name", default="YOLO pose tracker", help="OpenCV preview window name.")
     return parser.parse_args()
 

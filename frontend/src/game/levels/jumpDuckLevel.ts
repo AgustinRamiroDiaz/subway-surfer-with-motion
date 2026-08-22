@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import {
   averageMetrics,
   calibrationToGuides,
@@ -11,12 +10,16 @@ import {
   type PlayerCalibration,
   type VerticalAction,
 } from '../../motion-mapping/jumpDuckActions';
-import type { HandGestureDetection, PersonDetection } from '../../pose-detection/detectionSchema';
-import { playerTrackX } from '../trackWorld';
+import type { PoseInput } from '../../motion-mapping/gameplayInput';
+import { playerTrackX } from '../trackLayout';
 
 export const JUMP_DUCK_SPAWN_INTERVAL_MS = 1700;
 export const JUMP_DUCK_CALIBRATION_MS = 3000;
 export const JUMP_DUCK_MIN_SAMPLES = 10;
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
+}
 
 export type JumpDuckCalibrationState = {
   calibrated: boolean;
@@ -49,12 +52,12 @@ export function getInitialJumpDuckActions(playerCount: number): JumpDuckCell[] {
 }
 
 export function getJumpDuckPlayerMotion(
-  detection: PersonDetection | HandGestureDetection | null,
+  pose: PoseInput | null,
   calibration: PlayerCalibration | undefined,
   playerIndex: number,
   playerCount: number
 ): JumpDuckPlayerMotion {
-  const cell = getJumpDuckCell(detection, calibration);
+  const cell = getJumpDuckCell(pose, calibration);
   const [verticalAction, horizontalAction] = cell.split('-') as [VerticalAction, HorizontalAction];
   const targetX = playerTrackX(playerIndex, playerCount) +
     (horizontalAction === 'left' ? -0.62 : horizontalAction === 'right' ? 0.62 : 0);
@@ -74,7 +77,7 @@ export function getJumpDuckPlayerMotion(
 
 export function updateJumpDuckCalibration(
   calibration: CalibrationRun,
-  detections: Array<PersonDetection | HandGestureDetection | null>,
+  poses: Array<PoseInput | null>,
   now: number,
   lastProgress: number
 ): JumpDuckCalibrationUpdate {
@@ -82,16 +85,16 @@ export function updateJumpDuckCalibration(
     calibration.startedAt = now;
   }
 
-  detections.forEach((detection, index) => {
-    const metrics = getPoseVerticalMetrics(detection);
+  poses.forEach((pose, index) => {
+    const metrics = getPoseVerticalMetrics(pose);
     if (metrics?.armsUp) {
       calibration.samples[index]?.push(metrics);
     }
   });
 
-  const elapsedRatio = THREE.MathUtils.clamp((now - calibration.startedAt) / JUMP_DUCK_CALIBRATION_MS, 0, 1);
+  const elapsedRatio = clamp((now - calibration.startedAt) / JUMP_DUCK_CALIBRATION_MS, 0, 1);
   const sampleRatio = Math.min(
-    ...calibration.samples.map((samples) => THREE.MathUtils.clamp(samples.length / JUMP_DUCK_MIN_SAMPLES, 0, 1))
+    ...calibration.samples.map((samples) => clamp(samples.length / JUMP_DUCK_MIN_SAMPLES, 0, 1))
   );
   const progress = Math.min(elapsedRatio, sampleRatio);
   const roundedProgress = Math.round(progress * 100) / 100;

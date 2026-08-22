@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://subway-surfer-with-motion.local/protocol/model-prediction.schema.json",
+  "title": "Model prediction protocol",
+  "type": "object",
+  "required": ["protocolVersion", "type", "frame", "detections", "timings"],
+  "properties": {
+    "protocolVersion": { "const": 1 },
+    "type": { "const": "model-prediction" },
+    "frame": {
+      "type": "object",
+      "required": ["frameId", "capturedAtMs", "width", "height"],
+      "properties": {
+        "frameId": { "type": "string" },
+        "capturedAtMs": { "type": "number" },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "detections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "score", "box"],
+        "properties": {
+          "id": { "type": "integer" },
+          "label": { "enum": ["person", "hand"] },
+          "score": { "type": "number" },
+          "gesture": { "type": "string" },
+          "box": {
+            "type": "object",
+            "required": ["xmin", "ymin", "xmax", "ymax"],
+            "properties": {
+              "xmin": { "type": "number" },
+              "ymin": { "type": "number" },
+              "xmax": { "type": "number" },
+              "ymax": { "type": "number" }
+            },
+            "additionalProperties": false
+          },
+          "keypoints": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["label", "x", "y", "score"],
+              "properties": {
+                "label": { "type": "string" },
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "z": { "type": "number" },
+                "score": { "type": "number" }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": { "properties": { "label": { "const": "hand" } } },
+            "then": { "required": ["gesture"] }
+          }
+        ]
+      }
+    },
+    "timings": {
+      "type": "object",
+      "required": ["rawImageMs", "preprocessMs", "modelMs", "postprocessMs", "totalMs"],
+      "properties": {
+        "rawImageMs": { "type": "number" },
+        "preprocessMs": { "type": "number" },
+        "modelMs": { "type": "number" },
+        "postprocessMs": { "type": "number" },
+        "totalMs": { "type": "number" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
