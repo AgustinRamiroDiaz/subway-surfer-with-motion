@@ -1,0 +1,28 @@
+{
+  "protocolVersion": 1,
+  "type": "model-prediction",
+  "frame": {
+    "frameId": "contract-frame-1",
+    "capturedAtMs": 100,
+    "width": 320,
+    "height": 240
+  },
+  "detections": [
+    {
+      "id": 7,
+      "label": "person",
+      "score": 0.91,
+      "box": { "xmin": 10, "ymin": 20, "xmax": 110, "ymax": 220 },
+      "keypoints": [
+        { "label": "Nose", "x": 60, "y": 40, "score": 0.8 }
+      ]
+    }
+  ],
+  "timings": {
+    "rawImageMs": 1,
+    "preprocessMs": 2,
+    "modelMs": 3,
+    "postprocessMs": 4,
+    "totalMs": 10
+  }
+}

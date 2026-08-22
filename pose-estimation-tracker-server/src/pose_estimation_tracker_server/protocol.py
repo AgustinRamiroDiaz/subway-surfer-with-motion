@@ -28,6 +28,8 @@ KEYPOINT_LABELS = (
     "Right Ankle",
 )
 
+MODEL_PREDICTION_PROTOCOL_VERSION = 1
+
 
 @dataclass(frozen=True)
 class DetectionTimings:
@@ -184,6 +186,7 @@ def make_prediction(
     max_poses: int = 2,
 ) -> dict[str, Any]:
     return {
+        "protocolVersion": MODEL_PREDICTION_PROTOCOL_VERSION,
         "type": "model-prediction",
         "frame": frame,
         "detections": extract_detections(result, width, height, threshold, max_poses),

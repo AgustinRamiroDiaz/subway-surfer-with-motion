@@ -2,8 +2,8 @@ import {
   type Detector,
   type DetectorLoadOptions,
   type DetectorLoadResult,
-  type DetectorResult,
 } from './aiDetector';
+import { parseModelPrediction } from './protocolValidation';
 
 const DEFAULT_POSE_TRACKER_SIGNALING_URL = 'ws://127.0.0.1:8765';
 const DETECTOR_CONNECT_TIMEOUT_MS = 8_000;
@@ -26,7 +26,7 @@ type DetectorDataChannelMessage =
   | {
       type: 'result';
       sequence: number;
-      result: DetectorResult;
+      result: unknown;
     }
   | {
       type: 'error';
@@ -151,7 +151,11 @@ export async function loadPythonWebRtcDetector(
       return;
     }
 
-    options.onResult?.(message.result);
+    try {
+      options.onResult?.(parseModelPrediction(message.result));
+    } catch (cause: unknown) {
+      options.onError?.(cause instanceof Error ? cause : new Error(String(cause)));
+    }
   };
 
   dataChannel.onerror = () => {

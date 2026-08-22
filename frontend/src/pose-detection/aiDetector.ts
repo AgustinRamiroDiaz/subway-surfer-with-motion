@@ -151,6 +151,7 @@ async function createDetector(device: 'webgpu' | 'wasm', options: DetectorLoadOp
     const postprocessDoneAt = performance.now();
 
     return {
+      protocolVersion: 1,
       type: 'model-prediction',
       frame: createFrameDescriptor(frame),
       detections,
@@ -216,6 +217,7 @@ export async function loadMediaPipePoseDetector(options: DetectorLoadOptions): P
     const postprocessDoneAt = performance.now();
 
     return {
+      protocolVersion: 1,
       type: 'model-prediction',
       frame: createFrameDescriptor(frame),
       detections,
