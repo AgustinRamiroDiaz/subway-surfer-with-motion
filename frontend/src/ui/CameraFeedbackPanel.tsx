@@ -1,12 +1,14 @@
 import type { ReactElement, RefObject } from 'react';
 import type { JumpDuckGuide } from '../motion-mapping/jumpDuckActions';
 import type { HandRhythmGridSize } from '../game/levels/handRhythmLevel';
+import type { WorldProjection } from '../game/GameScene';
 import { useI18n } from '../app/i18n';
 
 type CameraFeedbackPanelProps = {
   cameraEnabled: boolean;
   cameraMirrored: boolean;
   showCameraPreview: boolean;
+  showDetectionOverlay: boolean;
   jumpDuckGuides: JumpDuckGuide[];
   handRhythmGridSize: HandRhythmGridSize;
   showHandRhythmGrid: boolean;
@@ -16,12 +18,15 @@ type CameraFeedbackPanelProps = {
   overlayRef: RefObject<HTMLCanvasElement | null>;
   frameRef: RefObject<HTMLCanvasElement | null>;
   onLoadedMetadata: () => void;
+  presentation?: 'sidebar' | 'game-overlay';
+  worldProjection?: WorldProjection | null;
 };
 
 export function CameraFeedbackPanel({
   cameraEnabled,
   cameraMirrored,
   showCameraPreview,
+  showDetectionOverlay,
   jumpDuckGuides,
   handRhythmGridSize,
   showHandRhythmGrid,
@@ -31,6 +36,8 @@ export function CameraFeedbackPanel({
   overlayRef,
   frameRef,
   onLoadedMetadata,
+  presentation = 'sidebar',
+  worldProjection = null,
 }: CameraFeedbackPanelProps): ReactElement {
   const { t } = useI18n();
   const videoHeight = videoRef.current?.videoHeight ?? 0;
@@ -57,10 +64,20 @@ export function CameraFeedbackPanel({
     return `${Math.max(0, Math.min(1, x / videoWidth)) * 100}%`;
   };
 
+  const projectionStyle = presentation === 'game-overlay' && worldProjection
+    ? {
+        bottom: `${(1 - worldProjection.bottom) * 100}%`,
+        left: `${worldProjection.left * 100}%`,
+        right: `${(1 - worldProjection.right) * 100}%`,
+        top: `${worldProjection.top * 100}%`,
+      }
+    : undefined;
+
   return (
     <section
-      className={`video-stage sidebar-camera${showCameraPreview ? '' : ' preview-hidden'}`}
+      className={`video-stage camera-feedback ${presentation === 'game-overlay' ? 'in-game-camera' : 'sidebar-camera'}${showCameraPreview ? '' : ' camera-overlay-hidden'}${showCameraPreview || showDetectionOverlay ? '' : ' preview-hidden'}`}
       aria-label={t('camera.feedback')}
+      style={projectionStyle}
     >
       <div className="sidebar-camera-label">
         <p className="eyebrow">{t('camera.title')}</p>
@@ -73,7 +90,7 @@ export function CameraFeedbackPanel({
         playsInline
         onLoadedMetadata={onLoadedMetadata}
       />
-      {showCameraPreview && (
+      {showDetectionOverlay && (
       <div className="camera-position-guides" aria-hidden="true">
         <div
           className="camera-player-sections"
@@ -84,6 +101,7 @@ export function CameraFeedbackPanel({
               {showHandRhythmGrid && (
                 <div
                   className="camera-hand-grid"
+                  data-testid="camera-hand-grid"
                   style={{
                     gridTemplateColumns: `repeat(${handRhythmGridSize}, minmax(0, 1fr))`,
                     gridTemplateRows: `repeat(${handRhythmGridSize}, minmax(0, 1fr))`,
@@ -98,14 +116,19 @@ export function CameraFeedbackPanel({
             </div>
           ))}
         </div>
-        <div className="camera-center-line" />
-        {playerPositions.map((playerPosition, index) => (
-          <div
-            className={`camera-position-marker player-${index + 1}`}
-            key={`player-marker-${index + 1}`}
-            style={{ left: `${playerPosition * 100}%` }}
-          />
-        ))}
+        {!showHandRhythmGrid && (
+          <>
+            <div className="camera-center-line" />
+            {playerPositions.map((playerPosition, index) => (
+              <div
+                className={`camera-position-marker player-${index + 1}`}
+                data-testid="camera-position-marker"
+                key={`player-marker-${index + 1}`}
+                style={{ left: `${playerPosition * 100}%` }}
+              />
+            ))}
+          </>
+        )}
         {jumpDuckGuides.map((guide) => (
           <div className={`camera-height-guides player-${guide.playerIndex + 1}`} key={`height-guide-${guide.playerIndex}`}>
             <div
@@ -128,7 +151,7 @@ export function CameraFeedbackPanel({
         ))}
       </div>
       )}
-      {showCameraPreview && (
+      {showDetectionOverlay && (
       <canvas
         ref={overlayRef}
         className={`detection-overlay${cameraMirrored ? ' mirrored-media' : ''}`}

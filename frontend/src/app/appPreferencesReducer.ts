@@ -26,6 +26,7 @@ export type AppPreferencesAction =
   | { type: 'thresholdChanged'; threshold: number }
   | { type: 'cameraMirrorChanged'; mirrored: boolean }
   | { type: 'cameraPreviewChanged'; visible: boolean }
+  | { type: 'detectionOverlayChanged'; visible: boolean }
   | { type: 'handRhythmGridChanged'; gridSize: HandRhythmGridSize };
 
 export function appPreferencesReducer(
@@ -88,7 +89,21 @@ export function appPreferencesReducer(
     case 'cameraMirrorChanged':
       return { ...preferences, cameraMirrored: action.mirrored };
     case 'cameraPreviewChanged':
-      return { ...preferences, showCameraPreview: action.visible };
+      return {
+        ...preferences,
+        cameraPreviewVisibility: {
+          ...preferences.cameraPreviewVisibility,
+          [preferences.selectedRunnerGameId]: action.visible,
+        },
+      };
+    case 'detectionOverlayChanged':
+      return {
+        ...preferences,
+        detectionOverlayVisibility: {
+          ...preferences.detectionOverlayVisibility,
+          [preferences.selectedRunnerGameId]: action.visible,
+        },
+      };
     case 'handRhythmGridChanged':
       return action.gridSize === preferences.handRhythmGridSize
         ? preferences

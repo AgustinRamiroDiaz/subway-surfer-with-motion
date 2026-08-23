@@ -109,6 +109,52 @@
   border-radius: 6px;
 }
 
+.in-game-camera {
+  position: absolute;
+  z-index: 2;
+  bottom: 19.2%;
+  left: 22.5%;
+  right: 22.5%;
+  top: 18%;
+  border-inline: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  pointer-events: none;
+}
+
+.in-game-camera::after {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-inline: 1px solid rgba(47, 255, 178, 0.12);
+  background: radial-gradient(circle at center, transparent 48%, rgba(7, 13, 11, 0.18));
+  content: "";
+}
+
+.in-game-camera .sidebar-camera-label {
+  top: auto;
+  bottom: 12px;
+  opacity: 0.55;
+}
+
+.in-game-camera .camera-video {
+  background: transparent;
+  opacity: 0.16;
+  object-fit: contain;
+  filter: saturate(0.75) contrast(1.08);
+}
+
+.in-game-camera .camera-position-guides {
+  opacity: 0.48;
+}
+
+.in-game-camera .detection-overlay {
+  opacity: 0.42;
+}
+
+.in-game-camera .camera-empty-state {
+  display: none;
+}
+
 .sidebar-camera-label {
   position: absolute;
   top: 14px;
@@ -430,7 +476,7 @@
   background: #080a0b;
 }
 
-.sidebar-camera.preview-hidden {
+.camera-feedback.preview-hidden {
   aspect-ratio: auto;
   min-height: 0;
   height: 0;
@@ -438,11 +484,18 @@
   overflow: hidden;
 }
 
-.sidebar-camera.preview-hidden .sidebar-camera-label {
+.camera-feedback.preview-hidden .sidebar-camera-label {
   display: none;
 }
 
-.sidebar-camera.preview-hidden .camera-video {
+.camera-feedback.preview-hidden .camera-video {
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.camera-feedback.camera-overlay-hidden .camera-video {
   width: 1px;
   height: 1px;
   opacity: 0;

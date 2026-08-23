@@ -24,6 +24,13 @@ describe('runner level registry', () => {
     });
   });
 
+  test('defines square-on camera framing for every projection-aligned level', () => {
+    RUNNER_LEVELS.forEach((level) => {
+      expect(level.camera.positionY).toBe(2.45);
+      expect(level.camera.positionZ).toBeGreaterThan(level.camera.targetZ);
+    });
+  });
+
   test('maps player input through level-specific motion behavior', () => {
     const motion = getRunnerLevel('sideways').getPlayerMotion({
       inputFrame: {

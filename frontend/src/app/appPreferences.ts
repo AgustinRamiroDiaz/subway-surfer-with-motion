@@ -33,6 +33,7 @@ export const DEFAULT_THRESHOLD = 0.45;
 export const DEFAULT_CAMERA_MIRRORED = true;
 export const CAMERA_FACING_MODES = ['user', 'environment'] as const;
 export const APP_PREFERENCES_STORAGE_KEY = 'motion-runner:detection-preferences:v1';
+const RUNNER_GAME_IDS: readonly RunnerGameId[] = ['sideways', 'jump-duck', 'hand-rhythm'];
 
 export type CameraFacingMode = (typeof CAMERA_FACING_MODES)[number];
 
@@ -52,7 +53,8 @@ export type AppPreferences = {
   handRhythmGridSize: HandRhythmGridSize;
   threshold: number;
   cameraMirrored: boolean;
-  showCameraPreview: boolean;
+  cameraPreviewVisibility: Record<RunnerGameId, boolean>;
+  detectionOverlayVisibility: Record<RunnerGameId, boolean>;
   cameraFacingMode: CameraFacingMode;
   cameraDeviceId: string | null;
   devCameraMultiplier: number;
@@ -60,6 +62,7 @@ export type AppPreferences = {
 
 type StoredAppPreferences = Partial<AppPreferences> & {
   devCameraMultiplierEnabled?: boolean;
+  showCameraPreview?: boolean;
 };
 
 export const DEFAULT_APP_PREFERENCES: AppPreferences = {
@@ -74,7 +77,16 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   handRhythmGridSize: DEFAULT_HAND_RHYTHM_GRID_SIZE,
   threshold: DEFAULT_THRESHOLD,
   cameraMirrored: DEFAULT_CAMERA_MIRRORED,
-  showCameraPreview: true,
+  cameraPreviewVisibility: {
+    sideways: true,
+    'jump-duck': true,
+    'hand-rhythm': true,
+  },
+  detectionOverlayVisibility: {
+    sideways: true,
+    'jump-duck': true,
+    'hand-rhythm': true,
+  },
   cameraFacingMode: 'user',
   cameraDeviceId: null,
   devCameraMultiplier: 1,
@@ -96,6 +108,33 @@ function normalizeHandRhythmGridSize(value: unknown): HandRhythmGridSize {
   return HAND_RHYTHM_GRID_SIZES.includes(value as HandRhythmGridSize)
     ? value as HandRhythmGridSize
     : DEFAULT_HAND_RHYTHM_GRID_SIZE;
+}
+
+function normalizeCameraPreviewVisibility(
+  value: unknown,
+  legacyVisibility: unknown
+): Record<RunnerGameId, boolean> {
+  const storedVisibility = value && typeof value === 'object'
+    ? value as Partial<Record<RunnerGameId, unknown>>
+    : {};
+  const fallback = typeof legacyVisibility === 'boolean' ? legacyVisibility : true;
+
+  return Object.fromEntries(
+    RUNNER_GAME_IDS.map((gameId) => [
+      gameId,
+      typeof storedVisibility[gameId] === 'boolean' ? storedVisibility[gameId] : fallback,
+    ])
+  ) as Record<RunnerGameId, boolean>;
+}
+
+function normalizeDetectionOverlayVisibility(value: unknown): Record<RunnerGameId, boolean> {
+  const storedVisibility = value && typeof value === 'object'
+    ? value as Partial<Record<RunnerGameId, unknown>>
+    : {};
+
+  return Object.fromEntries(
+    RUNNER_GAME_IDS.map((gameId) => [gameId, storedVisibility[gameId] !== false])
+  ) as Record<RunnerGameId, boolean>;
 }
 
 export function readStoredAppPreferences(): AppPreferences {
@@ -150,8 +189,11 @@ export function readStoredAppPreferences(): AppPreferences {
           : defaults.threshold,
       cameraMirrored:
         typeof stored.cameraMirrored === 'boolean' ? stored.cameraMirrored : defaults.cameraMirrored,
-      showCameraPreview:
-        typeof stored.showCameraPreview === 'boolean' ? stored.showCameraPreview : defaults.showCameraPreview,
+      cameraPreviewVisibility: normalizeCameraPreviewVisibility(
+        stored.cameraPreviewVisibility,
+        stored.showCameraPreview
+      ),
+      detectionOverlayVisibility: normalizeDetectionOverlayVisibility(stored.detectionOverlayVisibility),
       cameraFacingMode: isCameraFacingMode(stored.cameraFacingMode)
         ? stored.cameraFacingMode
         : defaults.cameraFacingMode,

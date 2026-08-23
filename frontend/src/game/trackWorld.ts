@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PLAYER_BASE_Y, PLAYER_Z } from './gameConstants';
 import type { RunnerGameId, TrackWorld } from './gameTypes';
+import type { RunnerLevelDefinition } from './levelRegistry';
 import type { HandRhythmGridSize } from './levels/handRhythmLevel';
 import { handRhythmPlayerWidth, HAND_RHYTHM_ROW_Y } from './levels/handRhythmLayout';
 import { createFallbackPlayer, disposeObject, loadPlayerModels } from './playerAvatar';
@@ -121,6 +122,7 @@ export function createTrackWorld(
   mount: HTMLDivElement,
   initialPlayerPositions: number[],
   gameId: RunnerGameId,
+  cameraFraming: RunnerLevelDefinition['camera'],
   handRhythmGridSize: HandRhythmGridSize = 3
 ): TrackWorld {
   let disposed = false;
@@ -134,8 +136,8 @@ export function createTrackWorld(
   const isLaneBased = isJumpDuck || isHandRhythm;
 
   const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 100);
-  camera.position.set(0, isHandRhythm ? 4.4 : 5.2, isHandRhythm ? 10.6 : 9.6);
-  camera.lookAt(0, isHandRhythm ? 1.85 : 0.2, isHandRhythm ? 0 : -5);
+  camera.position.set(0, cameraFraming.positionY, cameraFraming.positionZ);
+  camera.lookAt(0, cameraFraming.positionY, cameraFraming.targetZ);
 
   const renderer = new THREE.WebGLRenderer({
     antialias: true,

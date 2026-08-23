@@ -36,6 +36,7 @@ type DetectionControlsProps = {
   onDevCameraMultiplierChange: (value: number) => void;
   onCameraMirrorChange: (value: boolean) => void;
   onCameraPreviewChange: (value: boolean) => void;
+  onDetectionOverlayChange: (value: boolean) => void;
   onMediaPipeDelegateChange: (value: MediaPipeDelegateId) => void;
   onMediaPipeModelChange: (value: MediaPipeModelId) => void;
   onModelChange: (value: YoloModelId) => void;
@@ -65,6 +66,7 @@ export function DetectionControls({
   onDevCameraMultiplierChange,
   onCameraMirrorChange,
   onCameraPreviewChange,
+  onDetectionOverlayChange,
   onMediaPipeDelegateChange,
   onMediaPipeModelChange,
   onModelChange,
@@ -98,6 +100,7 @@ export function DetectionControls({
         onDevCameraMultiplierChange={onDevCameraMultiplierChange}
         onCameraMirrorChange={onCameraMirrorChange}
         onCameraPreviewChange={onCameraPreviewChange}
+        onDetectionOverlayChange={onDetectionOverlayChange}
         onPlayerCountChange={onPlayerCountChange}
         onHandRhythmGridSizeChange={onHandRhythmGridSizeChange}
         onThresholdChange={onThresholdChange}

@@ -17,6 +17,7 @@ type QuickDetectionSettingsProps = {
   onDevCameraMultiplierChange: (value: number) => void;
   onCameraMirrorChange: (value: boolean) => void;
   onCameraPreviewChange: (value: boolean) => void;
+  onDetectionOverlayChange: (value: boolean) => void;
   onPlayerCountChange: (value: number) => void;
   onHandRhythmGridSizeChange: (value: 2 | 3) => void;
   onThresholdChange: (value: number) => void;
@@ -31,6 +32,7 @@ export function QuickDetectionSettings({
   onDevCameraMultiplierChange,
   onCameraMirrorChange,
   onCameraPreviewChange,
+  onDetectionOverlayChange,
   onPlayerCountChange,
   onHandRhythmGridSizeChange,
   onThresholdChange,
@@ -67,10 +69,16 @@ export function QuickDetectionSettings({
         onChange={(event) => onCameraMirrorChange(event.currentTarget.checked)}
       />
       <Switch
-        checked={preferences.showCameraPreview}
+        checked={preferences.cameraPreviewVisibility[preferences.selectedRunnerGameId]}
         className="toggle-control"
         label={<ControlHelpLabel help={t('controls.cameraPreviewHelp')}>{t('controls.cameraPreview')}</ControlHelpLabel>}
         onChange={(event) => onCameraPreviewChange(event.currentTarget.checked)}
+      />
+      <Switch
+        checked={preferences.detectionOverlayVisibility[preferences.selectedRunnerGameId]}
+        className="toggle-control"
+        label={<ControlHelpLabel help={t('controls.detectionOverlayHelp')}>{t('controls.detectionOverlay')}</ControlHelpLabel>}
+        onChange={(event) => onDetectionOverlayChange(event.currentTarget.checked)}
       />
       <div className="multiplier-control">
         <ControlHelpLabel help={t('controls.cameraMultiplierHelp')}>{t('controls.cameraMultiplier')}</ControlHelpLabel>

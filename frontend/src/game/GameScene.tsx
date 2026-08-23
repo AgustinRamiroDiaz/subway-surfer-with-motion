@@ -14,7 +14,10 @@ import {
   COLLISION_RADIUS_Z,
   OBSTACLE_DESPAWN_Z,
   OBSTACLE_SPEED,
+  PLAYER_BASE_Y,
   PLAYER_Z,
+  TRACK_MAX_X,
+  TRACK_MIN_X,
 } from './gameConstants';
 import type { GamePhase, GameStats, Obstacle, RunnerGameId } from './gameTypes';
 import {
@@ -54,7 +57,29 @@ type GameSceneProps = {
   gameplayInputRef: React.RefObject<GameplayInputFrame>;
   selectedGameId: RunnerGameId;
   onJumpDuckGuidesChange: (guides: JumpDuckGuide[]) => void;
+  onWorldProjectionChange: (projection: WorldProjection) => void;
+  videoAspectRatio: number;
 };
+
+export type WorldProjection = {
+  bottom: number;
+  left: number;
+  right: number;
+  top: number;
+};
+
+function projectWorldPoint(
+  camera: THREE.PerspectiveCamera,
+  x: number,
+  y: number,
+  z: number
+): { x: number; y: number } {
+  const projected = new THREE.Vector3(x, y, z).project(camera);
+  return {
+    x: THREE.MathUtils.clamp((projected.x + 1) / 2, 0, 1),
+    y: THREE.MathUtils.clamp((1 - projected.y) / 2, 0, 1),
+  };
+}
 
 function getJumpDuckPieceHitCount(obstacle: Obstacle, playerIndex: number, cell: JumpDuckCell): number {
   const hits = findJumpDuckPieceHits(obstacle.pieces, obstacle.hitPieces, playerIndex, cell);
@@ -87,6 +112,8 @@ export function GameScene({
   gameplayInputRef,
   selectedGameId,
   onJumpDuckGuidesChange,
+  onWorldProjectionChange,
+  videoAspectRatio,
 }: GameSceneProps): ReactElement {
   const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -158,7 +185,13 @@ export function GameScene({
     const initialPositions = gameplayInputRef.current.kind === 'pose'
       ? gameplayInputRef.current.players.map((player) => player.normalizedX)
       : getDefaultPlayerPositions(playerCount);
-    const world = createTrackWorld(mount, initialPositions, selectedGameId, handRhythmGridSize);
+    const world = createTrackWorld(
+      mount,
+      initialPositions,
+      selectedGameId,
+      selectedLevel.camera,
+      handRhythmGridSize
+    );
     const obstacleSystem = createObstacleSystem(
       world.scene,
       () => selectedGameIdRef.current,
@@ -173,7 +206,22 @@ export function GameScene({
       world.camera.aspect = width / height;
       world.camera.zoom = world.camera.aspect < 1 ? world.camera.aspect : 1;
       world.camera.updateProjectionMatrix();
+      world.camera.updateMatrixWorld();
       world.renderer.setSize(width, height, false);
+
+      const projectionHeight = (TRACK_MAX_X - TRACK_MIN_X) / Math.max(0.1, videoAspectRatio);
+      const corners = [
+        projectWorldPoint(world.camera, TRACK_MIN_X, PLAYER_BASE_Y, PLAYER_Z),
+        projectWorldPoint(world.camera, TRACK_MAX_X, PLAYER_BASE_Y, PLAYER_Z),
+        projectWorldPoint(world.camera, TRACK_MIN_X, PLAYER_BASE_Y + projectionHeight, PLAYER_Z),
+        projectWorldPoint(world.camera, TRACK_MAX_X, PLAYER_BASE_Y + projectionHeight, PLAYER_Z),
+      ];
+      onWorldProjectionChange({
+        left: Math.min(...corners.map((corner) => corner.x)),
+        right: Math.max(...corners.map((corner) => corner.x)),
+        top: Math.min(...corners.map((corner) => corner.y)),
+        bottom: Math.max(...corners.map((corner) => corner.y)),
+      });
     };
 
     const resizeObserver = new ResizeObserver(resize);
@@ -391,7 +439,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [gameplayInputRef, handRhythmGridSize, onJumpDuckGuidesChange, playerCount, selectedGameId, selectedLevel.spawnIntervalMs]);
+  }, [gameplayInputRef, handRhythmGridSize, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, selectedLevel.camera, selectedLevel.spawnIntervalMs, videoAspectRatio]);
 
   return (
     <div

@@ -25,6 +25,8 @@ describe('appPreferencesReducer', () => {
     });
 
     expect(getDetectorConfigurationKey(previewChanged)).toBe(initialKey);
+    expect(previewChanged.cameraPreviewVisibility.sideways).toBe(false);
+    expect(previewChanged.cameraPreviewVisibility['jump-duck']).toBe(true);
     expect(getDetectorConfigurationKey(playersChanged)).not.toBe(initialKey);
   });
 

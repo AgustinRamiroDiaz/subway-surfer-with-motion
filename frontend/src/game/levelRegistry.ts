@@ -48,8 +48,19 @@ export type RunnerLevelDefinition = {
   inputKind: GameplayInputFrame['kind'];
   requiresCalibration: boolean;
   spawnIntervalMs: number;
+  camera: {
+    positionY: number;
+    positionZ: number;
+    targetZ: number;
+  };
   getPlayerMotion: (context: LevelPlayerMotionContext) => LevelPlayerMotion;
 };
+
+const RUNNER_CAMERA = {
+  positionY: 2.45,
+  positionZ: 9.6,
+  targetZ: -5,
+} as const;
 
 function getPosePlayer(context: LevelPlayerMotionContext): PosePlayerInput | undefined {
   return context.inputFrame.kind === 'pose'
@@ -67,6 +78,7 @@ export const RUNNER_LEVELS: readonly RunnerLevelDefinition[] = [
     inputKind: 'pose',
     requiresCalibration: false,
     spawnIntervalMs: SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS,
+    camera: RUNNER_CAMERA,
     getPlayerMotion: (context) => {
       const player = getPosePlayer(context);
       return {
@@ -88,6 +100,7 @@ export const RUNNER_LEVELS: readonly RunnerLevelDefinition[] = [
     inputKind: 'pose',
     requiresCalibration: true,
     spawnIntervalMs: JUMP_DUCK_SPAWN_INTERVAL_MS,
+    camera: RUNNER_CAMERA,
     getPlayerMotion: (context) => {
       const player = getPosePlayer(context);
       const motion = getJumpDuckPlayerMotion(
@@ -115,6 +128,11 @@ export const RUNNER_LEVELS: readonly RunnerLevelDefinition[] = [
     inputKind: 'gesture',
     requiresCalibration: false,
     spawnIntervalMs: HAND_RHYTHM_SPAWN_INTERVAL_MS,
+    camera: {
+      positionY: 2.45,
+      positionZ: 10.6,
+      targetZ: 0,
+    },
     getPlayerMotion: (context) => {
       const hand = context.inputFrame.kind === 'gesture'
         ? context.inputFrame.players[context.playerIndex]?.hand ?? null

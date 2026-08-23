@@ -39,12 +39,14 @@ test('renders the motion game shell', async () => {
   expect(screen.getByRole('button', { name: /carrera lateral/i })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByRole('button', { name: /saltar y agacharse/i })).toHaveAttribute('aria-pressed', 'false');
   expect(screen.getByLabelText(/juego principal/i)).toBeInTheDocument();
-  expect(screen.getByLabelText(/vista de cámara/i)).toBeInTheDocument();
+  expect(within(screen.getByLabelText(/juego principal/i)).getByLabelText(/vista de cámara/i)).toHaveClass('in-game-camera');
   expect(within(screen.getByLabelText(/controles del juego/i)).getByRole('button', { name: /activar cámara/i })).toBeEnabled();
   expect(within(screen.getByLabelText(/controles del juego/i)).getByRole('button', { name: /pausar/i })).toBeDisabled();
   expect(screen.getByDisplayValue('Español')).toBeInTheDocument();
   expect(screen.getByDisplayValue('Cámara frontal')).toBeInTheDocument();
   expect(screen.getByRole('switch', { name: /espejar cámara/i })).toBeChecked();
+  expect(screen.getByRole('switch', { name: /mostrar overlay del nivel/i })).toBeChecked();
+  expect(screen.getByRole('switch', { name: /mostrar detección/i })).toBeChecked();
   expect(screen.getByText(/ninguno/i)).toBeInTheDocument();
   expect(screen.getByRole('slider', { name: /multiplicador de cámara/i })).toHaveAttribute('aria-valuenow', '1');
   expect(screen.getByRole('slider', { name: /jugadores/i })).toHaveAttribute('aria-valuenow', '2');
@@ -103,6 +105,45 @@ test('remembers the selected level across remounts', async () => {
 
   expect(await screen.findByRole('heading', { name: /saltos y agaches/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /saltar y agacharse/i })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('remembers overlay visibility independently for each level', () => {
+  renderApp();
+
+  const overlaySwitch = screen.getByRole('switch', { name: /mostrar overlay del nivel/i });
+  fireEvent.click(overlaySwitch);
+  expect(overlaySwitch).not.toBeChecked();
+
+  fireEvent.click(screen.getByRole('button', { name: /saltar y agacharse/i }));
+  expect(screen.getByRole('switch', { name: /mostrar overlay del nivel/i })).toBeChecked();
+
+  fireEvent.click(screen.getByRole('button', { name: /carrera lateral/i }));
+  expect(screen.getByRole('switch', { name: /mostrar overlay del nivel/i })).not.toBeChecked();
+});
+
+test('toggles camera and detection overlays independently', () => {
+  renderApp();
+
+  const cameraSwitch = screen.getByRole('switch', { name: /mostrar overlay del nivel/i });
+  const detectionSwitch = screen.getByRole('switch', { name: /mostrar detección/i });
+
+  fireEvent.click(cameraSwitch);
+  expect(cameraSwitch).not.toBeChecked();
+  expect(detectionSwitch).toBeChecked();
+
+  fireEvent.click(detectionSwitch);
+  expect(cameraSwitch).not.toBeChecked();
+  expect(detectionSwitch).not.toBeChecked();
+});
+
+test('uses hand-rhythm guides without pose position markers', () => {
+  renderApp();
+
+  expect(screen.getAllByTestId('camera-position-marker')).toHaveLength(2);
+  fireEvent.click(screen.getByRole('button', { name: /ritmo de manos/i }));
+
+  expect(screen.queryAllByTestId('camera-position-marker')).toHaveLength(0);
+  expect(screen.getAllByTestId('camera-hand-grid')).toHaveLength(2);
 });
 
 test('ignores invalid stored levels', async () => {

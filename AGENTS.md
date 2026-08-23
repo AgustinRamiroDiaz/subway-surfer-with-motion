@@ -25,6 +25,7 @@ Run from the repository root:
 
 ## Development Notes
 
+- Backward compatibility is not a requirement; prefer the simplest correct current behavior, including breaking or replacing existing interfaces when needed.
 - Prefer existing React hooks and component patterns over adding new abstractions.
 - Keep detector work in `aiDetector.ts` and camera-loop state in `useMotionDetector.ts`.
 - The game supports two players. MediaPipe must keep `numPoses: 2`; YOLO can return multiple detections naturally.

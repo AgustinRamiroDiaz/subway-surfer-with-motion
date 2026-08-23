@@ -31,6 +31,7 @@ import type { JumpDuckGuide } from '../motion-mapping/jumpDuckActions';
 import { CameraFeedbackPanel } from '../ui/CameraFeedbackPanel';
 import { DetectionControls } from '../ui/DetectionControls';
 import type { GamePhase, RunnerGameId } from '../game/gameTypes';
+import type { WorldProjection } from '../game/GameScene';
 import { getRunnerLevel, RUNNER_LEVELS } from '../game/levelRegistry';
 import { useI18n } from './i18n';
 import { useCameraController } from '../hooks/useCameraController';
@@ -73,6 +74,8 @@ function MotionRunnerApp(): ReactElement {
   );
   const [gamePhase, setGamePhase] = useState<GamePhase>('ready');
   const [jumpDuckGuides, setJumpDuckGuides] = useState<JumpDuckGuide[]>([]);
+  const [worldProjection, setWorldProjection] = useState<WorldProjection | null>(null);
+  const [videoAspectRatio, setVideoAspectRatio] = useState(4 / 3);
   const detectorConfigurationKey = getDetectorConfigurationKey(preferences);
   const previousDetectorConfigurationKeyRef = useRef(detectorConfigurationKey);
 
@@ -200,6 +203,14 @@ function MotionRunnerApp(): ReactElement {
     setJumpDuckGuides(guides);
   }, []);
 
+  const handleCameraMetadata = useCallback(() => {
+    camera.syncCanvasSize();
+    const video = camera.videoRef.current;
+    if (video?.videoWidth && video.videoHeight) {
+      setVideoAspectRatio(video.videoWidth / video.videoHeight);
+    }
+  }, [camera]);
+
   const startLabel = camera.cameraEnabled ? t('app.startRun') : t('app.enableCamera');
 
   return (
@@ -213,27 +224,31 @@ function MotionRunnerApp(): ReactElement {
               handRhythmGridSize={preferences.handRhythmGridSize}
               gameplayInputRef={detector.gameplayInputRef}
               selectedGameId={preferences.selectedRunnerGameId}
+              videoAspectRatio={videoAspectRatio}
               onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
+              onWorldProjectionChange={setWorldProjection}
             />
           </Suspense>
-        </section>
-
-        <aside className="control-panel" aria-label={t('app.detectionControls')}>
           <CameraFeedbackPanel
             cameraEnabled={camera.cameraEnabled}
             cameraMirrored={preferences.cameraMirrored}
-            showCameraPreview={preferences.showCameraPreview}
+            showCameraPreview={preferences.cameraPreviewVisibility[preferences.selectedRunnerGameId]}
+            showDetectionOverlay={preferences.detectionOverlayVisibility[preferences.selectedRunnerGameId]}
             frameRef={camera.frameRef}
             jumpDuckGuides={jumpDuckGuides}
             handRhythmGridSize={preferences.handRhythmGridSize}
             showHandRhythmGrid={preferences.selectedRunnerGameId === 'hand-rhythm'}
             overlayRef={camera.overlayRef}
             playerPositions={detector.playerPositions}
+            presentation="game-overlay"
             selectedTrackerLabel={selectedTrackerLabel}
             videoRef={camera.videoRef}
-            onLoadedMetadata={camera.syncCanvasSize}
+            worldProjection={worldProjection}
+            onLoadedMetadata={handleCameraMetadata}
           />
+        </section>
 
+        <aside className="control-panel" aria-label={t('app.detectionControls')}>
           <section className="run-panel" aria-label={t('game.controls')}>
             <div className="game-mode-selector" aria-label={t('game.modeSelector')}>
               {RUNNER_LEVELS.map((level) => (
@@ -281,6 +296,7 @@ function MotionRunnerApp(): ReactElement {
             onDevCameraMultiplierChange={camera.changeDevCameraMultiplier}
             onCameraMirrorChange={(mirrored) => dispatchPreferences({ type: 'cameraMirrorChanged', mirrored })}
             onCameraPreviewChange={(visible) => dispatchPreferences({ type: 'cameraPreviewChanged', visible })}
+            onDetectionOverlayChange={(visible) => dispatchPreferences({ type: 'detectionOverlayChanged', visible })}
             onMediaPipeDelegateChange={handleMediaPipeDelegateChange}
             onMediaPipeModelChange={handleMediaPipeModelChange}
             onModelChange={handleModelChange}
