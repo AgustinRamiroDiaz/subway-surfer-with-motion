@@ -20,6 +20,7 @@ type QuickDetectionSettingsProps = {
   onDetectionOverlayChange: (value: boolean) => void;
   onPlayerCountChange: (value: number) => void;
   onHandRhythmGridSizeChange: (value: 2 | 3) => void;
+  onHandRhythmFloorChange: (value: boolean) => void;
   onThresholdChange: (value: number) => void;
 };
 
@@ -35,6 +36,7 @@ export function QuickDetectionSettings({
   onDetectionOverlayChange,
   onPlayerCountChange,
   onHandRhythmGridSizeChange,
+  onHandRhythmFloorChange,
   onThresholdChange,
 }: QuickDetectionSettingsProps): ReactElement {
   const { language, setLanguage, t } = useI18n();
@@ -94,21 +96,29 @@ export function QuickDetectionSettings({
         <Slider thumbLabel={t('controls.players')} min={MIN_PLAYERS} max={MAX_PLAYERS} step={1} value={preferences.playerCount} onChange={onPlayerCountChange} />
       </div>
       {task === 'gesture' && (
-        <Select
-          aria-label={t('controls.handRhythmGrid')}
-          className="model-control"
-          data={[
-            { value: '2', label: t('controls.handRhythmGrid2') },
-            { value: '3', label: t('controls.handRhythmGrid3') },
-          ]}
-          label={<ControlHelpLabel help={t('controls.handRhythmGridHelp')}>{t('controls.handRhythmGrid')}</ControlHelpLabel>}
-          value={String(preferences.handRhythmGridSize)}
-          onChange={(value) => {
-            if (value === '2' || value === '3') {
-              onHandRhythmGridSizeChange(Number(value) as 2 | 3);
-            }
-          }}
-        />
+        <>
+          <Select
+            aria-label={t('controls.handRhythmGrid')}
+            className="model-control"
+            data={[
+              { value: '2', label: t('controls.handRhythmGrid2') },
+              { value: '3', label: t('controls.handRhythmGrid3') },
+            ]}
+            label={<ControlHelpLabel help={t('controls.handRhythmGridHelp')}>{t('controls.handRhythmGrid')}</ControlHelpLabel>}
+            value={String(preferences.handRhythmGridSize)}
+            onChange={(value) => {
+              if (value === '2' || value === '3') {
+                onHandRhythmGridSizeChange(Number(value) as 2 | 3);
+              }
+            }}
+          />
+          <Switch
+            checked={preferences.showHandRhythmFloor}
+            className="toggle-control"
+            label={<ControlHelpLabel help={t('controls.handRhythmFloorHelp')}>{t('controls.handRhythmFloor')}</ControlHelpLabel>}
+            onChange={(event) => onHandRhythmFloorChange(event.currentTarget.checked)}
+          />
+        </>
       )}
       <div className="threshold-control">
         <ControlHelpLabel help={t('controls.confidenceHelp')}>{t('controls.confidence')}</ControlHelpLabel>

@@ -42,6 +42,7 @@ type DetectionControlsProps = {
   onModelChange: (value: YoloModelId) => void;
   onPlayerCountChange: (value: number) => void;
   onHandRhythmGridSizeChange: (value: 2 | 3) => void;
+  onHandRhythmFloorChange: (value: boolean) => void;
   onQuantizationChange: (value: DetectorQuantizationId) => void;
   onRuntimeChange: (value: DetectorRuntimeId) => void;
   onStopCamera: () => void;
@@ -72,6 +73,7 @@ export function DetectionControls({
   onModelChange,
   onPlayerCountChange,
   onHandRhythmGridSizeChange,
+  onHandRhythmFloorChange,
   onQuantizationChange,
   onRuntimeChange,
   onStopCamera,
@@ -103,6 +105,7 @@ export function DetectionControls({
         onDetectionOverlayChange={onDetectionOverlayChange}
         onPlayerCountChange={onPlayerCountChange}
         onHandRhythmGridSizeChange={onHandRhythmGridSizeChange}
+        onHandRhythmFloorChange={onHandRhythmFloorChange}
         onThresholdChange={onThresholdChange}
       />
       <AdvancedDetectorSettings

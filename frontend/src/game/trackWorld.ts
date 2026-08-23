@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { PLAYER_BASE_Y, PLAYER_Z } from './gameConstants';
 import type { RunnerGameId, TrackWorld } from './gameTypes';
 import type { RunnerLevelDefinition } from './levelRegistry';
-import type { HandRhythmGridSize } from './levels/handRhythmLevel';
+import type { HandRhythmCell, HandRhythmGridSize } from './levels/handRhythmLevel';
 import { handRhythmPlayerWidth, HAND_RHYTHM_ROW_Y } from './levels/handRhythmLayout';
 import { createFallbackPlayer, disposeObject, loadPlayerModels } from './playerAvatar';
 import { playerTrackWidth, playerTrackX, positionToWorldX } from './trackLayout';
@@ -74,8 +74,18 @@ function createPlayerLaneMarkers(scene: THREE.Scene, playerCount: number): () =>
   };
 }
 
-function createHandRhythmGrids(scene: THREE.Scene, playerCount: number, gridSize: HandRhythmGridSize): () => void {
-  const objects: THREE.Object3D[] = [];
+type HandRhythmGrid = {
+  outlines: THREE.LineSegments[];
+  activeOutlines: THREE.LineSegments[];
+  update: (cells: Array<HandRhythmCell | undefined>) => void;
+  dispose: () => void;
+};
+
+function createHandRhythmGrid(scene: THREE.Scene, playerCount: number, gridSize: HandRhythmGridSize): HandRhythmGrid {
+  const outlines: THREE.LineSegments[] = [];
+  const activeOutlines: THREE.LineSegments[] = [];
+  const outlineMaterials: THREE.LineBasicMaterial[] = [];
+  const activeOutlineMaterials: THREE.LineBasicMaterial[] = [];
   const cellWidth = handRhythmPlayerWidth(playerCount) / gridSize;
   const cellHeight = (HAND_RHYTHM_ROW_Y[0] - HAND_RHYTHM_ROW_Y[2]) / Math.max(1, gridSize - 1);
 
@@ -83,38 +93,78 @@ function createHandRhythmGrids(scene: THREE.Scene, playerCount: number, gridSize
     const centerX = playerTrackX(playerIndex, playerCount);
     for (let row = 0; row < gridSize; row += 1) {
       for (let column = 0; column < gridSize; column += 1) {
-        const isCenter = row === Math.floor(gridSize / 2) && column === Math.floor(gridSize / 2);
-        const material = new THREE.MeshBasicMaterial({
-          color: isCenter ? '#17463e' : '#102d2a',
-          transparent: true,
-          opacity: isCenter ? 0.88 : 0.76,
-          side: THREE.DoubleSide,
-        });
-        const cell = new THREE.Mesh(new THREE.PlaneGeometry(cellWidth * 0.93, cellHeight * 0.88), material);
+        const geometry = new THREE.PlaneGeometry(cellWidth, cellHeight);
         const sourceRow = Math.round(row * (HAND_RHYTHM_ROW_Y.length - 1) / (gridSize - 1));
-        cell.position.set(centerX + (column - (gridSize - 1) / 2) * cellWidth, HAND_RHYTHM_ROW_Y[sourceRow] ?? HAND_RHYTHM_ROW_Y[1], PLAYER_Z - 0.08);
-        scene.add(cell);
-        objects.push(cell);
-
-        const outline = new THREE.LineSegments(
-          new THREE.EdgesGeometry(cell.geometry),
-          new THREE.LineBasicMaterial({ color: playerIndex === 0 ? '#2fffb2' : '#66a3ff', transparent: true, opacity: 0.48 })
+        const position = new THREE.Vector3(
+          centerX + (column - (gridSize - 1) / 2) * cellWidth,
+          HAND_RHYTHM_ROW_Y[sourceRow] ?? HAND_RHYTHM_ROW_Y[1],
+          PLAYER_Z - 0.08
         );
-        outline.position.copy(cell.position);
-        outline.position.z += 0.01;
+        const outlineMaterial = new THREE.LineBasicMaterial({
+          color: playerIndex === 0 ? '#2fffb2' : '#66a3ff',
+          transparent: true,
+          opacity: 0.42,
+        });
+        const outline = new THREE.LineSegments(
+          new THREE.EdgesGeometry(geometry),
+          outlineMaterial
+        );
+        outline.position.copy(position);
         scene.add(outline);
-        objects.push(outline);
+        outlines.push(outline);
+        outlineMaterials.push(outlineMaterial);
+        const activeOutlineMaterial = new THREE.LineBasicMaterial({
+          color: playerIndex === 0 ? '#2fffb2' : '#66a3ff',
+          transparent: true,
+          opacity: 0,
+        });
+        const activeOutline = new THREE.LineSegments(
+          new THREE.EdgesGeometry(geometry),
+          activeOutlineMaterial
+        );
+        activeOutline.position.copy(position);
+        activeOutline.scale.setScalar(1.06);
+        scene.add(activeOutline);
+        activeOutlines.push(activeOutline);
+        activeOutlineMaterials.push(activeOutlineMaterial);
+        geometry.dispose();
       }
     }
   }
 
-  return () => {
-    objects.forEach((object) => {
-      scene.remove(object);
-      const renderable = object as THREE.Mesh | THREE.LineSegments;
-      renderable.geometry.dispose();
-      (Array.isArray(renderable.material) ? renderable.material : [renderable.material]).forEach((material) => material.dispose());
-    });
+  return {
+    outlines,
+    activeOutlines,
+    update: (cells) => {
+      outlineMaterials.forEach((material, index) => {
+        const playerIndex = Math.floor(index / (gridSize * gridSize));
+        material.color.set(playerIndex === 0 ? '#2fffb2' : '#66a3ff');
+        material.opacity = 0.42;
+      });
+      activeOutlineMaterials.forEach((material) => { material.opacity = 0; });
+      cells.forEach((cell, playerIndex) => {
+        if (!cell) return;
+        const material = outlineMaterials[playerIndex * gridSize * gridSize + cell.row * gridSize + cell.column];
+        if (material) {
+          material.color.set('#ffffff');
+          material.opacity = 1;
+        }
+        const activeMaterial = activeOutlineMaterials[playerIndex * gridSize * gridSize + cell.row * gridSize + cell.column];
+        if (activeMaterial) activeMaterial.opacity = 0.72;
+      });
+    },
+    dispose: () => {
+      outlines.forEach((outline) => {
+        scene.remove(outline);
+        outline.geometry.dispose();
+        (Array.isArray(outline.material) ? outline.material : [outline.material]).forEach((material) => material.dispose());
+      });
+      activeOutlines.forEach((outline) => {
+        scene.remove(outline);
+        outline.geometry.dispose();
+        (Array.isArray(outline.material) ? outline.material : [outline.material]).forEach((material) => material.dispose());
+      });
+    },
   };
 }
 
@@ -123,7 +173,8 @@ export function createTrackWorld(
   initialPlayerPositions: number[],
   gameId: RunnerGameId,
   cameraFraming: RunnerLevelDefinition['camera'],
-  handRhythmGridSize: HandRhythmGridSize = 3
+  handRhythmGridSize: HandRhythmGridSize = 3,
+  showHandRhythmFloor = true
 ): TrackWorld {
   let disposed = false;
   const scene = new THREE.Scene();
@@ -134,6 +185,8 @@ export function createTrackWorld(
   const isJumpDuck = gameId === 'jump-duck';
   const isHandRhythm = gameId === 'hand-rhythm';
   const isLaneBased = isJumpDuck || isHandRhythm;
+  const showTrackSurface = !isHandRhythm || showHandRhythmFloor;
+  const handRhythmGrid = isHandRhythm ? createHandRhythmGrid(scene, playerCount, handRhythmGridSize) : null;
 
   const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 100);
   camera.position.set(0, cameraFraming.positionY, cameraFraming.positionZ);
@@ -170,8 +223,9 @@ export function createTrackWorld(
     roughness: 0.74,
   });
 
-  const disposePlayerLaneMarkers = createPlayerLaneMarkers(scene, playerCount);
-  const disposeHandRhythmGrids = isHandRhythm ? createHandRhythmGrids(scene, playerCount, handRhythmGridSize) : () => undefined;
+  const disposePlayerLaneMarkers = showTrackSurface
+    ? createPlayerLaneMarkers(scene, playerCount)
+    : () => {};
 
   const playerZoneWidth = playerTrackWidth(playerCount);
   const sleeperWidth = isLaneBased ? playerZoneWidth : 7.6;
@@ -184,37 +238,39 @@ export function createTrackWorld(
     ? Array.from({ length: playerCount }, (_, i) => playerTrackX(i, playerCount))
     : [0];
 
-  trackCenters.forEach((centerX) => {
-    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.set(centerX, 0, -7);
-    floor.receiveShadow = true;
-    scene.add(floor);
+  if (showTrackSurface) {
+    trackCenters.forEach((centerX) => {
+      const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.set(centerX, 0, -7);
+      floor.receiveShadow = true;
+      scene.add(floor);
 
-    const railOffset = sleeperWidth / 2 + 0.09;
-    [centerX - railOffset, centerX + railOffset].forEach((x) => {
-      const rail = new THREE.Mesh(sideRailGeometry, railMaterial);
-      rail.position.set(x, 0.08, -7);
-      rail.castShadow = true;
-      rail.receiveShadow = true;
-      scene.add(rail);
+      const railOffset = sleeperWidth / 2 + 0.09;
+      [centerX - railOffset, centerX + railOffset].forEach((x) => {
+        const rail = new THREE.Mesh(sideRailGeometry, railMaterial);
+        rail.position.set(x, 0.08, -7);
+        rail.castShadow = true;
+        rail.receiveShadow = true;
+        scene.add(rail);
+      });
+
+      const dividerOffsets = isLaneBased ? [-1.05, 0, 1.05] : [-2.1, -1.05, 0, 1.05, 2.1];
+      dividerOffsets.forEach((offset) => {
+        const divider = new THREE.Mesh(guideGeometry, dividerMaterial);
+        divider.position.set(centerX + offset, 0.08, -7);
+        divider.receiveShadow = true;
+        scene.add(divider);
+      });
+
+      for (let z = -26; z < 6; z += 1.45) {
+        const sleeper = new THREE.Mesh(sleeperGeometry, sleeperMaterial);
+        sleeper.position.set(centerX, 0.11, z);
+        sleeper.receiveShadow = true;
+        scene.add(sleeper);
+      }
     });
-
-    const dividerOffsets = isLaneBased ? [-1.05, 0, 1.05] : [-2.1, -1.05, 0, 1.05, 2.1];
-    dividerOffsets.forEach((offset) => {
-      const divider = new THREE.Mesh(guideGeometry, dividerMaterial);
-      divider.position.set(centerX + offset, 0.08, -7);
-      divider.receiveShadow = true;
-      scene.add(divider);
-    });
-
-    for (let z = -26; z < 6; z += 1.45) {
-      const sleeper = new THREE.Mesh(sleeperGeometry, sleeperMaterial);
-      sleeper.position.set(centerX, 0.11, z);
-      sleeper.receiveShadow = true;
-      scene.add(sleeper);
-    }
-  });
+  }
 
   const players = initialPlayerPositions.map((initialPlayerPosition, index) => {
     const player = createFallbackPlayer(index);
@@ -237,6 +293,7 @@ export function createTrackWorld(
     camera,
     renderer,
     players,
+    updateHandRhythmGrid: (cells) => handRhythmGrid?.update(cells),
     dispose: () => {
       disposed = true;
       floorGeometry.dispose();
@@ -248,7 +305,7 @@ export function createTrackWorld(
       sideRailGeometry.dispose();
       guideGeometry.dispose();
       disposePlayerLaneMarkers();
-      disposeHandRhythmGrids();
+      handRhythmGrid?.dispose();
       players.forEach((player) => {
         disposeObject(player.root);
       });

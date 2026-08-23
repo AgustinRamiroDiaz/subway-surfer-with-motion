@@ -51,6 +51,7 @@ export type AppPreferences = {
   selectedMediaPipeDelegateId: MediaPipeDelegateId;
   playerCount: number;
   handRhythmGridSize: HandRhythmGridSize;
+  showHandRhythmFloor: boolean;
   threshold: number;
   cameraMirrored: boolean;
   cameraPreviewVisibility: Record<RunnerGameId, boolean>;
@@ -75,6 +76,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   selectedMediaPipeDelegateId: DEFAULT_MEDIAPIPE_DELEGATE_ID,
   playerCount: DEFAULT_PLAYER_COUNT,
   handRhythmGridSize: DEFAULT_HAND_RHYTHM_GRID_SIZE,
+  showHandRhythmFloor: true,
   threshold: DEFAULT_THRESHOLD,
   cameraMirrored: DEFAULT_CAMERA_MIRRORED,
   cameraPreviewVisibility: {
@@ -183,6 +185,8 @@ export function readStoredAppPreferences(): AppPreferences {
         : defaults.selectedMediaPipeDelegateId,
       playerCount: normalizePlayerCount(stored.playerCount),
       handRhythmGridSize: normalizeHandRhythmGridSize(stored.handRhythmGridSize),
+      showHandRhythmFloor:
+        typeof stored.showHandRhythmFloor === 'boolean' ? stored.showHandRhythmFloor : defaults.showHandRhythmFloor,
       threshold:
         typeof stored.threshold === 'number' && Number.isFinite(stored.threshold)
           ? Math.min(0.9, Math.max(0.1, stored.threshold))

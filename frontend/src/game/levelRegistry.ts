@@ -10,6 +10,7 @@ import { PLAYER_BASE_Y } from './gameConstants';
 import type { RunnerGameId } from './gameTypes';
 import {
   getHandRhythmPlayerMotion,
+  type HandRhythmCell,
   type HandRhythmGridSize,
 } from './levels/handRhythmLevel';
 import {
@@ -29,6 +30,7 @@ export type LevelPlayerMotion = {
   pose: PoseInput | null;
   gesture: string | null;
   jumpDuckCell: JumpDuckCell | null;
+  handRhythmCell?: HandRhythmCell;
   emojiWorldX?: number;
   emojiWorldY?: number;
 };
@@ -152,6 +154,7 @@ export const RUNNER_LEVELS: readonly RunnerLevelDefinition[] = [
         pose: null,
         gesture: motion.gesture,
         jumpDuckCell: null,
+        handRhythmCell: motion.cell,
         emojiWorldX: motion.emojiWorldX,
         emojiWorldY: motion.emojiWorldY,
       };

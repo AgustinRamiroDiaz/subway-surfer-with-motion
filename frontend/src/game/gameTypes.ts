@@ -76,6 +76,7 @@ export type TrackWorld = {
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGLRenderer;
   players: PlayerAvatar[];
+  updateHandRhythmGrid: (cells: Array<HandRhythmCell | undefined>) => void;
   dispose: () => void;
 };
 

@@ -39,6 +39,7 @@ import {
   type JumpDuckCalibrationState,
 } from './levels/jumpDuckLevel';
 import {
+  type HandRhythmCell,
   type HandRhythmGridSize,
   getHandRhythmPlayerMotion,
   GESTURE_TO_EMOJI,
@@ -54,6 +55,7 @@ type GameSceneProps = {
   phase: GamePhase;
   playerCount: number;
   handRhythmGridSize: HandRhythmGridSize;
+  showHandRhythmFloor: boolean;
   gameplayInputRef: React.RefObject<GameplayInputFrame>;
   selectedGameId: RunnerGameId;
   onJumpDuckGuidesChange: (guides: JumpDuckGuide[]) => void;
@@ -109,6 +111,7 @@ export function GameScene({
   phase,
   playerCount,
   handRhythmGridSize,
+  showHandRhythmFloor,
   gameplayInputRef,
   selectedGameId,
   onJumpDuckGuidesChange,
@@ -190,7 +193,8 @@ export function GameScene({
       initialPositions,
       selectedGameId,
       selectedLevel.camera,
-      handRhythmGridSize
+      handRhythmGridSize,
+      showHandRhythmFloor
     );
     const obstacleSystem = createObstacleSystem(
       world.scene,
@@ -250,6 +254,7 @@ export function GameScene({
 
       const delta = simulationStep.deltaSeconds;
       const inputFrame = gameplayInputRef.current;
+      const handRhythmCells: Array<HandRhythmCell | undefined> = [];
 
       world.players.forEach((player, index) => {
         const motion = activeLevel.getPlayerMotion({
@@ -260,6 +265,9 @@ export function GameScene({
           handRhythmGridSize,
         });
         const isHandRhythm = activeLevel.inputKind === 'gesture';
+        if (isHandRhythm) {
+          handRhythmCells[index] = motion.handRhythmCell;
+        }
 
         // Toggle visibility based on game mode
         if (player.gestureSprite) {
@@ -305,6 +313,10 @@ export function GameScene({
           applyMarkerPose(player, motion.pose);
         }
       });
+
+      if (activeLevel.inputKind === 'gesture') {
+        world.updateHandRhythmGrid(handRhythmCells);
+      }
 
       if (isCalibrating) {
         const calibrationUpdate = updateJumpDuckCalibration(
@@ -443,7 +455,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [gameplayInputRef, handRhythmGridSize, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, selectedLevel.camera, selectedLevel.spawnIntervalMs, videoAspectRatio]);
+  }, [gameplayInputRef, handRhythmGridSize, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, selectedLevel.camera, selectedLevel.spawnIntervalMs, showHandRhythmFloor, videoAspectRatio]);
 
   return (
     <div

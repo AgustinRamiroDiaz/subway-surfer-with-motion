@@ -27,7 +27,8 @@ export type AppPreferencesAction =
   | { type: 'cameraMirrorChanged'; mirrored: boolean }
   | { type: 'cameraPreviewChanged'; visible: boolean }
   | { type: 'detectionOverlayChanged'; visible: boolean }
-  | { type: 'handRhythmGridChanged'; gridSize: HandRhythmGridSize };
+  | { type: 'handRhythmGridChanged'; gridSize: HandRhythmGridSize }
+  | { type: 'handRhythmFloorChanged'; visible: boolean };
 
 export function appPreferencesReducer(
   preferences: AppPreferences,
@@ -108,6 +109,10 @@ export function appPreferencesReducer(
       return action.gridSize === preferences.handRhythmGridSize
         ? preferences
         : { ...preferences, handRhythmGridSize: action.gridSize };
+    case 'handRhythmFloorChanged':
+      return action.visible === preferences.showHandRhythmFloor
+        ? preferences
+        : { ...preferences, showHandRhythmFloor: action.visible };
   }
 }
 

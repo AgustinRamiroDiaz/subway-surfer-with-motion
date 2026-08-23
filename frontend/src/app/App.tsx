@@ -229,6 +229,7 @@ function MotionRunnerApp(): ReactElement {
               phase={gamePhase}
               playerCount={preferences.playerCount}
               handRhythmGridSize={preferences.handRhythmGridSize}
+              showHandRhythmFloor={preferences.showHandRhythmFloor}
               gameplayInputRef={detector.gameplayInputRef}
               selectedGameId={preferences.selectedRunnerGameId}
               videoAspectRatio={videoAspectRatio}
@@ -313,6 +314,7 @@ function MotionRunnerApp(): ReactElement {
             onModelChange={handleModelChange}
             onPlayerCountChange={handlePlayerCountChange}
             onHandRhythmGridSizeChange={(gridSize) => dispatchPreferences({ type: 'handRhythmGridChanged', gridSize })}
+            onHandRhythmFloorChange={(visible) => dispatchPreferences({ type: 'handRhythmFloorChanged', visible })}
             onQuantizationChange={handleQuantizationChange}
             onRuntimeChange={handleRuntimeChange}
             onStopCamera={handleStopCamera}
