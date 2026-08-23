@@ -32,11 +32,47 @@ import { CameraFeedbackPanel } from '../ui/CameraFeedbackPanel';
 import { DetectionControls } from '../ui/DetectionControls';
 import type { GamePhase, RunnerGameId } from '../game/gameTypes';
 import type { WorldProjection } from '../game/GameScene';
-import { getRunnerLevel, RUNNER_LEVELS } from '../game/levelRegistry';
+import { getRunnerLevel } from '../game/levelRegistry';
 import { useI18n } from './i18n';
 import { useCameraController } from '../hooks/useCameraController';
 import { useMotionDetector } from '../hooks/useMotionDetector';
 import '../App.css';
+
+type LevelBoardMetadata = {
+  id: RunnerGameId;
+  boardTitleKey: 'home.sidewaysTitle' | 'home.jumpDuckTitle' | 'home.handRhythmTitle';
+  boardBodyKey: 'home.sidewaysBody' | 'home.jumpDuckBody' | 'home.handRhythmBody';
+  inputLabelKey: 'home.poseInput' | 'home.gestureInput';
+  setupLabelKey: 'home.quickStart' | 'home.calibration';
+  marker: string;
+};
+
+const LEVEL_BOARD_METADATA: readonly LevelBoardMetadata[] = [
+  {
+    id: 'sideways',
+    boardTitleKey: 'home.sidewaysTitle',
+    boardBodyKey: 'home.sidewaysBody',
+    inputLabelKey: 'home.poseInput',
+    setupLabelKey: 'home.quickStart',
+    marker: '01',
+  },
+  {
+    id: 'jump-duck',
+    boardTitleKey: 'home.jumpDuckTitle',
+    boardBodyKey: 'home.jumpDuckBody',
+    inputLabelKey: 'home.poseInput',
+    setupLabelKey: 'home.calibration',
+    marker: '02',
+  },
+  {
+    id: 'hand-rhythm',
+    boardTitleKey: 'home.handRhythmTitle',
+    boardBodyKey: 'home.handRhythmBody',
+    inputLabelKey: 'home.gestureInput',
+    setupLabelKey: 'home.quickStart',
+    marker: '03',
+  },
+] as const;
 
 const GameScene = lazy(async () => {
   const module = await import('../game/GameScene');
@@ -49,6 +85,83 @@ const TrackingInternalsDocs = lazy(async () => {
 
 function LoadingRegion(): ReactElement {
   return <div aria-busy="true" className="loading-region" />;
+}
+
+function LevelBoard({
+  disabled,
+  isLoading,
+  selectedGameId,
+  startLabel,
+  onSelectGame,
+  onStartRun,
+}: {
+  disabled: boolean;
+  isLoading: boolean;
+  selectedGameId: RunnerGameId;
+  startLabel: string;
+  onSelectGame: (gameId: RunnerGameId) => void;
+  onStartRun: () => void;
+}): ReactElement {
+  const { t } = useI18n();
+  const selectedMetadata = LEVEL_BOARD_METADATA.find((item) => item.id === selectedGameId) ?? LEVEL_BOARD_METADATA[0];
+
+  return (
+    <section className="home-board" aria-label={t('home.menu')}>
+      <div className="home-board-header">
+        <p className="eyebrow">{t('home.eyebrow')}</p>
+        <h1>{t('home.title')}</h1>
+        <p>{t('home.subtitle')}</p>
+      </div>
+
+      <div className="level-card-grid" aria-label={t('game.modeSelector')}>
+        {LEVEL_BOARD_METADATA.map((level) => {
+          const selected = level.id === selectedGameId;
+          return (
+            <button
+              key={level.id}
+              type="button"
+              className={`level-card level-card-${level.id}${selected ? ' selected' : ''}`}
+              aria-label={t(getRunnerLevel(level.id).modeLabelKey)}
+              aria-current={selected ? 'true' : undefined}
+              aria-pressed={selected}
+              onClick={() => onSelectGame(level.id)}
+            >
+              <span className="level-card-marker" aria-hidden="true">{level.marker}</span>
+              <span className="level-card-art" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+              <span className="level-card-copy">
+                <span className="level-card-kicker">{t(level.inputLabelKey)}</span>
+                <strong>{t(level.boardTitleKey)}</strong>
+                <span>{t(level.boardBodyKey)}</span>
+              </span>
+              <span className="level-card-footer">
+                <span>{t(level.setupLabelKey)}</span>
+                <span>{selected ? t('home.selected') : t('home.select')}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="home-board-actions">
+        <div>
+          <span>{t('home.selectedLevel')}</span>
+          <strong>{t(selectedMetadata.boardTitleKey)}</strong>
+        </div>
+        <button
+          className="primary-action"
+          type="button"
+          disabled={disabled}
+          onClick={onStartRun}
+        >
+          {isLoading ? t('app.loadingModel') : startLabel}
+        </button>
+      </div>
+    </section>
+  );
 }
 
 function App(): ReactElement {
@@ -223,7 +336,10 @@ function MotionRunnerApp(): ReactElement {
   return (
     <main className="app-shell">
       <section className="workspace" aria-label={t('app.workspace')}>
-        <section className="game-stage" aria-label={t('app.mainGame')}>
+        <section
+          className={`game-stage${gamePhase !== 'running' ? ' game-stage-home' : ''}`}
+          aria-label={t('app.mainGame')}
+        >
           <Suspense fallback={<LoadingRegion />}>
             <GameScene
               phase={gamePhase}
@@ -237,6 +353,16 @@ function MotionRunnerApp(): ReactElement {
               onWorldProjectionChange={setWorldProjection}
             />
           </Suspense>
+          {gamePhase !== 'running' ? (
+            <LevelBoard
+              disabled={detector.isLoading}
+              isLoading={detector.isLoading}
+              selectedGameId={preferences.selectedRunnerGameId}
+              startLabel={startLabel}
+              onSelectGame={handleGameSelection}
+              onStartRun={handleStartRun}
+            />
+          ) : null}
           <CameraFeedbackPanel
             cameraEnabled={camera.cameraEnabled}
             cameraMirrored={preferences.cameraMirrored}
@@ -262,18 +388,9 @@ function MotionRunnerApp(): ReactElement {
               <span className="camera-readiness-dot" aria-hidden="true" />
               <span>{cameraReadiness.label}</span>
             </div>
-            <div className="game-mode-selector" aria-label={t('game.modeSelector')}>
-              {RUNNER_LEVELS.map((level) => (
-                <button
-                  key={level.id}
-                  type="button"
-                  className={preferences.selectedRunnerGameId === level.id ? 'active' : ''}
-                  aria-pressed={preferences.selectedRunnerGameId === level.id}
-                  onClick={() => handleGameSelection(level.id)}
-                >
-                  {t(level.modeLabelKey)}
-                </button>
-              ))}
+            <div className="selected-level-summary">
+              <span>{t('home.selectedLevel')}</span>
+              <strong>{t(getRunnerLevel(preferences.selectedRunnerGameId).titleKey)}</strong>
             </div>
             <div className="run-controls">
               <button
