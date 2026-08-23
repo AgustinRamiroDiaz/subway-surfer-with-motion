@@ -13,6 +13,7 @@ Subway Surfer with Motion is a React/Vite motion-controlled runner game. The fro
 - `frontend/src/poseOverlay.ts`: camera overlay drawing and player-position assignment.
 - `frontend/src/DetectionControls.tsx`: detector controls and advanced settings.
 - `frontend/src/CameraFeedbackPanel.tsx`: camera preview, overlay, and position guides.
+- `docs/spec/`: user-facing behavior specs for the app and minigames.
 
 ## Commands
 
@@ -31,6 +32,8 @@ Run from the repository root:
 - The game supports two players. MediaPipe must keep `numPoses: 2`; YOLO can return multiple detections naturally.
 - Player positions are normalized values from `0` to `1`. They should drive gameplay and camera markers, but avoid showing raw percentages in the game HUD.
 - Camera mirroring is a display preference and is accounted for when assigning player positions.
+- Keep `docs/spec/` aligned with the code. Any change to user-facing app behavior, controls, game rules, scoring, calibration, camera feedback, or minigames should update the relevant spec in the same change.
+- Specs in `docs/spec/` should describe observable behavior and product rules. Do not include implementation details such as frameworks, rendering libraries, detector libraries, build tools, or internal module names.
 - Tests live next to source files as `*.test.ts` or `*.test.tsx`.
 
 ## Verification
