@@ -50,10 +50,14 @@ describe('lane-based player layout', () => {
       gesture: 'Victory',
       normalizedX: 0.25,
       normalizedY: 0.2,
+      normalizedWidth: 0.1,
+      normalizedHeight: 0.2,
     }, 0, 1, 3);
 
     expect(motion.emojiWorldX).toBeCloseTo(positionToWorldX(0.25));
     expect(motion.emojiWorldY).toBeCloseTo(3.35 - 0.2 * (3.35 - 0.55));
+    expect(motion.emojiWorldWidth).toBeCloseTo(0.72);
+    expect(motion.emojiWorldHeight).toBeCloseTo(0.56);
     expect(motion.targetX).not.toBe(motion.emojiWorldX);
   });
 

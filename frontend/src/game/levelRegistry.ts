@@ -33,6 +33,8 @@ export type LevelPlayerMotion = {
   handRhythmCell?: HandRhythmCell;
   emojiWorldX?: number;
   emojiWorldY?: number;
+  emojiWorldWidth?: number;
+  emojiWorldHeight?: number;
 };
 
 export type LevelPlayerMotionContext = {
@@ -157,6 +159,8 @@ export const RUNNER_LEVELS: readonly RunnerLevelDefinition[] = [
         handRhythmCell: motion.cell,
         emojiWorldX: motion.emojiWorldX,
         emojiWorldY: motion.emojiWorldY,
+        emojiWorldWidth: motion.emojiWorldWidth,
+        emojiWorldHeight: motion.emojiWorldHeight,
       };
     },
   },

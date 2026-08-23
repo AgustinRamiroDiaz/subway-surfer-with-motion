@@ -277,6 +277,15 @@ export function updatePlayerGestureEmojiPosition(player: PlayerAvatar, worldX: n
   player.gestureSprite.position.y = worldY - player.root.position.y;
 }
 
+export function updatePlayerGestureEmojiSize(player: PlayerAvatar, worldWidth: number, worldHeight: number): void {
+  if (!player.gestureSprite) {
+    return;
+  }
+
+  const uniformSize = Math.min(worldWidth, worldHeight);
+  player.gestureSprite.scale.setScalar(uniformSize);
+}
+
 export function createFallbackPlayer(index: number): PlayerAvatar {
   const root = new THREE.Group();
   const fallback = new THREE.Mesh(

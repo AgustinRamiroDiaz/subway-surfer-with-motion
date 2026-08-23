@@ -45,6 +45,8 @@ export type HandRhythmPlayerMotion = {
   cell: HandRhythmCell;
   emojiWorldX: number;
   emojiWorldY: number;
+  emojiWorldWidth: number;
+  emojiWorldHeight: number;
 };
 
 export function getHandRhythmCell(
@@ -95,6 +97,8 @@ export function getHandRhythmPlayerMotion(
       cell: { row: 1, column: 1 },
       emojiWorldX: targetX,
       emojiWorldY: HAND_RHYTHM_ROW_Y[1],
+      emojiWorldWidth: 1.1,
+      emojiWorldHeight: 1.1,
     };
   }
 
@@ -108,5 +112,7 @@ export function getHandRhythmPlayerMotion(
     cell,
     emojiWorldX: positionToWorldX(hand.normalizedX),
     emojiWorldY: HAND_RHYTHM_ROW_Y[0] - hand.normalizedY * (HAND_RHYTHM_ROW_Y[0] - HAND_RHYTHM_ROW_Y[2]),
+    emojiWorldWidth: Math.max(0.35, (hand.normalizedWidth ?? 0.15) * handRhythmPlayerWidth(playerCount)),
+    emojiWorldHeight: Math.max(0.35, (hand.normalizedHeight ?? 0.15) * (HAND_RHYTHM_ROW_Y[0] - HAND_RHYTHM_ROW_Y[2])),
   };
 }

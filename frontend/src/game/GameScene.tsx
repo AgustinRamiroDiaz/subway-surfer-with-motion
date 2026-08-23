@@ -46,7 +46,7 @@ import {
 } from './levels/handRhythmLevel';
 import { getRunnerLevel } from './levelRegistry';
 import { createObstacleSystem } from './obstacles';
-import { applyMarkerPose, disposeObject, getPoseAnimationState, updatePlayerGestureEmoji, updatePlayerGestureEmojiPosition } from './playerAvatar';
+import { applyMarkerPose, disposeObject, getPoseAnimationState, updatePlayerGestureEmoji, updatePlayerGestureEmojiPosition, updatePlayerGestureEmojiSize } from './playerAvatar';
 import { createTrackWorld } from './trackWorld';
 
 export type { GamePhase };
@@ -305,8 +305,16 @@ export function GameScene({
         player.root.rotation.y = THREE.MathUtils.lerp(player.root.rotation.y, poseState.turn * 0.45, 0.16);
         player.fallback.rotation.y += delta * (2 + index * 0.35);
 
-        if (isHandRhythm && player.gestureSprite && motion.emojiWorldX !== undefined && motion.emojiWorldY !== undefined) {
+        if (
+          isHandRhythm &&
+          player.gestureSprite &&
+          motion.emojiWorldX !== undefined &&
+          motion.emojiWorldY !== undefined &&
+          motion.emojiWorldWidth !== undefined &&
+          motion.emojiWorldHeight !== undefined
+        ) {
           updatePlayerGestureEmojiPosition(player, motion.emojiWorldX, motion.emojiWorldY);
+          updatePlayerGestureEmojiSize(player, motion.emojiWorldWidth, motion.emojiWorldHeight);
         }
         
         if (!isHandRhythm) {

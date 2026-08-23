@@ -65,7 +65,7 @@ Each player has a section of the camera view. The selected grid size divides eac
 - A 2 by 2 grid.
 - A 3 by 3 grid.
 
-The player avatar follows the detected hand cell in that player's section. The player's visible hand marker uses the emoji for the currently recognized gesture. If no hand is detected, the player stays in the center cell and shows an unknown gesture.
+The player avatar follows the detected hand cell in that player's section. The player's visible hand marker uses the emoji for the currently recognized gesture and is sized to the detected hand. If no hand is detected, the player stays in the center cell and shows an unknown gesture at a fallback size.
 
 Targets appear as gesture prompts placed in grid cells. A target is assigned to one player, or sometimes to all configured players at once in separate cells. The player succeeds by making the prompted gesture while their detected hand is in the prompted cell as the target reaches the hit zone.
 

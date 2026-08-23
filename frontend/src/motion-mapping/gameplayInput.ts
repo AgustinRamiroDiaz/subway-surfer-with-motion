@@ -25,6 +25,8 @@ export type HandInput = {
   gesture: string;
   normalizedX: number;
   normalizedY: number;
+  normalizedWidth?: number;
+  normalizedHeight?: number;
 };
 
 export type PosePlayerInput = {
@@ -69,6 +71,8 @@ export function toHandInput(
     gesture: detection.gesture,
     normalizedX: ((detection.box.xmin + detection.box.xmax) / 2) / frameWidth,
     normalizedY: ((detection.box.ymin + detection.box.ymax) / 2) / frameHeight,
+    normalizedWidth: Math.max(0, (detection.box.xmax - detection.box.xmin) / frameWidth),
+    normalizedHeight: Math.max(0, (detection.box.ymax - detection.box.ymin) / frameHeight),
   };
 }
 

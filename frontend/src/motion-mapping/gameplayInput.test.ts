@@ -27,7 +27,13 @@ describe('gameplay input adapters', () => {
       box: { xmin: 50, ymin: 20, xmax: 150, ymax: 100 },
     }, 400, 200);
 
-    expect(hand).toEqual({ gesture: 'Victory', normalizedX: 0.25, normalizedY: 0.3 });
+  expect(hand).toEqual({
+    gesture: 'Victory',
+    normalizedX: 0.25,
+    normalizedY: 0.3,
+    normalizedWidth: 0.25,
+    normalizedHeight: 0.4,
+  });
   });
 
   test('creates task-specific empty frames', () => {
