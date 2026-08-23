@@ -67,6 +67,8 @@ export type PlayerAvatar = {
   fallback: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>;
   gestureSprite?: THREE.Sprite;
   gestureTexture?: THREE.CanvasTexture;
+  gestureSprites?: THREE.Sprite[];
+  gestureTextures?: THREE.CanvasTexture[];
   rig: PlayerRig | null;
   poseEnergy: number;
 };
@@ -79,7 +81,7 @@ export type TrackWorld = {
   players: PlayerAvatar[];
   render: () => void;
   resize: (width: number, height: number) => void;
-  updateHandRhythmGrid: (cells: Array<HandRhythmCell | undefined>) => void;
+  updateHandRhythmGrid: (cells: Array<HandRhythmCell[] | undefined>) => void;
   dispose: () => void;
 };
 

@@ -52,10 +52,20 @@ export function assignHandDetectionsToPlayerSections(
   cameraMirrored: boolean,
   playerCount = DEFAULT_PLAYER_COUNT
 ): Array<HandGestureDetection | null> {
+  return assignHandsToPlayerSections(detections, frameWidth, cameraMirrored, playerCount)
+    .map((playerHands) => playerHands[0] ?? null);
+}
+
+export function assignHandsToPlayerSections(
+  detections: HandGestureDetection[],
+  frameWidth: number,
+  cameraMirrored: boolean,
+  playerCount = DEFAULT_PLAYER_COUNT
+): HandGestureDetection[][] {
   const normalizedPlayerCount = normalizePlayerCount(playerCount);
-  const players: Array<HandGestureDetection | null> = Array.from(
+  const players: HandGestureDetection[][] = Array.from(
     { length: normalizedPlayerCount },
-    () => null
+    () => []
   );
 
   detections
@@ -69,7 +79,7 @@ export function assignHandDetectionsToPlayerSections(
         Math.max(0, Math.floor(displayPosition * normalizedPlayerCount))
       );
 
-      players[playerIndex] ??= detection;
+      players[playerIndex].push(detection);
     });
 
   return players;

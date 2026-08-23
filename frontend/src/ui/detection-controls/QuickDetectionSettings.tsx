@@ -20,6 +20,7 @@ type QuickDetectionSettingsProps = {
   onDetectionOverlayChange: (value: boolean) => void;
   onPlayerCountChange: (value: number) => void;
   onHandRhythmGridSizeChange: (value: 2 | 3) => void;
+  onHandRhythmDoubleTargetChanceChange: (value: number) => void;
   onHandRhythmFloorChange: (value: boolean) => void;
   onThresholdChange: (value: number) => void;
 };
@@ -36,6 +37,7 @@ export function QuickDetectionSettings({
   onDetectionOverlayChange,
   onPlayerCountChange,
   onHandRhythmGridSizeChange,
+  onHandRhythmDoubleTargetChanceChange,
   onHandRhythmFloorChange,
   onThresholdChange,
 }: QuickDetectionSettingsProps): ReactElement {
@@ -118,6 +120,19 @@ export function QuickDetectionSettings({
             label={<ControlHelpLabel help={t('controls.handRhythmFloorHelp')}>{t('controls.handRhythmFloor')}</ControlHelpLabel>}
             onChange={(event) => onHandRhythmFloorChange(event.currentTarget.checked)}
           />
+          <div className="double-target-control">
+            <ControlHelpLabel help={t('controls.handRhythmDoubleTargetChanceHelp')}>{t('controls.handRhythmDoubleTargetChance')}</ControlHelpLabel>
+            <strong>{formatPercent(preferences.handRhythmDoubleTargetChance)}</strong>
+            <Slider
+              thumbLabel={t('controls.handRhythmDoubleTargetChance')}
+              min={0}
+              max={1}
+              step={0.05}
+              value={preferences.handRhythmDoubleTargetChance}
+              label={(value) => formatPercent(value)}
+              onChange={onHandRhythmDoubleTargetChanceChange}
+            />
+          </div>
         </>
       )}
       <div className="threshold-control">

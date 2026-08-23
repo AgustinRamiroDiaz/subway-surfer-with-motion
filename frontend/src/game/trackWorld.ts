@@ -122,16 +122,17 @@ function createPlayerLaneMarkers(scene: THREE.Scene, playerCount: number): () =>
 
 type HandRhythmGrid = {
   outlines: THREE.LineSegments[];
-  activeOutlines: THREE.LineSegments[];
-  update: (cells: Array<HandRhythmCell | undefined>) => void;
+  activeGlows: THREE.LineSegments[];
+  update: (cells: Array<HandRhythmCell[] | undefined>) => void;
   dispose: () => void;
 };
 
 function createHandRhythmGrid(scene: THREE.Scene, playerCount: number, gridSize: HandRhythmGridSize): HandRhythmGrid {
   const outlines: THREE.LineSegments[] = [];
-  const activeOutlines: THREE.LineSegments[] = [];
+  const activeGlows: THREE.LineSegments[] = [];
   const outlineMaterials: THREE.LineBasicMaterial[] = [];
-  const activeOutlineMaterials: THREE.LineBasicMaterial[] = [];
+  const activeGlowMaterials: THREE.LineBasicMaterial[] = [];
+  const activeGlowLayers = 3;
   const cellWidth = handRhythmPlayerWidth(playerCount) / gridSize;
   const cellHeight = (HAND_RHYTHM_ROW_Y[0] - HAND_RHYTHM_ROW_Y[2]) / Math.max(1, gridSize - 1);
 
@@ -162,23 +163,23 @@ function createHandRhythmGrid(scene: THREE.Scene, playerCount: number, gridSize:
         scene.add(outline);
         outlines.push(outline);
         outlineMaterials.push(outlineMaterial);
-        const activeOutlineMaterial = new THREE.LineBasicMaterial({
+        for (let glowLayer = 0; glowLayer < activeGlowLayers; glowLayer += 1) {
+          const activeGlowMaterial = new THREE.LineBasicMaterial({
           color: playerIndex === 0 ? '#2fffb2' : '#66a3ff',
           transparent: true,
           opacity: 0,
-        });
-        const activeOutline = new THREE.LineSegments(
-          new THREE.EdgesGeometry(geometry),
-          activeOutlineMaterial
-        );
-        activeOutline.position.copy(position);
-        activeOutline.scale.setScalar(1.06);
-        if (playerCount > 1) {
-          activeOutline.layers.set(playerIndex + 1);
+          blending: THREE.AdditiveBlending,
+          });
+          const activeGlow = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), activeGlowMaterial);
+          activeGlow.position.copy(position);
+          activeGlow.scale.setScalar(1 + glowLayer * 0.035);
+          if (playerCount > 1) {
+            activeGlow.layers.set(playerIndex + 1);
+          }
+          scene.add(activeGlow);
+          activeGlows.push(activeGlow);
+          activeGlowMaterials.push(activeGlowMaterial);
         }
-        scene.add(activeOutline);
-        activeOutlines.push(activeOutline);
-        activeOutlineMaterials.push(activeOutlineMaterial);
         geometry.dispose();
       }
     }
@@ -186,23 +187,27 @@ function createHandRhythmGrid(scene: THREE.Scene, playerCount: number, gridSize:
 
   return {
     outlines,
-    activeOutlines,
+    activeGlows,
     update: (cells) => {
       outlineMaterials.forEach((material, index) => {
         const playerIndex = Math.floor(index / (gridSize * gridSize));
         material.color.set(playerIndex === 0 ? '#2fffb2' : '#66a3ff');
         material.opacity = 0.42;
       });
-      activeOutlineMaterials.forEach((material) => { material.opacity = 0; });
-      cells.forEach((cell, playerIndex) => {
-        if (!cell) return;
-        const material = outlineMaterials[playerIndex * gridSize * gridSize + cell.row * gridSize + cell.column];
-        if (material) {
-          material.color.set('#ffffff');
-          material.opacity = 1;
-        }
-        const activeMaterial = activeOutlineMaterials[playerIndex * gridSize * gridSize + cell.row * gridSize + cell.column];
-        if (activeMaterial) activeMaterial.opacity = 0.72;
+      activeGlowMaterials.forEach((material) => { material.opacity = 0; });
+      cells.forEach((playerCells, playerIndex) => {
+        playerCells?.forEach((cell) => {
+          const cellIndex = playerIndex * gridSize * gridSize + cell.row * gridSize + cell.column;
+          const material = outlineMaterials[cellIndex];
+          if (material) {
+            material.color.set('#ffffff');
+            material.opacity = 1;
+          }
+          for (let glowLayer = 0; glowLayer < activeGlowLayers; glowLayer += 1) {
+            const activeMaterial = activeGlowMaterials[cellIndex * activeGlowLayers + glowLayer];
+            if (activeMaterial) activeMaterial.opacity = [0.9, 0.28, 0.12][glowLayer] ?? 0.12;
+          }
+        });
       });
     },
     dispose: () => {
@@ -211,10 +216,10 @@ function createHandRhythmGrid(scene: THREE.Scene, playerCount: number, gridSize:
         outline.geometry.dispose();
         (Array.isArray(outline.material) ? outline.material : [outline.material]).forEach((material) => material.dispose());
       });
-      activeOutlines.forEach((outline) => {
-        scene.remove(outline);
-        outline.geometry.dispose();
-        (Array.isArray(outline.material) ? outline.material : [outline.material]).forEach((material) => material.dispose());
+      activeGlows.forEach((glow) => {
+        scene.remove(glow);
+        glow.geometry.dispose();
+        (Array.isArray(glow.material) ? glow.material : [glow.material]).forEach((material) => material.dispose());
       });
     },
   };

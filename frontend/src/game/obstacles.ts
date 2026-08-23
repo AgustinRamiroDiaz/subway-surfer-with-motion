@@ -220,6 +220,7 @@ export function createObstacleSystem(
   getGameId: () => RunnerGameId,
   getPlayerCount: () => number,
   getHandRhythmGridSize: () => HandRhythmGridSize = () => 3,
+  getHandRhythmDoubleTargetChance: () => number = () => 0.1,
   random: RandomSource = Math.random
 ): ObstacleSystem {
   const obstacles: ObstacleSystem['obstacles'] = [];
@@ -250,29 +251,30 @@ export function createObstacleSystem(
       const blockedCells = isJumpDuck
         ? toBlockedPlayerCells(obstacleCells)
         : [];
-      const gesture = isHandRhythm ? HAND_RHYTHM_GESTURES[randomIndex(HAND_RHYTHM_GESTURES.length, random)] : undefined;
-      const simultaneousHands = isHandRhythm && playerCount > 1 && random() < 0.45;
       const handTargetPlayers = isHandRhythm
-        ? simultaneousHands
-          ? Array.from({ length: playerCount }, (_, index) => index)
-          : [randomIndex(playerCount, random)]
+        ? getHandRhythmTargetPlayers(playerCount, getHandRhythmDoubleTargetChance(), random)
         : [];
       const handCells: HandRhythmCell[] = [];
       if (isHandRhythm) {
         const gridSize = getHandRhythmGridSize();
-        const availableCells = Array.from({ length: gridSize * gridSize }, (_, index) => ({
-          row: Math.floor(index / gridSize),
-          column: index % gridSize,
-        }));
-        while (handCells.length < handTargetPlayers.length && availableCells.length > 0) {
+        const availableCellsByPlayer = new Map<number, HandRhythmCell[]>();
+        handTargetPlayers.forEach((playerIndex) => {
+          const availableCells = availableCellsByPlayer.get(playerIndex) ?? Array.from({ length: gridSize * gridSize }, (_, index) => ({
+            row: Math.floor(index / gridSize),
+            column: index % gridSize,
+          }));
           const [cell] = availableCells.splice(randomIndex(availableCells.length, random), 1);
           if (cell) {
             handCells.push(cell);
           }
-        }
+          availableCellsByPlayer.set(playerIndex, availableCells);
+        });
       }
 
       const spawnObstacleForPlayer = (targetPlayerIndex: number | null, handCell?: HandRhythmCell): void => {
+        const gesture = isHandRhythm
+          ? HAND_RHYTHM_GESTURES[randomIndex(HAND_RHYTHM_GESTURES.length, random)]
+          : undefined;
         const handPosition = isHandRhythm && targetPlayerIndex !== null && handCell
           ? getHandRhythmCellWorldPosition(handCell, targetPlayerIndex, playerCount, getHandRhythmGridSize())
           : null;
@@ -324,4 +326,23 @@ export function createObstacleSystem(
       });
     },
   };
+}
+
+export function getHandRhythmTargetPlayers(
+  playerCount: number,
+  doubleTargetChance: number,
+  random: RandomSource = Math.random
+): number[] {
+  const count = Math.max(1, playerCount);
+  const chance = Math.min(1, Math.max(0, doubleTargetChance));
+  const targets: number[] = [];
+
+  for (let playerIndex = 0; playerIndex < count; playerIndex += 1) {
+    targets.push(playerIndex);
+    if (random() < chance) {
+      targets.push(playerIndex);
+    }
+  }
+
+  return targets;
 }

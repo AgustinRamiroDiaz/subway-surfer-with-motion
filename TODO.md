@@ -1,3 +1,20 @@
+# Remove all backwards compatible code
+
+# Rename the game and repo to webcam-motion-games
+
+# Dance Dance revolution with hands
+
+Inspirations:
+
+- guitar hero
+- dance dance revolution
+- beat saber
+- just dance
+
+## Add long hands (staying with the hand in the same place for a while)
+
+## Improve glow where hands are placed
+
 # Accessibility
 
 Allow configuring games so that they can be limited for certain people
@@ -15,24 +32,6 @@ Allow to move around prior to start playing
 ## Add low alpha body into the game scene for better estimation
 
 # New levels
-
-## Dance Dance revolution with hands
-
-Using hands in different places in the screen to hit the coming notes
-
-Ideas:
-
-- add hand posture recognition to use hand forms in each position
-- use 9 positions (3 by 3 grid)
-- get inspired from beat saber https://store.steampowered.com/app/620980/Beat_Saber/
-- add long hands (staying with the hand in the same place for a while)
-
-Inspirations:
-
-- guitar hero
-- dance dance revolution
-- beat saber
-- just dance
 
 ## Top down games
 

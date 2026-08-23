@@ -25,6 +25,7 @@ import { DEFAULT_PLAYER_COUNT, normalizePlayerCount } from '../motion-mapping/pl
 import type { RunnerGameId } from '../game/gameTypes';
 import {
   DEFAULT_HAND_RHYTHM_GRID_SIZE,
+  DEFAULT_HAND_RHYTHM_DOUBLE_TARGET_CHANCE,
   HAND_RHYTHM_GRID_SIZES,
   type HandRhythmGridSize,
 } from '../game/levels/handRhythmLevel';
@@ -51,6 +52,7 @@ export type AppPreferences = {
   selectedMediaPipeDelegateId: MediaPipeDelegateId;
   playerCount: number;
   handRhythmGridSize: HandRhythmGridSize;
+  handRhythmDoubleTargetChance: number;
   showHandRhythmFloor: boolean;
   threshold: number;
   cameraMirrored: boolean;
@@ -76,6 +78,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   selectedMediaPipeDelegateId: DEFAULT_MEDIAPIPE_DELEGATE_ID,
   playerCount: DEFAULT_PLAYER_COUNT,
   handRhythmGridSize: DEFAULT_HAND_RHYTHM_GRID_SIZE,
+  handRhythmDoubleTargetChance: DEFAULT_HAND_RHYTHM_DOUBLE_TARGET_CHANCE,
   showHandRhythmFloor: true,
   threshold: DEFAULT_THRESHOLD,
   cameraMirrored: DEFAULT_CAMERA_MIRRORED,
@@ -110,6 +113,12 @@ function normalizeHandRhythmGridSize(value: unknown): HandRhythmGridSize {
   return HAND_RHYTHM_GRID_SIZES.includes(value as HandRhythmGridSize)
     ? value as HandRhythmGridSize
     : DEFAULT_HAND_RHYTHM_GRID_SIZE;
+}
+
+function normalizeProbability(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(1, Math.max(0, value))
+    : fallback;
 }
 
 function normalizeCameraPreviewVisibility(
@@ -185,6 +194,10 @@ export function readStoredAppPreferences(): AppPreferences {
         : defaults.selectedMediaPipeDelegateId,
       playerCount: normalizePlayerCount(stored.playerCount),
       handRhythmGridSize: normalizeHandRhythmGridSize(stored.handRhythmGridSize),
+      handRhythmDoubleTargetChance: normalizeProbability(
+        stored.handRhythmDoubleTargetChance,
+        defaults.handRhythmDoubleTargetChance
+      ),
       showHandRhythmFloor:
         typeof stored.showHandRhythmFloor === 'boolean' ? stored.showHandRhythmFloor : defaults.showHandRhythmFloor,
       threshold:

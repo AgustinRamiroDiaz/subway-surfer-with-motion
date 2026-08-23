@@ -42,6 +42,7 @@ type DetectionControlsProps = {
   onModelChange: (value: YoloModelId) => void;
   onPlayerCountChange: (value: number) => void;
   onHandRhythmGridSizeChange: (value: 2 | 3) => void;
+  onHandRhythmDoubleTargetChanceChange: (value: number) => void;
   onHandRhythmFloorChange: (value: boolean) => void;
   onQuantizationChange: (value: DetectorQuantizationId) => void;
   onRuntimeChange: (value: DetectorRuntimeId) => void;
@@ -73,6 +74,7 @@ export function DetectionControls({
   onModelChange,
   onPlayerCountChange,
   onHandRhythmGridSizeChange,
+  onHandRhythmDoubleTargetChanceChange,
   onHandRhythmFloorChange,
   onQuantizationChange,
   onRuntimeChange,
@@ -105,6 +107,7 @@ export function DetectionControls({
         onDetectionOverlayChange={onDetectionOverlayChange}
         onPlayerCountChange={onPlayerCountChange}
         onHandRhythmGridSizeChange={onHandRhythmGridSizeChange}
+        onHandRhythmDoubleTargetChanceChange={onHandRhythmDoubleTargetChanceChange}
         onHandRhythmFloorChange={onHandRhythmFloorChange}
         onThresholdChange={onThresholdChange}
       />

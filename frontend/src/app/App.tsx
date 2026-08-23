@@ -347,6 +347,7 @@ function MotionRunnerApp(): ReactElement {
               phase={gamePhase}
               playerCount={preferences.playerCount}
               handRhythmGridSize={preferences.handRhythmGridSize}
+              handRhythmDoubleTargetChance={preferences.handRhythmDoubleTargetChance}
               showHandRhythmFloor={preferences.showHandRhythmFloor}
               gameplayInputRef={detector.gameplayInputRef}
               selectedGameId={preferences.selectedRunnerGameId}
@@ -437,6 +438,7 @@ function MotionRunnerApp(): ReactElement {
             onModelChange={handleModelChange}
             onPlayerCountChange={handlePlayerCountChange}
             onHandRhythmGridSizeChange={(gridSize) => dispatchPreferences({ type: 'handRhythmGridChanged', gridSize })}
+            onHandRhythmDoubleTargetChanceChange={(chance) => dispatchPreferences({ type: 'handRhythmDoubleTargetChanceChanged', chance })}
             onHandRhythmFloorChange={(visible) => dispatchPreferences({ type: 'handRhythmFloorChanged', visible })}
             onQuantizationChange={handleQuantizationChange}
             onRuntimeChange={handleRuntimeChange}

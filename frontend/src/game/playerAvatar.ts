@@ -250,8 +250,8 @@ export function applyMarkerPose(player: PlayerAvatar, pose: PoseInput | null): v
   pointBoneAtMarkerSegment(rig, 'LowerLegR', rightLowerLeg, 0.35);
 }
 
-export function updatePlayerGestureEmoji(player: PlayerAvatar, emoji: string): void {
-  const texture = player.gestureTexture;
+export function updatePlayerGestureEmoji(player: PlayerAvatar, emoji: string, handIndex = 0): void {
+  const texture = player.gestureTextures?.[handIndex] ?? player.gestureTexture;
   const canvas = texture?.image;
   if (!canvas || !(canvas instanceof HTMLCanvasElement)) {
     return;
@@ -268,22 +268,24 @@ export function updatePlayerGestureEmoji(player: PlayerAvatar, emoji: string): v
   }
 }
 
-export function updatePlayerGestureEmojiPosition(player: PlayerAvatar, worldX: number, worldY: number): void {
-  if (!player.gestureSprite) {
+export function updatePlayerGestureEmojiPosition(player: PlayerAvatar, worldX: number, worldY: number, handIndex = 0): void {
+  const sprite = player.gestureSprites?.[handIndex] ?? player.gestureSprite;
+  if (!sprite) {
     return;
   }
 
-  player.gestureSprite.position.x = worldX - player.root.position.x;
-  player.gestureSprite.position.y = worldY - player.root.position.y;
+  sprite.position.x = worldX - player.root.position.x;
+  sprite.position.y = worldY - player.root.position.y;
 }
 
-export function updatePlayerGestureEmojiSize(player: PlayerAvatar, worldWidth: number, worldHeight: number): void {
-  if (!player.gestureSprite) {
+export function updatePlayerGestureEmojiSize(player: PlayerAvatar, worldWidth: number, worldHeight: number, handIndex = 0): void {
+  const sprite = player.gestureSprites?.[handIndex] ?? player.gestureSprite;
+  if (!sprite) {
     return;
   }
 
   const uniformSize = Math.min(worldWidth, worldHeight);
-  player.gestureSprite.scale.setScalar(uniformSize);
+  sprite.scale.setScalar(uniformSize);
 }
 
 export function createFallbackPlayer(index: number): PlayerAvatar {
@@ -306,18 +308,28 @@ export function createFallbackPlayer(index: number): PlayerAvatar {
   canvas.width = 128;
   canvas.height = 128;
   const texture = new THREE.CanvasTexture(canvas);
-  const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
-  const gestureSprite = new THREE.Sprite(spriteMaterial);
-  gestureSprite.scale.set(2, 2, 1);
-  gestureSprite.position.y = 0;
-  gestureSprite.visible = false;
-  root.add(gestureSprite);
+  const gestureTextures = [texture];
+  const gestureSprites = [new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }))];
+  const secondCanvas = document.createElement('canvas');
+  secondCanvas.width = 128;
+  secondCanvas.height = 128;
+  const secondTexture = new THREE.CanvasTexture(secondCanvas);
+  gestureTextures.push(secondTexture);
+  gestureSprites.push(new THREE.Sprite(new THREE.SpriteMaterial({ map: secondTexture, transparent: true })));
+  gestureSprites.forEach((sprite) => {
+    sprite.scale.set(2, 2, 1);
+    sprite.position.y = 0;
+    sprite.visible = false;
+    root.add(sprite);
+  });
 
   return {
     root,
     fallback,
-    gestureSprite,
+    gestureSprite: gestureSprites[0],
     gestureTexture: texture,
+    gestureSprites,
+    gestureTextures,
     rig: null,
     poseEnergy: 0.55,
   };

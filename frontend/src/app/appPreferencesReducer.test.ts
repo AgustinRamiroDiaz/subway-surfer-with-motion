@@ -44,4 +44,16 @@ describe('appPreferencesReducer', () => {
     expect(getDetectorConfigurationKey(localChanged)).toBe(getDetectorConfigurationKey(DEFAULT_APP_PREFERENCES));
     expect(getDetectorConfigurationKey(remoteChanged)).not.toBe(getDetectorConfigurationKey(remote));
   });
+
+  test('stores and clamps the Hand Rhythm double-target chance', () => {
+    expect(DEFAULT_APP_PREFERENCES.handRhythmDoubleTargetChance).toBe(0.1);
+    expect(appPreferencesReducer(DEFAULT_APP_PREFERENCES, {
+      type: 'handRhythmDoubleTargetChanceChanged',
+      chance: 0.35,
+    }).handRhythmDoubleTargetChance).toBe(0.35);
+    expect(appPreferencesReducer(DEFAULT_APP_PREFERENCES, {
+      type: 'handRhythmDoubleTargetChanceChanged',
+      chance: 2,
+    }).handRhythmDoubleTargetChance).toBe(1);
+  });
 });

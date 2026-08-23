@@ -5,7 +5,7 @@ import { createCameraFrame } from '../pose-detection/detectionSchema';
 import { isStaleDetectorResultError } from '../pose-detection/detectorClient';
 import { useI18n } from '../app/i18n';
 import {
-  assignHandDetectionsToPlayerSections,
+  assignHandsToPlayerSections,
   getDefaultPlayerPositions,
 } from '../motion-mapping/playerPositions';
 import {
@@ -16,6 +16,7 @@ import { drawDetections } from '../motion-mapping/poseOverlay';
 import {
   createEmptyGameplayInputFrame,
   toHandInput,
+  type HandInput,
   toPoseInput,
   type GameplayInputFrame,
 } from '../motion-mapping/gameplayInput';
@@ -163,25 +164,27 @@ export function useMotionDetector({
     if (sorted.length > 0 && sorted[0].label === 'hand') {
       const playerCount = activePreferences.playerCount;
       const handDetections = sorted.filter((detection): detection is HandGestureDetection => detection.label === 'hand');
-      const assignedHandDetections = assignHandDetectionsToPlayerSections(
+      const assignedHandDetections = assignHandsToPlayerSections(
         handDetections,
         frameWidth,
         activePreferences.cameraMirrored,
         playerCount
-      ).map((detection) => detection && activePreferences.cameraMirrored
+      ).map((detections) => detections.map((detection) => activePreferences.cameraMirrored
         ? mirrorDetection(detection, frameWidth)
-        : detection);
-      const assignedHands = assignedHandDetections.map((detection) =>
-        detection ? toHandInput(detection, result.frame.width, result.frame.height) : null
+        : detection));
+      const assignedHands = assignedHandDetections.map((detections) =>
+        detections
+          .map((detection) => toHandInput(detection, result.frame.width, result.frame.height))
+          .filter((hand): hand is HandInput => hand !== null)
       );
 
       publishPlayerState(
         getDefaultPlayerPositions(playerCount),
-        assignedHandDetections
+        assignedHandDetections.map((detections) => detections[0] ?? null)
       );
       gameplayInputRef.current = {
         kind: 'gesture',
-        players: assignedHands.map((hand) => ({ hand })),
+        players: assignedHands.map((hands) => ({ hand: hands[0] ?? null, hands })),
       };
       
       const drawStartedAt = performance.now();

@@ -32,6 +32,11 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+export function getGestureHandLimit(playerCount: number): number {
+  const normalizedPlayerCount = Number.isFinite(playerCount) ? Math.round(playerCount) : 1;
+  return Math.max(1, normalizedPlayerCount * 2);
+}
+
 function boxFromLandmarks(
   landmarks: Array<{ x: number; y: number }>,
   width: number,
@@ -68,7 +73,7 @@ export async function loadMediaPipeGestureDetector(options: DetectorLoadOptions)
       delegate: options.mediaPipeDelegate,
     },
     runningMode: 'VIDEO',
-    numHands: options.playerCount,
+    numHands: getGestureHandLimit(options.playerCount),
     minHandDetectionConfidence: initialThreshold,
     minHandPresenceConfidence: initialThreshold,
     minTrackingConfidence: initialThreshold,
@@ -87,7 +92,7 @@ export async function loadMediaPipeGestureDetector(options: DetectorLoadOptions)
         minHandDetectionConfidence: detectorOptions.threshold,
         minHandPresenceConfidence: detectorOptions.threshold,
         minTrackingConfidence: detectorOptions.threshold,
-        numHands: options.playerCount,
+        numHands: getGestureHandLimit(options.playerCount),
         runningMode: 'VIDEO',
       });
       appliedThreshold = detectorOptions.threshold;

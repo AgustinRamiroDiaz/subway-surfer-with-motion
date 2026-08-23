@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import * as THREE from 'three';
 import { useI18n } from '../app/i18n';
@@ -59,6 +60,7 @@ type GameSceneProps = {
   phase: GamePhase;
   playerCount: number;
   handRhythmGridSize: HandRhythmGridSize;
+  handRhythmDoubleTargetChance: number;
   showHandRhythmFloor: boolean;
   gameplayInputRef: React.RefObject<GameplayInputFrame>;
   selectedGameId: RunnerGameId;
@@ -123,6 +125,7 @@ export function GameScene({
   phase,
   playerCount,
   handRhythmGridSize,
+  handRhythmDoubleTargetChance,
   showHandRhythmFloor,
   gameplayInputRef,
   selectedGameId,
@@ -223,8 +226,9 @@ export function GameScene({
     const obstacleSystem = createObstacleSystem(
       world.scene,
       () => selectedGameIdRef.current,
-      () => gameplayInputRef.current.players.length,
-      () => handRhythmGridSize
+      () => playerCount,
+      () => handRhythmGridSize,
+      () => handRhythmDoubleTargetChance
     );
 
     const resize = (): void => {
@@ -282,7 +286,7 @@ export function GameScene({
 
       const delta = simulationStep.deltaSeconds;
       const inputFrame = gameplayInputRef.current;
-      const handRhythmCells: Array<HandRhythmCell | undefined> = [];
+      const handRhythmCells: Array<HandRhythmCell[] | undefined> = [];
 
       world.players.forEach((player, index) => {
         const motion = activeLevel.getPlayerMotion({
@@ -293,14 +297,17 @@ export function GameScene({
           handRhythmGridSize,
         });
         const isHandRhythm = activeLevel.inputKind === 'gesture';
+        const playerHands = inputFrame.kind === 'gesture'
+          ? inputFrame.players[index]?.hands ?? [inputFrame.players[index]?.hand ?? null]
+          : [];
         if (isHandRhythm) {
-          handRhythmCells[index] = motion.handRhythmCell;
+          handRhythmCells[index] = playerHands
+            .filter((hand): hand is NonNullable<typeof hand> => hand !== null)
+            .map((hand) => getHandRhythmPlayerMotion(hand, index, world.players.length, handRhythmGridSize).cell);
         }
-
-        // Toggle visibility based on game mode
-        if (player.gestureSprite) {
-          player.gestureSprite.visible = isHandRhythm;
-        }
+        player.gestureSprites?.forEach((sprite, handIndex) => {
+          sprite.visible = isHandRhythm && playerHands[handIndex] !== null && playerHands[handIndex] !== undefined;
+        });
         player.fallback.visible = !isHandRhythm && !player.rig;
         if (player.rig) {
           // Find the 3D model (children with pose-driven-player prefix)
@@ -310,17 +317,31 @@ export function GameScene({
             }
           });
         }
-
         const poseState = getPoseAnimationState(motion.pose);
         if (motion.jumpDuckCell) {
           jumpDuckActionsRef.current[index] = motion.jumpDuckCell;
         }
 
-        if (motion.gesture) {
+        if (isHandRhythm) {
+          playerHands.slice(0, player.gestureSprites?.length ?? 1).forEach((hand, handIndex) => {
+            if (!hand) {
+              return;
+            }
+            const handMotion = getHandRhythmPlayerMotion(
+              hand,
+              index,
+              world.players.length,
+              handRhythmGridSize
+            );
+            const emoji = GESTURE_TO_EMOJI[hand.gesture] ?? GESTURE_TO_EMOJI['None'];
+            updatePlayerGestureEmoji(player, emoji, handIndex);
+            updatePlayerGestureEmojiPosition(player, handMotion.emojiWorldX, handMotion.emojiWorldY, handIndex);
+            updatePlayerGestureEmojiSize(player, handMotion.emojiWorldWidth, handMotion.emojiWorldHeight, handIndex);
+          });
+        } else if (motion.gesture) {
           const emoji = GESTURE_TO_EMOJI[motion.gesture] ?? GESTURE_TO_EMOJI['None'];
           updatePlayerGestureEmoji(player, emoji);
         }
-
         player.poseEnergy = THREE.MathUtils.lerp(player.poseEnergy, poseState.energy, 0.18);
         player.root.position.x = THREE.MathUtils.lerp(player.root.position.x, motion.targetX, 0.22);
         player.root.position.y = THREE.MathUtils.lerp(
@@ -333,18 +354,6 @@ export function GameScene({
         player.root.rotation.y = THREE.MathUtils.lerp(player.root.rotation.y, poseState.turn * 0.45, 0.16);
         player.fallback.rotation.y += delta * (2 + index * 0.35);
 
-        if (
-          isHandRhythm &&
-          player.gestureSprite &&
-          motion.emojiWorldX !== undefined &&
-          motion.emojiWorldY !== undefined &&
-          motion.emojiWorldWidth !== undefined &&
-          motion.emojiWorldHeight !== undefined
-        ) {
-          updatePlayerGestureEmojiPosition(player, motion.emojiWorldX, motion.emojiWorldY);
-          updatePlayerGestureEmojiSize(player, motion.emojiWorldWidth, motion.emojiWorldHeight);
-        }
-        
         if (!isHandRhythm) {
           applyMarkerPose(player, motion.pose);
         }
@@ -419,21 +428,20 @@ export function GameScene({
             const isHandHitZone = obstacle.targetPlayerIndex === playerIndex &&
               Math.abs(obstacle.root.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
             if (isHandHitZone && obstacle.handResult === 'pending') {
-              const hand = inputFrame.kind === 'gesture'
-                ? inputFrame.players[playerIndex]?.hand ?? null
-                : null;
-              const motion = getHandRhythmPlayerMotion(
+              const hands = inputFrame.kind === 'gesture'
+                ? inputFrame.players[playerIndex]?.hands ?? [inputFrame.players[playerIndex]?.hand ?? null]
+                : [null];
+              const wasHit = hands.some((hand) => isHandRhythmTargetMatch(
                 hand,
-                playerIndex,
-                world.players.length,
-                handRhythmGridSize
-              );
-              const wasHit = isHandRhythmTargetMatch(
-                hand,
-                motion.cell,
+                getHandRhythmPlayerMotion(
+                  hand,
+                  playerIndex,
+                  world.players.length,
+                  handRhythmGridSize
+                ).cell,
                 obstacle.gesture,
                 obstacle.handCell
-              );
+              ));
               obstacle.handResult = wasHit ? 'hit' : 'missed';
               obstacle.hitBy[playerIndex] = true;
               setHandRhythmFeedback(obstacle, wasHit);
@@ -491,7 +499,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [cameraMirrored, detectionOverlayRef, gameplayInputRef, handRhythmGridSize, isHandRhythmGame, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, selectedLevel.camera, selectedLevel.spawnIntervalMs, showCameraPreview, showDetectionOverlay, showHandRhythmFloor, videoAspectRatio, videoRef]);
+  }, [cameraMirrored, detectionOverlayRef, gameplayInputRef, handRhythmDoubleTargetChance, handRhythmGridSize, isHandRhythmGame, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, selectedLevel.camera, selectedLevel.spawnIntervalMs, showCameraPreview, showDetectionOverlay, showHandRhythmFloor, videoAspectRatio, videoRef]);
 
   return (
     <div
