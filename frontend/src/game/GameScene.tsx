@@ -48,10 +48,14 @@ import { getRunnerLevel } from './levelRegistry';
 import { createObstacleSystem } from './obstacles';
 import { applyMarkerPose, disposeObject, getPoseAnimationState, updatePlayerGestureEmoji, updatePlayerGestureEmojiPosition, updatePlayerGestureEmojiSize } from './playerAvatar';
 import { createTrackWorld } from './trackWorld';
+import { handRhythmPlayerWidth } from './levels/handRhythmLayout';
+import { playerTrackX } from './trackLayout';
 
 export type { GamePhase };
 
 type GameSceneProps = {
+  cameraMirrored: boolean;
+  detectionOverlayRef: React.RefObject<HTMLCanvasElement | null>;
   phase: GamePhase;
   playerCount: number;
   handRhythmGridSize: HandRhythmGridSize;
@@ -60,6 +64,9 @@ type GameSceneProps = {
   selectedGameId: RunnerGameId;
   onJumpDuckGuidesChange: (guides: JumpDuckGuide[]) => void;
   onWorldProjectionChange: (projection: WorldProjection) => void;
+  showCameraPreview: boolean;
+  showDetectionOverlay: boolean;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
   videoAspectRatio: number;
 };
 
@@ -74,11 +81,14 @@ function projectWorldPoint(
   camera: THREE.PerspectiveCamera,
   x: number,
   y: number,
-  z: number
+  z: number,
+  viewportIndex = 0,
+  viewportCount = 1
 ): { x: number; y: number } {
   const projected = new THREE.Vector3(x, y, z).project(camera);
+  const localX = THREE.MathUtils.clamp((projected.x + 1) / 2, 0, 1);
   return {
-    x: THREE.MathUtils.clamp((projected.x + 1) / 2, 0, 1),
+    x: (viewportIndex + localX) / viewportCount,
     y: THREE.MathUtils.clamp((1 - projected.y) / 2, 0, 1),
   };
 }
@@ -108,6 +118,8 @@ function setHandRhythmFeedback(obstacle: Obstacle, hit: boolean): void {
   });
 }
 export function GameScene({
+  cameraMirrored,
+  detectionOverlayRef,
   phase,
   playerCount,
   handRhythmGridSize,
@@ -116,6 +128,9 @@ export function GameScene({
   selectedGameId,
   onJumpDuckGuidesChange,
   onWorldProjectionChange,
+  showCameraPreview,
+  showDetectionOverlay,
+  videoRef,
   videoAspectRatio,
 }: GameSceneProps): ReactElement {
   const { t } = useI18n();
@@ -194,7 +209,16 @@ export function GameScene({
       selectedGameId,
       selectedLevel.camera,
       handRhythmGridSize,
-      showHandRhythmFloor
+      showHandRhythmFloor,
+      isHandRhythmGame
+        ? {
+            cameraMirrored,
+            detectionCanvas: detectionOverlayRef.current,
+            showCameraPreview,
+            showDetectionOverlay,
+            video: videoRef.current,
+          }
+        : undefined
     );
     const obstacleSystem = createObstacleSystem(
       world.scene,
@@ -207,19 +231,23 @@ export function GameScene({
       const { clientWidth, clientHeight } = mount;
       const width = Math.max(1, clientWidth);
       const height = Math.max(1, clientHeight);
-      world.camera.aspect = width / height;
-      world.camera.zoom = world.camera.aspect < 1 ? world.camera.aspect : 1;
-      world.camera.updateProjectionMatrix();
-      world.camera.updateMatrixWorld();
-      world.renderer.setSize(width, height, false);
+      world.resize(width, height);
 
       const projectionHeight = (TRACK_MAX_X - TRACK_MIN_X) / Math.max(0.1, videoAspectRatio);
-      const corners = [
-        projectWorldPoint(world.camera, TRACK_MIN_X, PLAYER_BASE_Y, PLAYER_Z),
-        projectWorldPoint(world.camera, TRACK_MAX_X, PLAYER_BASE_Y, PLAYER_Z),
-        projectWorldPoint(world.camera, TRACK_MIN_X, PLAYER_BASE_Y + projectionHeight, PLAYER_Z),
-        projectWorldPoint(world.camera, TRACK_MAX_X, PLAYER_BASE_Y + projectionHeight, PLAYER_Z),
-      ];
+      const corners = world.cameras.flatMap((camera, viewportIndex) => {
+        const centerX = world.cameras.length === 1 ? 0 : playerTrackX(viewportIndex, playerCount);
+        const viewWidth = world.cameras.length === 1
+          ? TRACK_MAX_X - TRACK_MIN_X
+          : handRhythmPlayerWidth(playerCount);
+        const leftX = centerX - viewWidth / 2;
+        const rightX = centerX + viewWidth / 2;
+        return [
+          projectWorldPoint(camera, leftX, PLAYER_BASE_Y, PLAYER_Z, viewportIndex, world.cameras.length),
+          projectWorldPoint(camera, rightX, PLAYER_BASE_Y, PLAYER_Z, viewportIndex, world.cameras.length),
+          projectWorldPoint(camera, leftX, PLAYER_BASE_Y + projectionHeight, PLAYER_Z, viewportIndex, world.cameras.length),
+          projectWorldPoint(camera, rightX, PLAYER_BASE_Y + projectionHeight, PLAYER_Z, viewportIndex, world.cameras.length),
+        ];
+      });
       onWorldProjectionChange({
         left: Math.min(...corners.map((corner) => corner.x)),
         right: Math.max(...corners.map((corner) => corner.x)),
@@ -247,7 +275,7 @@ export function GameScene({
       simulationClock = simulationStep.clock;
 
       if (gamePhaseRef.current !== 'running') {
-        world.renderer.render(world.scene, world.camera);
+        world.render();
         animationFrame = window.requestAnimationFrame(animate);
         return;
       }
@@ -343,7 +371,7 @@ export function GameScene({
           simulationClock = delayNextSpawn(simulationClock, now);
         }
 
-        world.renderer.render(world.scene, world.camera);
+        world.render();
         animationFrame = window.requestAnimationFrame(animate);
         return;
       }
@@ -451,7 +479,7 @@ export function GameScene({
         setStats(clearHitStatus);
       }
 
-      world.renderer.render(world.scene, world.camera);
+      world.render();
       animationFrame = window.requestAnimationFrame(animate);
     };
 
@@ -463,7 +491,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [gameplayInputRef, handRhythmGridSize, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, selectedLevel.camera, selectedLevel.spawnIntervalMs, showHandRhythmFloor, videoAspectRatio]);
+  }, [cameraMirrored, detectionOverlayRef, gameplayInputRef, handRhythmGridSize, isHandRhythmGame, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, selectedLevel.camera, selectedLevel.spawnIntervalMs, showCameraPreview, showDetectionOverlay, showHandRhythmFloor, videoAspectRatio, videoRef]);
 
   return (
     <div
@@ -493,6 +521,20 @@ export function GameScene({
           </div>
         ))}
       </dl>
+      {isHandRhythmGame && playerCount > 1 ? (
+        <div
+          className="hand-rhythm-player-viewports"
+          data-testid="hand-rhythm-player-viewports"
+          style={{ gridTemplateColumns: `repeat(${playerCount}, minmax(0, 1fr))` }}
+          aria-hidden="true"
+        >
+          {Array.from({ length: playerCount }, (_, index) => (
+            <div className={`hand-rhythm-player-viewport player-${index + 1}`} key={`player-viewport-${index + 1}`}>
+              <span>{`P${index + 1}`}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

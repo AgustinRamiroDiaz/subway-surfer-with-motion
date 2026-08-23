@@ -19,6 +19,7 @@ type CameraFeedbackPanelProps = {
   frameRef: RefObject<HTMLCanvasElement | null>;
   onLoadedMetadata: () => void;
   presentation?: 'sidebar' | 'game-overlay';
+  renderInWorld?: boolean;
   worldProjection?: WorldProjection | null;
 };
 
@@ -37,6 +38,7 @@ export function CameraFeedbackPanel({
   frameRef,
   onLoadedMetadata,
   presentation = 'sidebar',
+  renderInWorld = false,
   worldProjection = null,
 }: CameraFeedbackPanelProps): ReactElement {
   const { t } = useI18n();
@@ -64,7 +66,7 @@ export function CameraFeedbackPanel({
     return `${Math.max(0, Math.min(1, x / videoWidth)) * 100}%`;
   };
 
-  const projectionStyle = presentation === 'game-overlay' && worldProjection
+  const projectionStyle = presentation === 'game-overlay' && worldProjection && !renderInWorld
     ? {
         bottom: `${(1 - worldProjection.bottom) * 100}%`,
         left: `${worldProjection.left * 100}%`,
@@ -75,7 +77,7 @@ export function CameraFeedbackPanel({
 
   return (
     <section
-      className={`video-stage camera-feedback ${presentation === 'game-overlay' ? 'in-game-camera' : 'sidebar-camera'}${showCameraPreview ? '' : ' camera-overlay-hidden'}${showCameraPreview || showDetectionOverlay ? '' : ' preview-hidden'}`}
+      className={`video-stage camera-feedback ${presentation === 'game-overlay' ? 'in-game-camera' : 'sidebar-camera'}${renderInWorld ? ' world-texture-source' : ''}${showCameraPreview ? '' : ' camera-overlay-hidden'}${showCameraPreview || showDetectionOverlay ? '' : ' preview-hidden'}`}
       aria-label={t('camera.feedback')}
       style={projectionStyle}
     >

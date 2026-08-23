@@ -4,8 +4,54 @@ import type { RunnerGameId, TrackWorld } from './gameTypes';
 import type { RunnerLevelDefinition } from './levelRegistry';
 import type { HandRhythmCell, HandRhythmGridSize } from './levels/handRhythmLevel';
 import { handRhythmPlayerWidth, HAND_RHYTHM_ROW_Y } from './levels/handRhythmLayout';
+import {
+  createHandRhythmCameraOverlay,
+  type HandRhythmCameraOverlayOptions,
+} from './handRhythmCameraOverlay';
 import { createFallbackPlayer, disposeObject, loadPlayerModels } from './playerAvatar';
 import { playerTrackWidth, playerTrackX, positionToWorldX } from './trackLayout';
+
+function setObjectLayer(object: THREE.Object3D, layer: number): void {
+  object.traverse((child) => child.layers.set(layer));
+}
+
+export function createTrackCameras(
+  gameId: RunnerGameId,
+  playerCount: number,
+  cameraFraming: RunnerLevelDefinition['camera']
+): THREE.PerspectiveCamera[] {
+  const cameraCount = gameId === 'hand-rhythm' ? Math.max(1, playerCount) : 1;
+
+  return Array.from({ length: cameraCount }, (_, playerIndex) => {
+    const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 100);
+    const centerX = cameraCount === 1 ? 0 : playerTrackX(playerIndex, playerCount);
+    camera.name = cameraCount === 1 ? 'main-camera' : `player-${playerIndex + 1}-camera`;
+    camera.position.set(centerX, cameraFraming.positionY, cameraFraming.positionZ);
+    camera.lookAt(centerX, cameraFraming.positionY, cameraFraming.targetZ);
+    if (cameraCount > 1) {
+      camera.layers.enable(playerIndex + 1);
+    }
+    return camera;
+  });
+}
+
+export function resizeTrackCameras(
+  cameras: THREE.PerspectiveCamera[],
+  width: number,
+  height: number
+): void {
+  const fullAspect = width / height;
+  const viewportAspect = fullAspect / Math.max(1, cameras.length);
+
+  cameras.forEach((camera) => {
+    camera.aspect = viewportAspect;
+    // Preserve the existing portrait behavior while allowing each split camera's
+    // horizontal field of view to shrink to its player's share of the arena.
+    camera.zoom = fullAspect < 1 ? fullAspect : 1;
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld();
+  });
+}
 
 function createRailMaterial(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
@@ -110,6 +156,9 @@ function createHandRhythmGrid(scene: THREE.Scene, playerCount: number, gridSize:
           outlineMaterial
         );
         outline.position.copy(position);
+        if (playerCount > 1) {
+          outline.layers.set(playerIndex + 1);
+        }
         scene.add(outline);
         outlines.push(outline);
         outlineMaterials.push(outlineMaterial);
@@ -124,6 +173,9 @@ function createHandRhythmGrid(scene: THREE.Scene, playerCount: number, gridSize:
         );
         activeOutline.position.copy(position);
         activeOutline.scale.setScalar(1.06);
+        if (playerCount > 1) {
+          activeOutline.layers.set(playerIndex + 1);
+        }
         scene.add(activeOutline);
         activeOutlines.push(activeOutline);
         activeOutlineMaterials.push(activeOutlineMaterial);
@@ -174,7 +226,8 @@ export function createTrackWorld(
   gameId: RunnerGameId,
   cameraFraming: RunnerLevelDefinition['camera'],
   handRhythmGridSize: HandRhythmGridSize = 3,
-  showHandRhythmFloor = true
+  showHandRhythmFloor = true,
+  cameraOverlayOptions?: HandRhythmCameraOverlayOptions
 ): TrackWorld {
   let disposed = false;
   const scene = new THREE.Scene();
@@ -187,10 +240,12 @@ export function createTrackWorld(
   const isLaneBased = isJumpDuck || isHandRhythm;
   const showTrackSurface = !isHandRhythm || showHandRhythmFloor;
   const handRhythmGrid = isHandRhythm ? createHandRhythmGrid(scene, playerCount, handRhythmGridSize) : null;
+  const handRhythmCameraOverlay = isHandRhythm && cameraOverlayOptions
+    ? createHandRhythmCameraOverlay(scene, playerCount, handRhythmGridSize, cameraOverlayOptions)
+    : null;
 
-  const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 100);
-  camera.position.set(0, cameraFraming.positionY, cameraFraming.positionZ);
-  camera.lookAt(0, cameraFraming.positionY, cameraFraming.targetZ);
+  const cameras = createTrackCameras(gameId, playerCount, cameraFraming);
+  const camera = cameras[0];
 
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -200,6 +255,8 @@ export function createTrackWorld(
   renderer.shadowMap.type = THREE.BasicShadowMap;
   renderer.domElement.className = 'game-canvas';
   mount.appendChild(renderer.domElement);
+  let renderWidth = 1;
+  let renderHeight = 1;
 
   const ambient = new THREE.HemisphereLight('#dfffee', '#101416', 1.6);
   scene.add(ambient);
@@ -278,21 +335,58 @@ export function createTrackWorld(
       ? playerTrackX(index, playerCount)
       : positionToWorldX(initialPlayerPosition);
     player.root.position.set(targetX, PLAYER_BASE_Y, PLAYER_Z);
+    if (isHandRhythm && playerCount > 1) {
+      setObjectLayer(player.root, index + 1);
+    }
     scene.add(player.root);
     return player;
   });
 
-  void loadPlayerModels(players, () => disposed).catch(() => {
-    players.forEach((player) => {
-      player.fallback.visible = true;
+  void loadPlayerModels(players, () => disposed)
+    .then(() => {
+      if (isHandRhythm && playerCount > 1) {
+        players.forEach((player, index) => setObjectLayer(player.root, index + 1));
+      }
+    })
+    .catch(() => {
+      players.forEach((player) => {
+        player.fallback.visible = true;
+      });
     });
-  });
 
   return {
     scene,
     camera,
+    cameras,
     renderer,
     players,
+    render: () => {
+      handRhythmCameraOverlay?.update();
+      if (cameras.length === 1) {
+        renderer.setScissorTest(false);
+        renderer.setViewport(0, 0, renderWidth, renderHeight);
+        renderer.render(scene, camera);
+        return;
+      }
+
+      renderer.setScissorTest(true);
+      cameras.forEach((playerCamera, playerIndex) => {
+        const left = Math.floor(renderWidth * playerIndex / cameras.length);
+        const right = Math.floor(renderWidth * (playerIndex + 1) / cameras.length);
+        const viewportWidth = Math.max(1, right - left);
+        renderer.setViewport(left, 0, viewportWidth, renderHeight);
+        renderer.setScissor(left, 0, viewportWidth, renderHeight);
+        renderer.render(scene, playerCamera);
+      });
+      renderer.setScissorTest(false);
+      renderer.setViewport(0, 0, renderWidth, renderHeight);
+    },
+    resize: (width, height) => {
+      renderWidth = Math.max(1, width);
+      renderHeight = Math.max(1, height);
+      resizeTrackCameras(cameras, renderWidth, renderHeight);
+      renderer.setSize(renderWidth, renderHeight, false);
+    },
     updateHandRhythmGrid: (cells) => handRhythmGrid?.update(cells),
     dispose: () => {
       disposed = true;
@@ -306,6 +400,7 @@ export function createTrackWorld(
       guideGeometry.dispose();
       disposePlayerLaneMarkers();
       handRhythmGrid?.dispose();
+      handRhythmCameraOverlay?.dispose();
       players.forEach((player) => {
         disposeObject(player.root);
       });

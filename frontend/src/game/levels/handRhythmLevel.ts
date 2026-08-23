@@ -1,6 +1,6 @@
 import type { HandInput } from '../../motion-mapping/gameplayInput';
-import { playerTrackX, positionToWorldX } from '../trackLayout';
-import { handRhythmPlayerWidth, HAND_RHYTHM_ROW_Y } from './handRhythmLayout';
+import { playerTrackX } from '../trackLayout';
+import { getHandRhythmGridBounds, handRhythmPlayerWidth, HAND_RHYTHM_ROW_Y } from './handRhythmLayout';
 
 export type HandRhythmGesture =
   | 'Closed_Fist'
@@ -104,15 +104,21 @@ export function getHandRhythmPlayerMotion(
 
   const cell = getHandRhythmCell(hand, playerIndex, playerCount, gridSize);
   const cellPosition = getHandRhythmCellWorldPosition(cell, playerIndex, playerCount, gridSize);
+  const gridBounds = getHandRhythmGridBounds(playerIndex, playerCount, gridSize);
+  const sectionStart = playerIndex / Math.max(1, playerCount);
+  const localX = Math.min(1, Math.max(
+    0,
+    (hand.normalizedX - sectionStart) * Math.max(1, playerCount)
+  ));
 
   return {
     gesture: hand.gesture,
     targetX: cellPosition.x,
     targetY: cellPosition.y,
     cell,
-    emojiWorldX: positionToWorldX(hand.normalizedX),
-    emojiWorldY: HAND_RHYTHM_ROW_Y[0] - hand.normalizedY * (HAND_RHYTHM_ROW_Y[0] - HAND_RHYTHM_ROW_Y[2]),
-    emojiWorldWidth: Math.max(0.35, (hand.normalizedWidth ?? 0.15) * handRhythmPlayerWidth(playerCount)),
-    emojiWorldHeight: Math.max(0.35, (hand.normalizedHeight ?? 0.15) * (HAND_RHYTHM_ROW_Y[0] - HAND_RHYTHM_ROW_Y[2])),
+    emojiWorldX: gridBounds.left + localX * gridBounds.width,
+    emojiWorldY: gridBounds.top - hand.normalizedY * gridBounds.height,
+    emojiWorldWidth: Math.max(0.35, (hand.normalizedWidth ?? 0.15) * gridBounds.width * Math.max(1, playerCount)),
+    emojiWorldHeight: Math.max(0.35, (hand.normalizedHeight ?? 0.15) * gridBounds.height),
   };
 }

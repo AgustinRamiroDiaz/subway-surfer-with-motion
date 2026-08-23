@@ -284,6 +284,9 @@ export function createObstacleSystem(
         const root = jumpDuckObstacle?.root ?? gestureObstacle?.root ?? createSidewaysObstacleRoot();
         const y = handPosition?.y ?? (isJumpDuck ? 0 : isHandRhythm ? 0.8 : 0.82);
         root.position.set(x, y, OBSTACLE_SPAWN_Z);
+        if (isHandRhythm && playerCount > 1 && targetPlayerIndex !== null) {
+          root.traverse((child) => child.layers.set(targetPlayerIndex + 1));
+        }
         scene.add(root);
         obstacles.push({
           root,

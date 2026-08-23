@@ -60,6 +60,8 @@ Each blocked piece that overlaps a player's current action cell counts as a hit.
 
 Hand Rhythm uses hand position and recognized hand gesture instead of full-body movement.
 
+The main game view is split into one panel per configured player. Each panel uses a player-centered view of that player's grid, hand marker, incoming targets, and matching section of the camera feedback. Camera imagery and detection marks are aligned to the grid inside the game world, including when the camera view is mirrored. Player panels remain ordered from left to right and are separated by visible dividers.
+
 Each player has a section of the camera view. The selected grid size divides each player section into either:
 
 - A 2 by 2 grid.

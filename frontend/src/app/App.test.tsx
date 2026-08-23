@@ -144,6 +144,9 @@ test('uses hand-rhythm guides without pose position markers', () => {
 
   expect(screen.queryAllByTestId('camera-position-marker')).toHaveLength(0);
   expect(screen.getAllByTestId('camera-hand-grid')).toHaveLength(2);
+  expect(within(screen.getByLabelText(/juego principal/i)).getByLabelText(/vista de cámara/i)).toHaveClass('world-texture-source');
+  expect(screen.getByTestId('hand-rhythm-player-viewports')).toHaveTextContent('P1');
+  expect(screen.getByTestId('hand-rhythm-player-viewports')).toHaveTextContent('P2');
 });
 
 test('ignores invalid stored levels', async () => {

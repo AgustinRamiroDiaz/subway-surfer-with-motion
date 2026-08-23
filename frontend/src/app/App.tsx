@@ -342,12 +342,17 @@ function MotionRunnerApp(): ReactElement {
         >
           <Suspense fallback={<LoadingRegion />}>
             <GameScene
+              cameraMirrored={preferences.cameraMirrored}
+              detectionOverlayRef={camera.overlayRef}
               phase={gamePhase}
               playerCount={preferences.playerCount}
               handRhythmGridSize={preferences.handRhythmGridSize}
               showHandRhythmFloor={preferences.showHandRhythmFloor}
               gameplayInputRef={detector.gameplayInputRef}
               selectedGameId={preferences.selectedRunnerGameId}
+              showCameraPreview={preferences.cameraPreviewVisibility[preferences.selectedRunnerGameId]}
+              showDetectionOverlay={preferences.detectionOverlayVisibility[preferences.selectedRunnerGameId]}
+              videoRef={camera.videoRef}
               videoAspectRatio={videoAspectRatio}
               onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
               onWorldProjectionChange={setWorldProjection}
@@ -375,6 +380,7 @@ function MotionRunnerApp(): ReactElement {
             overlayRef={camera.overlayRef}
             playerPositions={detector.playerPositions}
             presentation="game-overlay"
+            renderInWorld={preferences.selectedRunnerGameId === 'hand-rhythm'}
             selectedTrackerLabel={selectedTrackerLabel}
             videoRef={camera.videoRef}
             worldProjection={worldProjection}

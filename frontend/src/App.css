@@ -155,6 +155,24 @@
   display: none;
 }
 
+.in-game-camera.world-texture-source {
+  position: absolute;
+  top: 0;
+  right: auto;
+  bottom: auto;
+  left: 0;
+  width: 1px;
+  min-height: 0;
+  height: 1px;
+  border: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.in-game-camera.world-texture-source::after {
+  display: none;
+}
+
 .sidebar-camera-label {
   position: absolute;
   top: 14px;
@@ -386,6 +404,45 @@
   background: rgba(12, 15, 17, 0.68);
   backdrop-filter: blur(10px);
 }
+
+.hand-rhythm-player-viewports {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  pointer-events: none;
+}
+
+.hand-rhythm-player-viewport {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: inset 1px 0 rgba(0, 0, 0, 0.38);
+}
+
+.hand-rhythm-player-viewport:first-child {
+  border-left: 0;
+  box-shadow: none;
+}
+
+.hand-rhythm-player-viewport span {
+  position: absolute;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  left: 50%;
+  padding: 4px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: rgba(12, 15, 17, 0.66);
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  transform: translateX(-50%);
+}
+
+.hand-rhythm-player-viewport.player-2 span { color: #66a3ff; }
+.hand-rhythm-player-viewport.player-3 span { color: #ffd166; }
+.hand-rhythm-player-viewport.player-4 span { color: #ff6a85; }
 
 .game-hud,
 .game-controls,
