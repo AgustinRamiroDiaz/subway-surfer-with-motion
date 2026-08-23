@@ -62,24 +62,27 @@ export function QuickDetectionSettings({
         value={selectedCameraValue}
         onChange={onCameraChange}
       />
-      <Switch
-        checked={preferences.cameraMirrored}
-        className="toggle-control"
-        label={<ControlHelpLabel help={t('controls.mirrorCameraHelp')}>{t('controls.mirrorCamera')}</ControlHelpLabel>}
-        onChange={(event) => onCameraMirrorChange(event.currentTarget.checked)}
-      />
-      <Switch
-        checked={preferences.cameraPreviewVisibility[preferences.selectedRunnerGameId]}
-        className="toggle-control"
-        label={<ControlHelpLabel help={t('controls.cameraPreviewHelp')}>{t('controls.cameraPreview')}</ControlHelpLabel>}
-        onChange={(event) => onCameraPreviewChange(event.currentTarget.checked)}
-      />
-      <Switch
-        checked={preferences.detectionOverlayVisibility[preferences.selectedRunnerGameId]}
-        className="toggle-control"
-        label={<ControlHelpLabel help={t('controls.detectionOverlayHelp')}>{t('controls.detectionOverlay')}</ControlHelpLabel>}
-        onChange={(event) => onDetectionOverlayChange(event.currentTarget.checked)}
-      />
+      <fieldset className="overlay-settings">
+        <legend>{t('controls.overlayGroup')}</legend>
+        <Switch
+          checked={preferences.cameraPreviewVisibility[preferences.selectedRunnerGameId]}
+          className="toggle-control"
+          label={<ControlHelpLabel help={t('controls.cameraPreviewHelp')}>{t('controls.cameraPreview')}</ControlHelpLabel>}
+          onChange={(event) => onCameraPreviewChange(event.currentTarget.checked)}
+        />
+        <Switch
+          checked={preferences.detectionOverlayVisibility[preferences.selectedRunnerGameId]}
+          className="toggle-control"
+          label={<ControlHelpLabel help={t('controls.detectionOverlayHelp')}>{t('controls.detectionOverlay')}</ControlHelpLabel>}
+          onChange={(event) => onDetectionOverlayChange(event.currentTarget.checked)}
+        />
+        <Switch
+          checked={preferences.cameraMirrored}
+          className="toggle-control"
+          label={<ControlHelpLabel help={t('controls.mirrorCameraHelp')}>{t('controls.mirrorCamera')}</ControlHelpLabel>}
+          onChange={(event) => onCameraMirrorChange(event.currentTarget.checked)}
+        />
+      </fieldset>
       <div className="multiplier-control">
         <ControlHelpLabel help={t('controls.cameraMultiplierHelp')}>{t('controls.cameraMultiplier')}</ControlHelpLabel>
         <strong>{preferences.devCameraMultiplier === 1 ? t('controls.multiplierNone') : `${preferences.devCameraMultiplier}x`}</strong>

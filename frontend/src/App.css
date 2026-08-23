@@ -53,8 +53,8 @@
 
 .stage-heading {
   position: absolute;
-  top: 28px;
-  left: 28px;
+  top: max(28px, env(safe-area-inset-top));
+  left: max(28px, env(safe-area-inset-left));
   z-index: 4;
 }
 
@@ -391,8 +391,8 @@
 }
 
 .game-hud {
-  right: 28px;
-  top: 28px;
+  right: max(28px, env(safe-area-inset-right));
+  top: max(28px, env(safe-area-inset-top));
   display: grid;
   gap: 4px;
   text-align: right;
@@ -418,8 +418,8 @@
 }
 
 .game-controls {
-  right: 28px;
-  bottom: 28px;
+  right: max(28px, env(safe-area-inset-right));
+  bottom: max(28px, env(safe-area-inset-bottom));
   display: flex;
   gap: 10px;
 }
@@ -431,8 +431,8 @@
 }
 
 .game-stats {
-  left: 28px;
-  bottom: 28px;
+  left: max(28px, env(safe-area-inset-left));
+  bottom: max(28px, env(safe-area-inset-bottom));
   display: grid;
   grid-template-columns: repeat(4, auto);
   gap: 16px 24px;
@@ -835,6 +835,56 @@
   padding-block: 2px 4px;
 }
 
+.overlay-settings {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 14px 0 2px;
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.overlay-settings legend {
+  padding: 0 8px 0 0;
+  color: var(--text-strong);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.camera-readiness {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.camera-readiness-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.camera-readiness-ready .camera-readiness-dot { background: var(--accent); box-shadow: 0 0 10px rgba(47, 255, 178, 0.72); }
+.camera-readiness-loading .camera-readiness-dot { background: var(--warning); box-shadow: 0 0 10px rgba(255, 209, 102, 0.62); }
+.camera-readiness-active .camera-readiness-dot { background: #66a3ff; box-shadow: 0 0 10px rgba(102, 163, 255, 0.68); }
+.camera-readiness-off .camera-readiness-dot { background: var(--accent-hot); }
+
+.game-scene .stage-heading,
+.game-scene .game-stats {
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.game-scene.game-running .stage-heading {
+  opacity: 0.42;
+  transform: translateY(-4px);
+}
+
 .run-panel {
   display: grid;
   gap: 12px;
@@ -1057,8 +1107,8 @@
   }
 
   .stage-heading {
-    top: 18px;
-    left: 18px;
+    top: max(18px, env(safe-area-inset-top));
+    left: max(18px, env(safe-area-inset-left));
     right: 18px;
   }
 
@@ -1078,14 +1128,14 @@
   }
 
   .game-hud {
-    top: 18px;
-    right: 18px;
+    top: max(18px, env(safe-area-inset-top));
+    right: max(18px, env(safe-area-inset-right));
   }
 
   .game-stats {
-    left: 12px;
+    left: max(12px, env(safe-area-inset-left));
     right: auto;
-    bottom: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
     display: flex;
     flex-wrap: wrap;
     gap: 6px 10px;

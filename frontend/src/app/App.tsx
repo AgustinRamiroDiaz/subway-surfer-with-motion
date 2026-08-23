@@ -212,6 +212,13 @@ function MotionRunnerApp(): ReactElement {
   }, [camera]);
 
   const startLabel = camera.cameraEnabled ? t('app.startRun') : t('app.enableCamera');
+  const cameraReadiness = !camera.cameraEnabled
+    ? { label: t('camera.readinessOff'), tone: 'off' }
+    : detector.isLoading
+      ? { label: t('camera.readinessLoading'), tone: 'loading' }
+      : detector.isDetecting
+        ? { label: t('camera.readinessActive'), tone: 'active' }
+      : { label: t('camera.readinessReady'), tone: 'ready' };
 
   return (
     <main className="app-shell">
@@ -250,6 +257,10 @@ function MotionRunnerApp(): ReactElement {
 
         <aside className="control-panel" aria-label={t('app.detectionControls')}>
           <section className="run-panel" aria-label={t('game.controls')}>
+            <div className={`camera-readiness camera-readiness-${cameraReadiness.tone}`} role="status" aria-live="polite">
+              <span className="camera-readiness-dot" aria-hidden="true" />
+              <span>{cameraReadiness.label}</span>
+            </div>
             <div className="game-mode-selector" aria-label={t('game.modeSelector')}>
               {RUNNER_LEVELS.map((level) => (
                 <button

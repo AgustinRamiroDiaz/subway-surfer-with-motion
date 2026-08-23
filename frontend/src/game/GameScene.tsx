@@ -443,7 +443,7 @@ export function GameScene({
 
   return (
     <div
-      className={`game-scene${isHandRhythmGame ? ` hand-rhythm-scene players-${playerCount}` : ''}`}
+      className={`game-scene${isHandRhythmGame ? ` hand-rhythm-scene players-${playerCount}` : ''}${phase === 'running' ? ' game-running' : ''}`}
       ref={mountRef}
     >
       <div className="stage-heading">
