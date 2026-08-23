@@ -3,7 +3,7 @@ import { TRACK_MAX_X, TRACK_MIN_X, TRACK_WIDTH } from './gameConstants';
 import { getHandRhythmPlayerMotion } from './levels/handRhythmLevel';
 import { handRhythmPlayerWidth } from './levels/handRhythmLayout';
 import { getJumpDuckPlayerMotion } from './levels/jumpDuckLevel';
-import { playerTrackWidth, playerTrackX } from './trackLayout';
+import { playerTrackWidth, playerTrackX, positionToWorldX } from './trackLayout';
 
 describe('lane-based player layout', () => {
   test('splits the track width into one centered segment per player', () => {
@@ -43,6 +43,18 @@ describe('lane-based player layout', () => {
     };
 
     expect(getHandRhythmPlayerMotion(hand, 0, 1, 2).cell).toEqual({ row: 0, column: 0 });
+  });
+
+  test('keeps the world emoji at the exact registered hand coordinate', () => {
+    const motion = getHandRhythmPlayerMotion({
+      gesture: 'Victory',
+      normalizedX: 0.25,
+      normalizedY: 0.2,
+    }, 0, 1, 3);
+
+    expect(motion.emojiWorldX).toBeCloseTo(positionToWorldX(0.25));
+    expect(motion.emojiWorldY).toBeCloseTo(3.35 - 0.2 * (3.35 - 0.55));
+    expect(motion.targetX).not.toBe(motion.emojiWorldX);
   });
 
   test('expands one-player hand rhythm while splitting the arena for multiple players', () => {

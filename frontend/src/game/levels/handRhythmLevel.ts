@@ -1,5 +1,5 @@
 import type { HandInput } from '../../motion-mapping/gameplayInput';
-import { playerTrackX } from '../trackLayout';
+import { playerTrackX, positionToWorldX } from '../trackLayout';
 import { handRhythmPlayerWidth, HAND_RHYTHM_ROW_Y } from './handRhythmLayout';
 
 export type HandRhythmGesture =
@@ -43,6 +43,8 @@ export type HandRhythmPlayerMotion = {
   targetX: number;
   targetY: number;
   cell: HandRhythmCell;
+  emojiWorldX: number;
+  emojiWorldY: number;
 };
 
 export function getHandRhythmCell(
@@ -91,6 +93,8 @@ export function getHandRhythmPlayerMotion(
       targetX,
       targetY: HAND_RHYTHM_ROW_Y[1],
       cell: { row: 1, column: 1 },
+      emojiWorldX: targetX,
+      emojiWorldY: HAND_RHYTHM_ROW_Y[1],
     };
   }
 
@@ -102,5 +106,7 @@ export function getHandRhythmPlayerMotion(
     targetX: cellPosition.x,
     targetY: cellPosition.y,
     cell,
+    emojiWorldX: positionToWorldX(hand.normalizedX),
+    emojiWorldY: HAND_RHYTHM_ROW_Y[0] - hand.normalizedY * (HAND_RHYTHM_ROW_Y[0] - HAND_RHYTHM_ROW_Y[2]),
   };
 }

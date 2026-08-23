@@ -79,7 +79,7 @@ export function CameraFeedbackPanel({
       aria-label={t('camera.feedback')}
       style={projectionStyle}
     >
-      <div className="sidebar-camera-label">
+      <div className={`sidebar-camera-label${showHandRhythmGrid ? ' rhythm-camera-label-hidden' : ''}`}>
         <p className="eyebrow">{t('camera.title')}</p>
         <strong>{selectedTrackerLabel}</strong>
       </div>

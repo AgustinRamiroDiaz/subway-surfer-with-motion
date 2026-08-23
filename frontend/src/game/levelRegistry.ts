@@ -29,6 +29,8 @@ export type LevelPlayerMotion = {
   pose: PoseInput | null;
   gesture: string | null;
   jumpDuckCell: JumpDuckCell | null;
+  emojiWorldX?: number;
+  emojiWorldY?: number;
 };
 
 export type LevelPlayerMotionContext = {
@@ -150,6 +152,8 @@ export const RUNNER_LEVELS: readonly RunnerLevelDefinition[] = [
         pose: null,
         gesture: motion.gesture,
         jumpDuckCell: null,
+        emojiWorldX: motion.emojiWorldX,
+        emojiWorldY: motion.emojiWorldY,
       };
     },
   },

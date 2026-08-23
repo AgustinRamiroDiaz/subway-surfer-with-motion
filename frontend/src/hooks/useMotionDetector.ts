@@ -163,26 +163,25 @@ export function useMotionDetector({
     if (sorted.length > 0 && sorted[0].label === 'hand') {
       const playerCount = activePreferences.playerCount;
       const handDetections = sorted.filter((detection): detection is HandGestureDetection => detection.label === 'hand');
+      const assignedHandDetections = assignHandDetectionsToPlayerSections(
+        handDetections,
+        frameWidth,
+        activePreferences.cameraMirrored,
+        playerCount
+      ).map((detection) => detection && activePreferences.cameraMirrored
+        ? mirrorDetection(detection, frameWidth)
+        : detection);
+      const assignedHands = assignedHandDetections.map((detection) =>
+        detection ? toHandInput(detection, result.frame.width, result.frame.height) : null
+      );
+
       publishPlayerState(
         getDefaultPlayerPositions(playerCount),
-        assignHandDetectionsToPlayerSections(
-          handDetections,
-          frameWidth,
-          activePreferences.cameraMirrored,
-          playerCount
-        ).map((detection) => detection && activePreferences.cameraMirrored
-          ? mirrorDetection(detection, frameWidth)
-          : detection)
+        assignedHandDetections
       );
       gameplayInputRef.current = {
         kind: 'gesture',
-        players: playerDetectionsRef.current.map((detection) => ({
-          hand: toHandInput(
-            detection?.label === 'hand' ? detection : null,
-            result.frame.width,
-            result.frame.height
-          ),
-        })),
+        players: assignedHands.map((hand) => ({ hand })),
       };
       
       const drawStartedAt = performance.now();

@@ -244,6 +244,10 @@
   background: rgba(47, 255, 178, 0.025);
 }
 
+.rhythm-camera-label-hidden {
+  display: none;
+}
+
 .camera-center-line {
   position: absolute;
   top: 0;

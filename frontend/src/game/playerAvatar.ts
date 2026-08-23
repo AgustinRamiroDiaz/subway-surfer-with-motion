@@ -268,6 +268,15 @@ export function updatePlayerGestureEmoji(player: PlayerAvatar, emoji: string): v
   }
 }
 
+export function updatePlayerGestureEmojiPosition(player: PlayerAvatar, worldX: number, worldY: number): void {
+  if (!player.gestureSprite) {
+    return;
+  }
+
+  player.gestureSprite.position.x = worldX - player.root.position.x;
+  player.gestureSprite.position.y = worldY - player.root.position.y;
+}
+
 export function createFallbackPlayer(index: number): PlayerAvatar {
   const root = new THREE.Group();
   const fallback = new THREE.Mesh(
