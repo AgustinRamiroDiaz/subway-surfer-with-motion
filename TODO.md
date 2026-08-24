@@ -25,8 +25,6 @@ Examples:
 
 Allow to move around prior to start playing
 
-## Add low alpha body into the game scene for better estimation
-
 # New levels
 
 ## Top down games
