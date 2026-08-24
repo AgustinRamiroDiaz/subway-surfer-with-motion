@@ -426,23 +426,75 @@
 }
 
 .hand-rhythm-player-label {
-  position: absolute;
-  bottom: max(22px, env(safe-area-inset-bottom));
-  left: 50%;
+  flex: 0 0 auto;
   padding: 4px 8px;
   border: 1px solid currentColor;
   border-radius: 999px;
-  background: rgba(12, 15, 17, 0.66);
+  background: rgba(12, 15, 17, 0.84);
   color: var(--accent);
   font-size: 0.68rem;
   font-weight: 900;
   letter-spacing: 0.08em;
-  transform: translateX(-50%);
 }
 
 .hand-rhythm-player-viewport.player-2 .hand-rhythm-player-label { color: #66a3ff; }
 .hand-rhythm-player-viewport.player-3 .hand-rhythm-player-label { color: #ffd166; }
 .hand-rhythm-player-viewport.player-4 .hand-rhythm-player-label { color: #ff6a85; }
+
+.hand-rhythm-player-score {
+  position: absolute;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1.2vw, 16px);
+  width: min(calc(100% - 20px), 280px);
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(8, 11, 12, 0.82);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+  transform: translateX(-50%);
+}
+
+.hand-rhythm-player-score dl {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.hand-rhythm-player-score dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.hand-rhythm-player-score dt,
+.hand-rhythm-player-score dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.hand-rhythm-player-score dt {
+  color: var(--text-soft);
+  font-size: clamp(0.54rem, 0.7vw, 0.68rem);
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hand-rhythm-player-score dd {
+  font-size: clamp(1.05rem, 1.7vw, 1.45rem);
+  font-weight: 950;
+  line-height: 1;
+}
+
+.hand-rhythm-player-score .hit-score dd { color: #2fffb2; }
+.hand-rhythm-player-score .miss-score dd { color: #ff6a85; }
 
 .hand-rhythm-ready-cue {
   position: absolute;

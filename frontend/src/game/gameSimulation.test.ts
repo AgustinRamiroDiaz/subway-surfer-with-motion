@@ -10,6 +10,7 @@ import {
   randomIndex,
   recordDodgedObstacle,
   recordPlayerHit,
+  recordPlayerMiss,
 } from './gameSimulation';
 
 describe('game simulation', () => {
@@ -37,10 +38,23 @@ describe('game simulation', () => {
   test('updates score immutably', () => {
     const initial = createDefaultStats(2);
     const hit = recordPlayerHit(initial, 1, 2);
-    const dodged = recordDodgedObstacle(hit);
+    const missed = recordPlayerMiss(hit, 0);
+    const dodged = recordDodgedObstacle(missed);
 
-    expect(initial).toEqual({ dodged: 0, hits: [0, 0], status: 'running', hitPlayer: null });
-    expect(clearHitStatus(dodged)).toEqual({ dodged: 1, hits: [0, 2], status: 'running', hitPlayer: null });
+    expect(initial).toEqual({
+      dodged: 0,
+      hits: [0, 0],
+      misses: [0, 0],
+      status: 'running',
+      hitPlayer: null,
+    });
+    expect(clearHitStatus(dodged)).toEqual({
+      dodged: 1,
+      hits: [0, 2],
+      misses: [1, 0],
+      status: 'running',
+      hitPlayer: null,
+    });
   });
 
   test('resolves collision and level actions without Three.js objects', () => {

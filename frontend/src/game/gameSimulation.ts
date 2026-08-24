@@ -26,6 +26,7 @@ export function createDefaultStats(playerCount: number): GameStats {
   return {
     dodged: 0,
     hits: Array.from({ length: playerCount }, () => 0),
+    misses: Array.from({ length: playerCount }, () => 0),
     status: 'running',
     hitPlayer: null,
   };
@@ -92,8 +93,16 @@ export function recordPlayerHit(stats: GameStats, playerIndex: number, hitCount:
   return {
     dodged: stats.dodged,
     hits: stats.hits.map((hits, index) => index === playerIndex ? hits + hitCount : hits),
+    misses: stats.misses,
     status: 'hit',
     hitPlayer: playerIndex + 1,
+  };
+}
+
+export function recordPlayerMiss(stats: GameStats, playerIndex: number): GameStats {
+  return {
+    ...stats,
+    misses: stats.misses.map((misses, index) => index === playerIndex ? misses + 1 : misses),
   };
 }
 

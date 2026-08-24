@@ -67,7 +67,7 @@ Each player has a section of the camera view. The selected grid size divides eac
 - A 2 by 2 grid.
 - A 3 by 3 grid.
 
-The player avatar follows the detected hand cell in that player's section. The player's visible hand marker uses the emoji for the currently recognized gesture and is sized to the detected hand. If no hand is detected, the player stays in the center cell and shows an unknown gesture at a fallback size.
+The player avatar follows the detected hand cell in that player's section. The player's visible hand marker uses a translucent emoji for the currently recognized gesture, so targets and the camera remain visible beneath it, and is sized to the detected hand. If no hand is detected, the player stays in the center cell and shows an unknown gesture at a fallback size.
 
 The level plays its music through a dedicated music channel. Before the first count-in, every player must hold an open palm in the central area of their grid. Each player panel shows whether that player is ready. All players must remain ready together briefly before the four-beat audible count-in begins. This central readiness area is the same for both grid sizes and does not require a literal center cell. Resuming a paused level begins another four-beat count-in without repeating the hand-readiness step. Pausing stops both music and target movement at the same song position.
 
@@ -93,6 +93,8 @@ Supported gesture prompts are:
 - Victory.
 - I love you.
 
-A successful on-beat match counts as one hit for the target player and changes the target feedback to a success color. A failed match at the assigned beat changes the target feedback to a miss color. A target that passes without any successful match counts as dodged.
+A successful on-beat match counts as one hit for the target player. A failed match at the assigned beat counts as one miss for that player. Each player column shows only that player's hit and miss totals at its bottom edge.
+
+Targets use a static yellow halo before judgment rather than continuously rotating bands. When a target is judged, that halo turns green for a hit or red for a miss; no large result sign obscures the play area.
 
 This mode does not require calibration.

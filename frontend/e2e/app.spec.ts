@@ -19,6 +19,11 @@ test('selects and persists the Hand Rhythm difficulty', async ({ page }) => {
   await page.getByRole('button', { name: /ritmo de manos/i }).click();
   const difficultySelect = page.getByRole('combobox', { name: /dificultad/i });
   await expect(difficultySelect).toHaveValue(/media/i);
+  const playerScores = page.getByLabel(/puntuación del jugador/i);
+  await expect(playerScores).toHaveCount(2);
+  await expect(playerScores.nth(0)).toContainText(/aciertos\s*0/i);
+  await expect(playerScores.nth(0)).toContainText(/fallos\s*0/i);
+  await expect(page.getByLabel(/estadísticas del juego/i)).toHaveCount(0);
 
   await difficultySelect.click();
   await page.getByRole('option', { name: /difícil/i }).click();

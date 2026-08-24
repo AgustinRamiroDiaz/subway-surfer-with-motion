@@ -40,6 +40,7 @@ export type Obstacle = {
 export type GameStats = {
   dodged: number;
   hits: number[];
+  misses: number[];
   status: 'running' | 'hit';
   hitPlayer: number | null;
 };

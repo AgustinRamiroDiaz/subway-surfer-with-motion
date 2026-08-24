@@ -33,6 +33,7 @@ import {
   isPlayerInCollisionRange,
   recordDodgedObstacle,
   recordPlayerHit,
+  recordPlayerMiss,
   scheduleHitStatusReset,
 } from './gameSimulation';
 import {
@@ -126,7 +127,8 @@ function setHandRhythmFeedback(obstacle: Obstacle, hit: boolean): void {
   obstacle.feedbackMaterials.forEach((material) => {
     material.color.set(color);
     material.emissive.set(emissive);
-    material.emissiveIntensity = 1.15;
+    material.emissiveIntensity = 1.5;
+    material.opacity = 0.9;
   });
 }
 export function GameScene({
@@ -516,7 +518,7 @@ export function GameScene({
         if (obstacle.kind === 'sideways') {
           obstacle.root.rotation.x += delta * 2.8;
           obstacle.root.rotation.z += delta * 1.5;
-        } else {
+        } else if (obstacle.kind === 'jump-duck') {
           obstacle.root.children.forEach((child, childIndex) => {
             if (child.position.y < 1) {
               child.rotation.x += delta * 4.2;
@@ -568,6 +570,8 @@ export function GameScene({
               setHandRhythmFeedback(obstacle, wasHit);
               if (wasHit) {
                 hitCount = 1;
+              } else {
+                setStats((current) => recordPlayerMiss(current, playerIndex));
               }
             }
           } else if (isInCollisionRange) {
@@ -634,7 +638,7 @@ export function GameScene({
       <div className="game-hud" aria-label={t('game.status')}>
         <span>{statusLabel}</span>
       </div>
-      <dl className="game-stats" aria-label={t('game.stats')}>
+      {!isHandRhythmGame ? <dl className="game-stats" aria-label={t('game.stats')}>
         <div>
           <dt>{t('game.dodged')}</dt>
           <dd>{stats.dodged}</dd>
@@ -649,13 +653,13 @@ export function GameScene({
             <dd className={`player-${index + 1}`}>{hits}</dd>
           </div>
         ))}
-      </dl>
+      </dl> : null}
       {isHandRhythmGame ? (
         <div
           className="hand-rhythm-player-viewports"
           data-testid="hand-rhythm-player-viewports"
           style={{ gridTemplateColumns: `repeat(${playerCount}, minmax(0, 1fr))` }}
-          aria-hidden="true"
+          aria-label={t('game.handRhythmScores')}
         >
           {Array.from({ length: playerCount }, (_, index) => (
             <div
@@ -667,7 +671,23 @@ export function GameScene({
                   <span>🖐️</span>
                 </div>
               ) : null}
-              <span className="hand-rhythm-player-label">{`P${index + 1}`}</span>
+              <div
+                className="hand-rhythm-player-score"
+                aria-label={t('game.playerScore', { player: index + 1 })}
+                aria-live="polite"
+              >
+                <span className="hand-rhythm-player-label">{`P${index + 1}`}</span>
+                <dl>
+                  <div className="hit-score">
+                    <dt>{t('game.rhythmHits')}</dt>
+                    <dd>{stats.hits[index] ?? 0}</dd>
+                  </div>
+                  <div className="miss-score">
+                    <dt>{t('game.misses')}</dt>
+                    <dd>{stats.misses[index] ?? 0}</dd>
+                  </div>
+                </dl>
+              </div>
             </div>
           ))}
         </div>

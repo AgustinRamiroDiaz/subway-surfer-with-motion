@@ -191,26 +191,16 @@ function createGestureObstacleRoot(gesture: string): { root: THREE.Group; feedba
   root.add(sprite);
 
   // Background glow
-  const colors: Record<string, string> = {
-    Closed_Fist: '#ff6a85',
-    Open_Palm: '#2fffb2',
-    Pointing_Up: '#b692ff',
-    Thumb_Down: '#ff8f4d',
-    Thumb_Up: '#ffd166',
-    Victory: '#66a3ff',
-    ILoveYou: '#ff73d1',
-  };
-  const color = colors[gesture] ?? '#ffffff';
+  const color = '#ffd166';
   const material = new THREE.MeshStandardMaterial({
     color,
     emissive: color,
-    emissiveIntensity: 0.8,
+    emissiveIntensity: 1,
     transparent: true,
-    opacity: 0.4,
+    opacity: 0.62,
   });
-  const glow = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.05, 16, 32), material);
+  const glow = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.65, 48), material);
   glow.position.y = 0;
-  glow.rotation.x = Math.PI / 2;
   root.add(glow);
 
   return { root, feedbackMaterial: material };

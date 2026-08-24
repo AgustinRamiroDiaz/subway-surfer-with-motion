@@ -309,13 +309,23 @@ export function createFallbackPlayer(index: number): PlayerAvatar {
   canvas.height = 128;
   const texture = new THREE.CanvasTexture(canvas);
   const gestureTextures = [texture];
-  const gestureSprites = [new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }))];
+  const gestureSprites = [new THREE.Sprite(new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    opacity: 0.48,
+    depthWrite: false,
+  }))];
   const secondCanvas = document.createElement('canvas');
   secondCanvas.width = 128;
   secondCanvas.height = 128;
   const secondTexture = new THREE.CanvasTexture(secondCanvas);
   gestureTextures.push(secondTexture);
-  gestureSprites.push(new THREE.Sprite(new THREE.SpriteMaterial({ map: secondTexture, transparent: true })));
+  gestureSprites.push(new THREE.Sprite(new THREE.SpriteMaterial({
+    map: secondTexture,
+    transparent: true,
+    opacity: 0.48,
+    depthWrite: false,
+  })));
   gestureSprites.forEach((sprite) => {
     sprite.scale.set(2, 2, 1);
     sprite.position.y = 0;
