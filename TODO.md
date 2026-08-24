@@ -1,7 +1,3 @@
-# Remove all backwards compatible code
-
-# Rename the game and repo to webcam-motion-games
-
 # Dance Dance revolution with hands
 
 Inspirations:
