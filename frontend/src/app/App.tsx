@@ -306,19 +306,24 @@ function MotionRunnerApp(): ReactElement {
   const handleStartRun = useCallback(async () => {
     camera.clearError();
     const isHandRhythm = preferences.selectedRunnerGameId === 'hand-rhythm';
+    const isResuming = gamePhase === 'paused';
     if (isHandRhythm) {
       await handRhythmMusic.unlock();
     }
     const started = await detector.startDetection();
     if (started) {
-      if (isHandRhythm) {
+      if (isHandRhythm && isResuming) {
         await handRhythmMusic.playWithCountIn();
       } else {
         handRhythmMusic.stop();
       }
       setGamePhase('running');
     }
-  }, [camera, detector, handRhythmMusic, preferences.selectedRunnerGameId]);
+  }, [camera, detector, gamePhase, handRhythmMusic, preferences.selectedRunnerGameId]);
+
+  const handleHandRhythmPlayersReady = useCallback(() => {
+    void handRhythmMusic.playWithCountIn();
+  }, [handRhythmMusic]);
 
   const handlePauseRun = useCallback(() => {
     handRhythmMusic.pause();
@@ -373,6 +378,7 @@ function MotionRunnerApp(): ReactElement {
               handRhythmGridSize={preferences.handRhythmGridSize}
               handRhythmDoubleTargetChance={preferences.handRhythmDoubleTargetChance}
               handRhythmMusicClock={handRhythmMusic}
+              onHandRhythmPlayersReady={handleHandRhythmPlayersReady}
               showHandRhythmFloor={preferences.showHandRhythmFloor}
               gameplayInputRef={detector.gameplayInputRef}
               selectedGameId={preferences.selectedRunnerGameId}

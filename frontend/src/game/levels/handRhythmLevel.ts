@@ -39,6 +39,24 @@ export type HandRhythmGridSize = (typeof HAND_RHYTHM_GRID_SIZES)[number];
 export const DEFAULT_HAND_RHYTHM_GRID_SIZE: HandRhythmGridSize = 3;
 export type HandRhythmCell = { row: number; column: number };
 
+const READY_ZONE_MIN = 0.3;
+const READY_ZONE_MAX = 0.7;
+
+export function isHandRhythmPlayerReady(
+  hand: HandInput | null,
+  playerIndex: number,
+  playerCount: number
+): boolean {
+  if (hand?.gesture !== 'Open_Palm') {
+    return false;
+  }
+
+  const count = Math.max(1, playerCount);
+  const localX = (hand.normalizedX - playerIndex / count) * count;
+  return localX >= READY_ZONE_MIN && localX <= READY_ZONE_MAX &&
+    hand.normalizedY >= READY_ZONE_MIN && hand.normalizedY <= READY_ZONE_MAX;
+}
+
 export type HandRhythmPlayerMotion = {
   gesture: string;
   targetX: number;

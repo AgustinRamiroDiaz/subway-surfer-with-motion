@@ -45,6 +45,7 @@ import {
   type HandRhythmGridSize,
   getHandRhythmPlayerMotion,
   GESTURE_TO_EMOJI,
+  isHandRhythmPlayerReady,
 } from './levels/handRhythmLevel';
 import { getRunnerLevel } from './levelRegistry';
 import { createObstacleSystem } from './obstacles';
@@ -66,6 +67,7 @@ type GameSceneProps = {
   handRhythmGridSize: HandRhythmGridSize;
   handRhythmDoubleTargetChance: number;
   handRhythmMusicClock: RhythmMusicClock;
+  onHandRhythmPlayersReady: () => void;
   showHandRhythmFloor: boolean;
   gameplayInputRef: React.RefObject<GameplayInputFrame>;
   selectedGameId: RunnerGameId;
@@ -132,6 +134,7 @@ export function GameScene({
   handRhythmGridSize,
   handRhythmDoubleTargetChance,
   handRhythmMusicClock,
+  onHandRhythmPlayersReady,
   showHandRhythmFloor,
   gameplayInputRef,
   selectedGameId,
@@ -149,12 +152,17 @@ export function GameScene({
   const calibrationRef = useRef<CalibrationRun>(createCalibrationRun(playerCount));
   const lastCalibrationProgressRef = useRef(-1);
   const jumpDuckActionsRef = useRef(getInitialJumpDuckActions(playerCount));
+  const handRhythmPreflightCompleteRef = useRef(false);
   const [calibrationState, setCalibrationState] = useState<JumpDuckCalibrationState>({
     calibrated: true,
     progress: 1,
   });
   const [stats, setStats] = useState<GameStats>(() => createDefaultStats(playerCount));
   const [countInBeat, setCountInBeat] = useState<number | null>(null);
+  const [handRhythmPlayersReady, setHandRhythmPlayersReady] = useState<boolean[]>(
+    () => Array.from({ length: playerCount }, () => false)
+  );
+  const [handRhythmPreflightComplete, setHandRhythmPreflightComplete] = useState(false);
 
   useEffect(() => {
     selectedGameIdRef.current = selectedGameId;
@@ -165,6 +173,9 @@ export function GameScene({
 
   useEffect(() => {
     setStats(createDefaultStats(playerCount));
+    handRhythmPreflightCompleteRef.current = false;
+    setHandRhythmPreflightComplete(false);
+    setHandRhythmPlayersReady(Array.from({ length: playerCount }, () => false));
     calibrationRef.current = createCalibrationRun(playerCount);
     jumpDuckActionsRef.current = getInitialJumpDuckActions(playerCount);
     lastCalibrationProgressRef.current = -1;
@@ -177,7 +188,12 @@ export function GameScene({
 
   useEffect(() => {
     gamePhaseRef.current = phase;
-  }, [phase]);
+    if (phase === 'ready') {
+      handRhythmPreflightCompleteRef.current = false;
+      setHandRhythmPreflightComplete(false);
+      setHandRhythmPlayersReady(Array.from({ length: playerCount }, () => false));
+    }
+  }, [phase, playerCount]);
 
   const selectedLevel = getRunnerLevel(selectedGameId);
   const isJumpDuckGame = selectedLevel.requiresCalibration;
@@ -192,9 +208,14 @@ export function GameScene({
       : isJumpDuckGame && !calibrationState.calibrated
         ? t('game.calibrating', { progress: Math.round(calibrationState.progress * 100) })
         : isHandRhythmGame
-          ? countInBeat === null
-            ? t('game.running')
-            : t('game.countIn', { beat: countInBeat })
+          ? !handRhythmPreflightComplete
+            ? t('game.handReady', {
+                ready: handRhythmPlayersReady.filter(Boolean).length,
+                total: playerCount,
+              })
+            : countInBeat === null
+              ? t('game.running')
+              : t('game.countIn', { beat: countInBeat })
           : stats.status === 'hit' && stats.hitPlayer !== null
             ? t('game.playerHit', { player: stats.hitPlayer })
             : t('game.running');
@@ -241,6 +262,8 @@ export function GameScene({
     );
     let nextRhythmNoteIndex = 0;
     let lastCountInBeat: number | null = null;
+    let lastHandRhythmReadiness = Array.from({ length: playerCount }, () => false);
+    let allPlayersReadySince: number | null = null;
 
     const resize = (): void => {
       const { clientWidth, clientHeight } = mount;
@@ -313,6 +336,24 @@ export function GameScene({
       const delta = simulationStep.deltaSeconds;
       const inputFrame = gameplayInputRef.current;
       const handRhythmCells: Array<HandRhythmCell[] | undefined> = [];
+      const isWaitingForHandRhythmPlayers = isHandRhythmGame && !handRhythmPreflightCompleteRef.current;
+      if (isWaitingForHandRhythmPlayers) {
+        const readiness = Array.from({ length: playerCount }, (_, playerIndex) => {
+          if (inputFrame.kind !== 'gesture') {
+            return false;
+          }
+          const playerInput = inputFrame.players[playerIndex];
+          const hands = playerInput?.hands ?? [playerInput?.hand ?? null];
+          return hands.some((hand) => isHandRhythmPlayerReady(hand, playerIndex, playerCount));
+        });
+        if (readiness.some((ready, index) => ready !== lastHandRhythmReadiness[index])) {
+          lastHandRhythmReadiness = readiness;
+          setHandRhythmPlayersReady(readiness);
+        }
+        allPlayersReadySince = readiness.every(Boolean)
+          ? allPlayersReadySince ?? now
+          : null;
+      }
 
       world.players.forEach((player, index) => {
         const motion = activeLevel.getPlayerMotion({
@@ -387,6 +428,17 @@ export function GameScene({
 
       if (activeLevel.inputKind === 'gesture') {
         world.updateHandRhythmGrid(handRhythmCells);
+      }
+
+      if (isWaitingForHandRhythmPlayers) {
+        if (allPlayersReadySince !== null && now - allPlayersReadySince >= 600) {
+          handRhythmPreflightCompleteRef.current = true;
+          setHandRhythmPreflightComplete(true);
+          onHandRhythmPlayersReady();
+        }
+        world.render();
+        animationFrame = window.requestAnimationFrame(animate);
+        return;
       }
 
       if (isCalibrating) {
@@ -563,7 +615,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [cameraMirrored, detectionOverlayRef, gameplayInputRef, handRhythmDoubleTargetChance, handRhythmGridSize, handRhythmMusicClock, isHandRhythmGame, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, selectedLevel.camera, selectedLevel.spawnIntervalMs, showCameraPreview, showDetectionOverlay, showHandRhythmFloor, videoAspectRatio, videoRef]);
+  }, [cameraMirrored, detectionOverlayRef, gameplayInputRef, handRhythmDoubleTargetChance, handRhythmGridSize, handRhythmMusicClock, isHandRhythmGame, onHandRhythmPlayersReady, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, selectedLevel.camera, selectedLevel.spawnIntervalMs, showCameraPreview, showDetectionOverlay, showHandRhythmFloor, videoAspectRatio, videoRef]);
 
   return (
     <div
@@ -593,7 +645,7 @@ export function GameScene({
           </div>
         ))}
       </dl>
-      {isHandRhythmGame && playerCount > 1 ? (
+      {isHandRhythmGame ? (
         <div
           className="hand-rhythm-player-viewports"
           data-testid="hand-rhythm-player-viewports"
@@ -601,8 +653,16 @@ export function GameScene({
           aria-hidden="true"
         >
           {Array.from({ length: playerCount }, (_, index) => (
-            <div className={`hand-rhythm-player-viewport player-${index + 1}`} key={`player-viewport-${index + 1}`}>
-              <span>{`P${index + 1}`}</span>
+            <div
+              className={`hand-rhythm-player-viewport player-${index + 1}${handRhythmPlayersReady[index] ? ' ready' : ''}`}
+              key={`player-viewport-${index + 1}`}
+            >
+              {!handRhythmPreflightComplete ? (
+                <div className="hand-rhythm-ready-cue">
+                  <span>🖐️</span>
+                </div>
+              ) : null}
+              <span className="hand-rhythm-player-label">{`P${index + 1}`}</span>
             </div>
           ))}
         </div>
