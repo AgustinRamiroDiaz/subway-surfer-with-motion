@@ -45,10 +45,10 @@ jobs:
       - name: Build
         run: pnpm run build
         env:
-          PUBLIC_URL: /subway-surfer-with-motion
+          PUBLIC_URL: /webcam-motion-games
 
       - name: Install Chromium
-        run: pnpm --filter @subway-surfer-with-motion/frontend exec playwright install --with-deps chromium
+        run: pnpm --filter @webcam-motion-games/frontend exec playwright install --with-deps chromium
 
       - name: Browser smoke tests
         run: pnpm test:e2e
