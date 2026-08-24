@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { smoothGestureSize, smoothGestureValue } from './gestureSmoothing';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { PoseInput, PoseInputKeypoint } from '../motion-mapping/gameplayInput';
@@ -268,24 +269,47 @@ export function updatePlayerGestureEmoji(player: PlayerAvatar, emoji: string, ha
   }
 }
 
-export function updatePlayerGestureEmojiPosition(player: PlayerAvatar, worldX: number, worldY: number, handIndex = 0): void {
+export function updatePlayerGestureEmojiPosition(
+  player: PlayerAvatar,
+  worldX: number,
+  worldY: number,
+  deltaSeconds: number,
+  handIndex = 0
+): void {
   const sprite = player.gestureSprites?.[handIndex] ?? player.gestureSprite;
   if (!sprite) {
     return;
   }
 
-  sprite.position.x = worldX - player.root.position.x;
-  sprite.position.y = worldY - player.root.position.y;
+  const currentWorldX = typeof sprite.userData.gestureWorldX === 'number'
+    ? sprite.userData.gestureWorldX
+    : player.root.position.x + sprite.position.x;
+  const currentWorldY = typeof sprite.userData.gestureWorldY === 'number'
+    ? sprite.userData.gestureWorldY
+    : player.root.position.y + sprite.position.y;
+  const smoothedWorldX = smoothGestureValue(currentWorldX, worldX, deltaSeconds);
+  const smoothedWorldY = smoothGestureValue(currentWorldY, worldY, deltaSeconds);
+
+  sprite.userData.gestureWorldX = smoothedWorldX;
+  sprite.userData.gestureWorldY = smoothedWorldY;
+  sprite.position.x = smoothedWorldX - player.root.position.x;
+  sprite.position.y = smoothedWorldY - player.root.position.y;
 }
 
-export function updatePlayerGestureEmojiSize(player: PlayerAvatar, worldWidth: number, worldHeight: number, handIndex = 0): void {
+export function updatePlayerGestureEmojiSize(
+  player: PlayerAvatar,
+  worldWidth: number,
+  worldHeight: number,
+  deltaSeconds: number,
+  handIndex = 0
+): void {
   const sprite = player.gestureSprites?.[handIndex] ?? player.gestureSprite;
   if (!sprite) {
     return;
   }
 
   const uniformSize = Math.min(worldWidth, worldHeight);
-  sprite.scale.setScalar(uniformSize);
+  sprite.scale.setScalar(smoothGestureSize(sprite.scale.x, uniformSize, deltaSeconds));
 }
 
 export function createFallbackPlayer(index: number): PlayerAvatar {

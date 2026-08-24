@@ -380,7 +380,8 @@ export function GameScene({
             .map((hand) => getHandRhythmPlayerMotion(hand, index, world.players.length, handRhythmGridSize).cell);
         }
         player.gestureSprites?.forEach((sprite, handIndex) => {
-          sprite.visible = isHandRhythm && playerHands[handIndex] !== null && playerHands[handIndex] !== undefined;
+          const visible = isHandRhythm && playerHands[handIndex] !== null && playerHands[handIndex] !== undefined;
+          sprite.visible = visible;
         });
         player.fallback.visible = !isHandRhythm && !player.rig;
         if (player.rig) {
@@ -396,6 +397,18 @@ export function GameScene({
           jumpDuckActionsRef.current[index] = motion.jumpDuckCell;
         }
 
+        player.poseEnergy = THREE.MathUtils.lerp(player.poseEnergy, poseState.energy, 0.18);
+        player.root.position.x = THREE.MathUtils.lerp(player.root.position.x, motion.targetX, 0.22);
+        player.root.position.y = THREE.MathUtils.lerp(
+          player.root.position.y,
+          motion.targetY + (isHandRhythm ? 0 : Math.sin(now * 0.012 + index) * 0.045 * player.poseEnergy),
+          0.28
+        );
+        player.root.scale.y = THREE.MathUtils.lerp(player.root.scale.y, motion.targetScaleY, 0.24);
+        player.root.rotation.z = THREE.MathUtils.lerp(player.root.rotation.z, -poseState.lean * 0.5, 0.2);
+        player.root.rotation.y = THREE.MathUtils.lerp(player.root.rotation.y, poseState.turn * 0.45, 0.16);
+        player.fallback.rotation.y += delta * (2 + index * 0.35);
+
         if (isHandRhythm) {
           playerHands.slice(0, player.gestureSprites?.length ?? 1).forEach((hand, handIndex) => {
             if (!hand) {
@@ -409,26 +422,26 @@ export function GameScene({
             );
             const emoji = GESTURE_TO_EMOJI[hand.gesture] ?? GESTURE_TO_EMOJI['None'];
             updatePlayerGestureEmoji(player, emoji, handIndex);
-            updatePlayerGestureEmojiPosition(player, handMotion.emojiWorldX, handMotion.emojiWorldY, handIndex);
-            updatePlayerGestureEmojiSize(player, handMotion.emojiWorldWidth, handMotion.emojiWorldHeight, handIndex);
+            updatePlayerGestureEmojiPosition(
+              player,
+              handMotion.emojiWorldX,
+              handMotion.emojiWorldY,
+              delta,
+              handIndex
+            );
+            updatePlayerGestureEmojiSize(
+              player,
+              handMotion.emojiWorldWidth,
+              handMotion.emojiWorldHeight,
+              delta,
+              handIndex
+            );
           });
-        } else if (motion.gesture) {
-          const emoji = GESTURE_TO_EMOJI[motion.gesture] ?? GESTURE_TO_EMOJI['None'];
-          updatePlayerGestureEmoji(player, emoji);
-        }
-        player.poseEnergy = THREE.MathUtils.lerp(player.poseEnergy, poseState.energy, 0.18);
-        player.root.position.x = THREE.MathUtils.lerp(player.root.position.x, motion.targetX, 0.22);
-        player.root.position.y = THREE.MathUtils.lerp(
-          player.root.position.y,
-          motion.targetY + (isHandRhythm ? 0 : Math.sin(now * 0.012 + index) * 0.045 * player.poseEnergy),
-          0.28
-        );
-        player.root.scale.y = THREE.MathUtils.lerp(player.root.scale.y, motion.targetScaleY, 0.24);
-        player.root.rotation.z = THREE.MathUtils.lerp(player.root.rotation.z, -poseState.lean * 0.5, 0.2);
-        player.root.rotation.y = THREE.MathUtils.lerp(player.root.rotation.y, poseState.turn * 0.45, 0.16);
-        player.fallback.rotation.y += delta * (2 + index * 0.35);
-
-        if (!isHandRhythm) {
+        } else {
+          if (motion.gesture) {
+            const emoji = GESTURE_TO_EMOJI[motion.gesture] ?? GESTURE_TO_EMOJI['None'];
+            updatePlayerGestureEmoji(player, emoji);
+          }
           applyMarkerPose(player, motion.pose);
         }
       });
