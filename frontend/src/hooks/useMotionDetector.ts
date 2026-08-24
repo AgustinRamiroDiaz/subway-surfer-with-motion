@@ -12,6 +12,10 @@ import {
   assignPlayerDetections,
   createPlayerTrackingState,
 } from '../motion-mapping/playerTracking';
+import {
+  assignHandsByNearestPosition,
+  createHandTrackingState,
+} from '../motion-mapping/handTracking';
 import { drawDetections } from '../motion-mapping/poseOverlay';
 import {
   createEmptyGameplayInputFrame,
@@ -61,6 +65,7 @@ export function useMotionDetector({
   );
   const [error, setError] = useState<string | null>(null);
   const playerTrackingStateRef = useRef(createPlayerTrackingState(initialPlayerPositions.length));
+  const handTrackingStateRef = useRef(createHandTrackingState(initialPlayerPositions.length));
   const lastUiPublishAtRef = useRef(0);
 
   const handleStreamError = useCallback((cause: Error) => {
@@ -99,6 +104,7 @@ export function useMotionDetector({
     setFrameTimings(null);
     setPlayerPositions(fallbackPositions);
     playerTrackingStateRef.current = createPlayerTrackingState(fallbackPositions.length);
+    handTrackingStateRef.current = createHandTrackingState(fallbackPositions.length);
     clearOverlay();
   }, [clearOverlay, preferencesRef, task]);
 
@@ -172,11 +178,17 @@ export function useMotionDetector({
       ).map((detections) => detections.map((detection) => activePreferences.cameraMirrored
         ? mirrorDetection(detection, frameWidth)
         : detection));
-      const assignedHands = assignedHandDetections.map((detections) =>
+      const detectedHands = assignedHandDetections.map((detections) =>
         detections
           .map((detection) => toHandInput(detection, result.frame.width, result.frame.height))
           .filter((hand): hand is HandInput => hand !== null)
       );
+      const handTracking = assignHandsByNearestPosition(
+        detectedHands,
+        handTrackingStateRef.current
+      );
+      handTrackingStateRef.current = handTracking.state;
+      const assignedHands = handTracking.handsByPlayer;
 
       publishPlayerState(
         getDefaultPlayerPositions(playerCount),
@@ -184,7 +196,7 @@ export function useMotionDetector({
       );
       gameplayInputRef.current = {
         kind: 'gesture',
-        players: assignedHands.map((hands) => ({ hand: hands[0] ?? null, hands })),
+        players: assignedHands.map((hands) => ({ hand: hands.find((hand) => hand !== null) ?? null, hands })),
       };
       
       const drawStartedAt = performance.now();

@@ -36,7 +36,7 @@ export type PosePlayerInput = {
 
 export type HandPlayerInput = {
   hand: HandInput | null;
-  hands?: HandInput[];
+  hands?: Array<HandInput | null>;
 };
 
 export type GameplayInputFrame =

@@ -1,3 +1,17 @@
+# New levels
+
+## Top down games
+
+In top down games, human hands or even poses can be used as their controllers, thus making any kind of 2d game with simple inputs.
+
+This can be a bit more abstract for kids though, since it might not be a simple mapping
+
+## Rock climbing
+
+I'm not certain if it should be like using only arms, or I should be adding the head as well. There could also be a virtual head in the middle of the arms. There could be obstacles, mazes
+
+Other idea includes moving a ragdoll limb by limb to climb.
+
 # Dance Dance revolution with hands
 
 Inspirations:
@@ -24,14 +38,6 @@ Examples:
 ## Allow exploring prior to the main game
 
 Allow to move around prior to start playing
-
-# New levels
-
-## Top down games
-
-In top down games, human hands or even poses can be used as their controllers, thus making any kind of 2d game with simple inputs.
-
-This can be a bit more abstract for kids though, since it might not be a simple mapping
 
 # Review jumpDuckLevel
 
