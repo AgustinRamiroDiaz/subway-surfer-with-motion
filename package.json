@@ -17,7 +17,8 @@
     "lint:python": "uv run --project pose-estimation-tracker-server ruff check pose-estimation-tracker-server/src pose-estimation-tracker-server/tests && uv run --project pose-estimation-tracker-server mypy pose-estimation-tracker-server/src",
     "verify": "pnpm lint && pnpm test && pnpm build && pnpm lint:python && pnpm test:python",
     "lint:fix": "pnpm --filter @webcam-motion-games/frontend lint:fix",
-    "profile:e2e": "node scripts/profile-e2e.mjs"
+    "profile:e2e": "node scripts/profile-e2e.mjs",
+    "analyze:beats": "python3 scripts/analyze-beats.py"
   },
   "devDependencies": {
     "husky": "^9.1.7"

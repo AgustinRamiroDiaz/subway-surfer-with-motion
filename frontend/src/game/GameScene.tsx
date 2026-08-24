@@ -14,6 +14,7 @@ import {
   COLLISION_RADIUS_X,
   COLLISION_RADIUS_Z,
   OBSTACLE_DESPAWN_Z,
+  OBSTACLE_SPAWN_Z,
   OBSTACLE_SPEED,
   PLAYER_BASE_Y,
   PLAYER_Z,
@@ -51,6 +52,9 @@ import { applyMarkerPose, disposeObject, getPoseAnimationState, updatePlayerGest
 import { createTrackWorld } from './trackWorld';
 import { handRhythmPlayerWidth } from './levels/handRhythmLayout';
 import { playerTrackX } from './trackLayout';
+import { fitRhythmNoteToGrid, getCompanionRhythmNote, HAND_RHYTHM_SONG } from './handRhythmSong';
+import type { RhythmMusicClock } from './rhythmMusicPlayer';
+import { getRhythmNoteTimes, getRhythmTargetZ, isRhythmNoteVisible } from './rhythmTiming';
 
 export type { GamePhase };
 
@@ -61,6 +65,7 @@ type GameSceneProps = {
   playerCount: number;
   handRhythmGridSize: HandRhythmGridSize;
   handRhythmDoubleTargetChance: number;
+  handRhythmMusicClock: RhythmMusicClock;
   showHandRhythmFloor: boolean;
   gameplayInputRef: React.RefObject<GameplayInputFrame>;
   selectedGameId: RunnerGameId;
@@ -126,6 +131,7 @@ export function GameScene({
   playerCount,
   handRhythmGridSize,
   handRhythmDoubleTargetChance,
+  handRhythmMusicClock,
   showHandRhythmFloor,
   gameplayInputRef,
   selectedGameId,
@@ -148,6 +154,7 @@ export function GameScene({
     progress: 1,
   });
   const [stats, setStats] = useState<GameStats>(() => createDefaultStats(playerCount));
+  const [countInBeat, setCountInBeat] = useState<number | null>(null);
 
   useEffect(() => {
     selectedGameIdRef.current = selectedGameId;
@@ -185,7 +192,9 @@ export function GameScene({
       : isJumpDuckGame && !calibrationState.calibrated
         ? t('game.calibrating', { progress: Math.round(calibrationState.progress * 100) })
         : isHandRhythmGame
-          ? t('game.running')
+          ? countInBeat === null
+            ? t('game.running')
+            : t('game.countIn', { beat: countInBeat })
           : stats.status === 'hit' && stats.hitPlayer !== null
             ? t('game.playerHit', { player: stats.hitPlayer })
             : t('game.running');
@@ -230,6 +239,8 @@ export function GameScene({
       () => handRhythmGridSize,
       () => handRhythmDoubleTargetChance
     );
+    let nextRhythmNoteIndex = 0;
+    let lastCountInBeat: number | null = null;
 
     const resize = (): void => {
       const { clientWidth, clientHeight } = mount;
@@ -282,6 +293,21 @@ export function GameScene({
         world.render();
         animationFrame = window.requestAnimationFrame(animate);
         return;
+      }
+
+      if (isHandRhythmGame && handRhythmMusicClock.isCountingIn()) {
+        const nextCountInBeat = handRhythmMusicClock.getCountInBeat();
+        if (nextCountInBeat !== lastCountInBeat) {
+          lastCountInBeat = nextCountInBeat;
+          setCountInBeat(nextCountInBeat);
+        }
+        world.render();
+        animationFrame = window.requestAnimationFrame(animate);
+        return;
+      }
+      if (lastCountInBeat !== null) {
+        lastCountInBeat = null;
+        setCountInBeat(null);
       }
 
       const delta = simulationStep.deltaSeconds;
@@ -385,13 +411,51 @@ export function GameScene({
         return;
       }
 
-      if (simulationStep.shouldSpawn) {
+      if (isHandRhythmGame) {
+        const songTime = handRhythmMusicClock.getSongTime();
+        while (nextRhythmNoteIndex < HAND_RHYTHM_SONG.notes.length) {
+          const note = HAND_RHYTHM_SONG.notes[nextRhythmNoteIndex];
+          if (!note || songTime < getRhythmNoteTimes(HAND_RHYTHM_SONG, note).spawnTimeSeconds) {
+            break;
+          }
+          if (isRhythmNoteVisible(
+            HAND_RHYTHM_SONG,
+            note,
+            songTime,
+            OBSTACLE_SPAWN_Z,
+            PLAYER_Z,
+            OBSTACLE_DESPAWN_Z
+          )) {
+            const gridNote = fitRhythmNoteToGrid(note, handRhythmGridSize);
+            for (let playerIndex = 0; playerIndex < playerCount; playerIndex += 1) {
+              obstacleSystem.spawnHandRhythmTarget(gridNote, playerIndex);
+              if (Math.random() < handRhythmDoubleTargetChance) {
+                obstacleSystem.spawnHandRhythmTarget(
+                  getCompanionRhythmNote(gridNote, handRhythmGridSize),
+                  playerIndex
+                );
+              }
+            }
+          }
+          nextRhythmNoteIndex += 1;
+        }
+      } else if (simulationStep.shouldSpawn) {
         obstacleSystem.spawnObstacle();
       }
 
       for (let index = obstacleSystem.obstacles.length - 1; index >= 0; index -= 1) {
         const obstacle = obstacleSystem.obstacles[index];
-        obstacle.root.position.z += OBSTACLE_SPEED * delta;
+        if (obstacle.kind === 'hand-rhythm' && obstacle.rhythmNote) {
+          obstacle.root.position.z = getRhythmTargetZ(
+            HAND_RHYTHM_SONG,
+            obstacle.rhythmNote,
+            handRhythmMusicClock.getSongTime(),
+            OBSTACLE_SPAWN_Z,
+            PLAYER_Z
+          );
+        } else {
+          obstacle.root.position.z += OBSTACLE_SPEED * delta;
+        }
         if (obstacle.kind === 'sideways') {
           obstacle.root.rotation.x += delta * 2.8;
           obstacle.root.rotation.z += delta * 1.5;
@@ -499,7 +563,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [cameraMirrored, detectionOverlayRef, gameplayInputRef, handRhythmDoubleTargetChance, handRhythmGridSize, isHandRhythmGame, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, selectedLevel.camera, selectedLevel.spawnIntervalMs, showCameraPreview, showDetectionOverlay, showHandRhythmFloor, videoAspectRatio, videoRef]);
+  }, [cameraMirrored, detectionOverlayRef, gameplayInputRef, handRhythmDoubleTargetChance, handRhythmGridSize, handRhythmMusicClock, isHandRhythmGame, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, selectedLevel.camera, selectedLevel.spawnIntervalMs, showCameraPreview, showDetectionOverlay, showHandRhythmFloor, videoAspectRatio, videoRef]);
 
   return (
     <div

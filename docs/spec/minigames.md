@@ -69,7 +69,9 @@ Each player has a section of the camera view. The selected grid size divides eac
 
 The player avatar follows the detected hand cell in that player's section. The player's visible hand marker uses the emoji for the currently recognized gesture and is sized to the detected hand. If no hand is detected, the player stays in the center cell and shows an unknown gesture at a fallback size.
 
-Targets appear as gesture prompts placed in grid cells. Each player receives targets independently. By default, each player has a 10% chance for one spawn to create two targets in different cells of that player's grid, requiring both hands to respond simultaneously; this chance is configurable in the Hand Rhythm controls. The player succeeds by making the prompted gesture while their detected hand is in the prompted cell as the target reaches the hit zone.
+The level plays its music through a dedicated music channel. Starting or resuming the level begins a four-beat audible count-in before music and target movement continue. Pausing stops both music and target movement at the same song position.
+
+Targets appear as gesture prompts placed in grid cells. The target chart is aligned to the song's quarter-note beat grid, and every configured player receives each chart prompt. Targets move according to the current song position so that they reach the hit zone on their assigned beat. By default, each player has a 10% chance for one chart prompt to create two targets in different cells at the same beat, requiring both hands to respond simultaneously; this chance is configurable in the Hand Rhythm controls. The player succeeds by making the prompted gesture while their detected hand is in the prompted cell as the target reaches the hit zone.
 
 Supported gesture prompts are:
 
@@ -81,6 +83,6 @@ Supported gesture prompts are:
 - Victory.
 - I love you.
 
-A successful match counts as one hit for the target player and changes the target feedback to a success color. A failed match changes the target feedback to a miss color. A target that passes without any successful match counts as dodged.
+A successful on-beat match counts as one hit for the target player and changes the target feedback to a success color. A failed match at the assigned beat changes the target feedback to a miss color. A target that passes without any successful match counts as dodged.
 
 This mode does not require calibration.

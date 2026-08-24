@@ -33,6 +33,8 @@ import { DetectionControls } from '../ui/DetectionControls';
 import type { GamePhase, RunnerGameId } from '../game/gameTypes';
 import type { WorldProjection } from '../game/GameScene';
 import { getRunnerLevel } from '../game/levelRegistry';
+import { HAND_RHYTHM_SONG } from '../game/handRhythmSong';
+import { createRhythmMusicPlayer } from '../game/rhythmMusicPlayer';
 import { useI18n } from './i18n';
 import { useCameraController } from '../hooks/useCameraController';
 import { useMotionDetector } from '../hooks/useMotionDetector';
@@ -191,6 +193,7 @@ function MotionRunnerApp(): ReactElement {
   const [videoAspectRatio, setVideoAspectRatio] = useState(4 / 3);
   const detectorConfigurationKey = getDetectorConfigurationKey(preferences);
   const previousDetectorConfigurationKeyRef = useRef(detectorConfigurationKey);
+  const handRhythmMusic = useMemo(() => createRhythmMusicPlayer(HAND_RHYTHM_SONG), []);
 
   const detectorTask = useMemo(() => {
     return getRunnerLevel(preferences.selectedRunnerGameId).detectorTask;
@@ -203,6 +206,7 @@ function MotionRunnerApp(): ReactElement {
     preferences,
     onPreferencesChange: handlePreferencesReplacement,
     onCameraRestart: () => {
+      handRhythmMusic.stop();
       detector.stopDetection();
       detector.clearDetectionState();
       setGamePhase('ready');
@@ -225,13 +229,19 @@ function MotionRunnerApp(): ReactElement {
   }, [preferences]);
 
   useEffect(() => {
+    void handRhythmMusic.preload().catch(() => undefined);
+    return () => handRhythmMusic.dispose();
+  }, [handRhythmMusic]);
+
+  useEffect(() => {
     if (previousDetectorConfigurationKeyRef.current === detectorConfigurationKey) {
       return;
     }
     previousDetectorConfigurationKeyRef.current = detectorConfigurationKey;
+    handRhythmMusic.stop();
     detector.resetDetector();
     setGamePhase('ready');
-  }, [detector, detectorConfigurationKey]);
+  }, [detector, detectorConfigurationKey, handRhythmMusic]);
 
   const selectedTrackerLabel = useMemo(() => {
     if (preferences.selectedBackendId === 'python-webrtc') {
@@ -285,32 +295,46 @@ function MotionRunnerApp(): ReactElement {
   }, []);
 
   const handleStopCamera = useCallback(() => {
+    handRhythmMusic.stop();
     detector.stopDetection();
     camera.stopCamera();
     detector.clearDetectionState();
     camera.clearError();
     setGamePhase('ready');
-  }, [camera, detector]);
+  }, [camera, detector, handRhythmMusic]);
 
   const handleStartRun = useCallback(async () => {
     camera.clearError();
+    const isHandRhythm = preferences.selectedRunnerGameId === 'hand-rhythm';
+    if (isHandRhythm) {
+      await handRhythmMusic.unlock();
+    }
     const started = await detector.startDetection();
     if (started) {
+      if (isHandRhythm) {
+        await handRhythmMusic.playWithCountIn();
+      } else {
+        handRhythmMusic.stop();
+      }
       setGamePhase('running');
     }
-  }, [camera, detector]);
+  }, [camera, detector, handRhythmMusic, preferences.selectedRunnerGameId]);
 
   const handlePauseRun = useCallback(() => {
+    handRhythmMusic.pause();
     detector.stopDetection();
     setGamePhase('paused');
-  }, [detector]);
+  }, [detector, handRhythmMusic]);
 
   const handleGameSelection = useCallback((selectedRunnerGameId: RunnerGameId) => {
     if (gamePhase === 'running') {
       handlePauseRun();
     }
+    if (selectedRunnerGameId !== preferences.selectedRunnerGameId) {
+      handRhythmMusic.stop();
+    }
     handleGameIdChange(selectedRunnerGameId);
-  }, [gamePhase, handleGameIdChange, handlePauseRun]);
+  }, [gamePhase, handRhythmMusic, handleGameIdChange, handlePauseRun, preferences.selectedRunnerGameId]);
 
   const handleJumpDuckGuidesChange = useCallback((guides: JumpDuckGuide[]) => {
     setJumpDuckGuides(guides);
@@ -348,6 +372,7 @@ function MotionRunnerApp(): ReactElement {
               playerCount={preferences.playerCount}
               handRhythmGridSize={preferences.handRhythmGridSize}
               handRhythmDoubleTargetChance={preferences.handRhythmDoubleTargetChance}
+              handRhythmMusicClock={handRhythmMusic}
               showHandRhythmFloor={preferences.showHandRhythmFloor}
               gameplayInputRef={detector.gameplayInputRef}
               selectedGameId={preferences.selectedRunnerGameId}

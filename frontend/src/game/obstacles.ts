@@ -22,6 +22,7 @@ import type {
   ObstacleSystem,
   RunnerGameId,
 } from './gameTypes';
+import type { RhythmNote } from './rhythmTiming';
 import { playerTrackX } from './trackLayout';
 
 const JUMP_DUCK_LANE_OFFSETS: Record<JumpDuckObstacleColumn, number> = {
@@ -241,6 +242,37 @@ export function createObstacleSystem(
 
   return {
     obstacles,
+    spawnHandRhythmTarget: (note: RhythmNote, targetPlayerIndex: number) => {
+      const playerCount = Math.max(1, getPlayerCount());
+      const handPosition = getHandRhythmCellWorldPosition(
+        note.cell,
+        targetPlayerIndex,
+        playerCount,
+        getHandRhythmGridSize()
+      );
+      const gestureObstacle = createGestureObstacleRoot(note.gesture);
+      gestureObstacle.root.position.set(handPosition.x, handPosition.y, OBSTACLE_SPAWN_Z);
+      if (playerCount > 1) {
+        gestureObstacle.root.traverse((child) => child.layers.set(targetPlayerIndex + 1));
+      }
+      scene.add(gestureObstacle.root);
+      obstacles.push({
+        root: gestureObstacle.root,
+        x: handPosition.x,
+        kind: 'hand-rhythm',
+        targetPlayerIndex,
+        blockedCells: [],
+        gesture: note.gesture,
+        handCell: note.cell,
+        handResult: 'pending',
+        rhythmNote: note,
+        hitBy: [],
+        hitPieces: new Set<string>(),
+        hitMaterials: collectMaterials(gestureObstacle.root),
+        feedbackMaterials: [gestureObstacle.feedbackMaterial],
+        pieces: [],
+      });
+    },
     spawnObstacle: () => {
       const gameId = getGameId();
       const playerCount = Math.max(1, getPlayerCount());

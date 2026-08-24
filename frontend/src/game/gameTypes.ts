@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import type { HorizontalAction, JumpDuckCell, VerticalAction } from '../motion-mapping/jumpDuckActions';
 import type { HandRhythmCell } from './levels/handRhythmLevel';
+import type { RhythmNote } from './rhythmTiming';
 
 export type GamePhase = 'ready' | 'running' | 'paused';
 
@@ -28,6 +29,7 @@ export type Obstacle = {
   gesture?: string;
   handCell?: HandRhythmCell;
   handResult?: 'pending' | 'hit' | 'missed';
+  rhythmNote?: RhythmNote;
   hitBy: boolean[];
   hitPieces: Set<string>;
   hitMaterials: THREE.MeshStandardMaterial[];
@@ -87,6 +89,7 @@ export type TrackWorld = {
 
 export type ObstacleSystem = {
   obstacles: Obstacle[];
+  spawnHandRhythmTarget: (note: RhythmNote, targetPlayerIndex: number) => void;
   spawnObstacle: () => void;
   dispose: () => void;
 };
