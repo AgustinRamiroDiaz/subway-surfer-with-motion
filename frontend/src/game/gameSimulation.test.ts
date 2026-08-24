@@ -5,7 +5,6 @@ import {
   createDefaultStats,
   createGameSimulationClock,
   findJumpDuckPieceHits,
-  isHandRhythmTargetMatch,
   isPlayerInCollisionRange,
   randomIndex,
   recordDodgedObstacle,
@@ -76,13 +75,6 @@ describe('game simulation', () => {
       { cell: 'top-right', blockedVerticals: ['jump'], blockedHorizontals: ['right'] },
     ], new Set(), 0, 'run-left');
     expect(hits).toEqual([{ key: '0:bottom-left', pieceIndex: 0 }]);
-
-    expect(isHandRhythmTargetMatch(
-      { gesture: 'Victory', normalizedX: 0.5, normalizedY: 0.5 },
-      { row: 1, column: 1 },
-      'Victory',
-      { row: 1, column: 1 }
-    )).toBe(true);
   });
 
   test('uses an injected random source', () => {

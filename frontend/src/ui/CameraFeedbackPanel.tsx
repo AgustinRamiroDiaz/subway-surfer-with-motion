@@ -1,7 +1,7 @@
 import type { ReactElement, RefObject } from 'react';
 import type { JumpDuckGuide } from '../motion-mapping/jumpDuckActions';
 import type { HandRhythmGridSize } from '../game/levels/handRhythmLevel';
-import type { WorldProjection } from '../game/GameScene';
+import type { WorldProjection } from '../game/shared/worldProjection';
 import { useI18n } from '../app/i18n';
 
 type CameraFeedbackPanelProps = {

@@ -1,48 +1,30 @@
 import { describe, expect, test } from 'vitest';
-import { RUNNER_LEVELS, getRunnerLevel } from './levelRegistry';
+import { GAME_CATALOG, POSE_RUNNER_LEVELS, getGameDescriptor, getPoseRunnerLevel } from './levelRegistry';
 
-describe('runner level registry', () => {
-  test('contains one complete definition for every runner level', () => {
-    expect(RUNNER_LEVELS.map((level) => level.id)).toEqual([
-      'sideways',
-      'jump-duck',
-      'hand-rhythm',
-    ]);
-    expect(new Set(RUNNER_LEVELS.map((level) => level.id)).size).toBe(RUNNER_LEVELS.length);
+describe('game catalog', () => {
+  test('contains one descriptor for every selectable game', () => {
+    expect(GAME_CATALOG.map((game) => game.id)).toEqual(['sideways', 'jump-duck', 'hand-rhythm']);
+    expect(new Set(GAME_CATALOG.map((game) => game.id)).size).toBe(GAME_CATALOG.length);
   });
 
-  test('declares detector compatibility alongside each level', () => {
-    expect(getRunnerLevel('sideways')).toMatchObject({
-      detectorTask: 'pose',
-      defaultBackend: 'mediapipe',
-      inputKind: 'pose',
-    });
-    expect(getRunnerLevel('hand-rhythm')).toMatchObject({
-      detectorTask: 'gesture',
-      defaultBackend: 'mediapipe-gesture',
-      inputKind: 'gesture',
-    });
+  test('keeps detector compatibility in selection metadata', () => {
+    expect(getGameDescriptor('sideways')).toMatchObject({ detectorTask: 'pose', defaultBackend: 'mediapipe' });
+    expect(getGameDescriptor('hand-rhythm')).toMatchObject({ detectorTask: 'gesture', defaultBackend: 'mediapipe-gesture' });
+  });
+});
+
+describe('pose runner levels', () => {
+  test('contain only games that use the forward obstacle pipeline', () => {
+    expect(POSE_RUNNER_LEVELS.map((level) => level.id)).toEqual(['sideways', 'jump-duck']);
   });
 
-  test('defines square-on camera framing for every projection-aligned level', () => {
-    RUNNER_LEVELS.forEach((level) => {
-      expect(level.camera.positionY).toBe(2.45);
-      expect(level.camera.positionZ).toBeGreaterThan(level.camera.targetZ);
-    });
-  });
-
-  test('maps player input through level-specific motion behavior', () => {
-    const motion = getRunnerLevel('sideways').getPlayerMotion({
-      inputFrame: {
-        kind: 'pose',
-        players: [{ normalizedX: 0.75, pose: null }],
-      },
+  test('map pose input without rhythm-only context', () => {
+    const motion = getPoseRunnerLevel('sideways').getPlayerMotion({
+      inputFrame: { kind: 'pose', players: [{ normalizedX: 0.75, pose: null }] },
       playerIndex: 0,
       playerCount: 1,
       calibration: undefined,
-      handRhythmGridSize: 3,
     });
-
     expect(motion.targetX).toBeGreaterThan(0);
     expect(motion.pose).toBeNull();
   });

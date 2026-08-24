@@ -31,10 +31,11 @@ import type { JumpDuckGuide } from '../motion-mapping/jumpDuckActions';
 import { CameraFeedbackPanel } from '../ui/CameraFeedbackPanel';
 import { DetectionControls } from '../ui/DetectionControls';
 import type { GamePhase, RunnerGameId } from '../game/gameTypes';
-import type { WorldProjection } from '../game/GameScene';
-import { getRunnerLevel } from '../game/levelRegistry';
-import { HAND_RHYTHM_PLAYBACK } from '../game/handRhythmSongMetadata';
-import { createRhythmMusicPlayer } from '../game/rhythmMusicPlayer';
+import type { WorldProjection } from '../game/shared/worldProjection';
+import { getGameDescriptor } from '../game/levelRegistry';
+import { PoseRunnerScene } from '../game/games/pose-runner/PoseRunnerScene';
+import { HandRhythmScene } from '../game/games/hand-rhythm/HandRhythmScene';
+import { useHandRhythmMusic } from '../game/games/hand-rhythm/useHandRhythmMusic';
 import { useI18n } from './i18n';
 import { useCameraController } from '../hooks/useCameraController';
 import { useMotionDetector } from '../hooks/useMotionDetector';
@@ -76,10 +77,6 @@ const LEVEL_BOARD_METADATA: readonly LevelBoardMetadata[] = [
   },
 ] as const;
 
-const GameScene = lazy(async () => {
-  const module = await import('../game/GameScene');
-  return { default: module.GameScene };
-});
 const TrackingInternalsDocs = lazy(async () => {
   const module = await import('../ui/TrackingInternalsDocs');
   return { default: module.TrackingInternalsDocs };
@@ -123,7 +120,7 @@ function LevelBoard({
               key={level.id}
               type="button"
               className={`level-card level-card-${level.id}${selected ? ' selected' : ''}`}
-              aria-label={t(getRunnerLevel(level.id).modeLabelKey)}
+              aria-label={t(getGameDescriptor(level.id).modeLabelKey)}
               aria-current={selected ? 'true' : undefined}
               aria-pressed={selected}
               onClick={() => onSelectGame(level.id)}
@@ -193,10 +190,10 @@ function MotionRunnerApp(): ReactElement {
   const [videoAspectRatio, setVideoAspectRatio] = useState(4 / 3);
   const detectorConfigurationKey = getDetectorConfigurationKey(preferences);
   const previousDetectorConfigurationKeyRef = useRef(detectorConfigurationKey);
-  const handRhythmMusic = useMemo(() => createRhythmMusicPlayer(HAND_RHYTHM_PLAYBACK), []);
+  const handRhythmMusic = useHandRhythmMusic();
 
   const detectorTask = useMemo(() => {
-    return getRunnerLevel(preferences.selectedRunnerGameId).detectorTask;
+    return getGameDescriptor(preferences.selectedRunnerGameId).detectorTask;
   }, [preferences.selectedRunnerGameId]);
   const handlePreferencesReplacement = useCallback((nextPreferences: typeof preferences) => {
     dispatchPreferences({ type: 'replace', preferences: nextPreferences });
@@ -227,11 +224,6 @@ function MotionRunnerApp(): ReactElement {
   useEffect(() => {
     writeStoredAppPreferences(preferences);
   }, [preferences]);
-
-  useEffect(() => {
-    void handRhythmMusic.preload().catch(() => undefined);
-    return () => handRhythmMusic.dispose();
-  }, [handRhythmMusic]);
 
   useEffect(() => {
     if (previousDetectorConfigurationKeyRef.current === detectorConfigurationKey) {
@@ -370,26 +362,36 @@ function MotionRunnerApp(): ReactElement {
           aria-label={t('app.mainGame')}
         >
           <Suspense fallback={<LoadingRegion />}>
-            <GameScene
-              cameraMirrored={preferences.cameraMirrored}
-              detectionOverlayRef={camera.overlayRef}
-              phase={gamePhase}
-              playerCount={preferences.playerCount}
-              handRhythmDifficulty={preferences.handRhythmDifficulty}
-              handRhythmGridSize={preferences.handRhythmGridSize}
-              handRhythmDoubleTargetChance={preferences.handRhythmDoubleTargetChance}
-              handRhythmMusicClock={handRhythmMusic}
-              onHandRhythmPlayersReady={handleHandRhythmPlayersReady}
-              showHandRhythmFloor={preferences.showHandRhythmFloor}
-              gameplayInputRef={detector.gameplayInputRef}
-              selectedGameId={preferences.selectedRunnerGameId}
-              showCameraPreview={preferences.cameraPreviewVisibility[preferences.selectedRunnerGameId]}
-              showDetectionOverlay={preferences.detectionOverlayVisibility[preferences.selectedRunnerGameId]}
-              videoRef={camera.videoRef}
-              videoAspectRatio={videoAspectRatio}
-              onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
-              onWorldProjectionChange={setWorldProjection}
-            />
+            {preferences.selectedRunnerGameId === 'hand-rhythm' ? (
+              <HandRhythmScene
+                cameraMirrored={preferences.cameraMirrored}
+                detectionOverlayRef={camera.overlayRef}
+                difficulty={preferences.handRhythmDifficulty}
+                doubleTargetChance={preferences.handRhythmDoubleTargetChance}
+                gameplayInputRef={detector.gameplayInputRef}
+                gridSize={preferences.handRhythmGridSize}
+                musicClock={handRhythmMusic}
+                onPlayersReady={handleHandRhythmPlayersReady}
+                onWorldProjectionChange={setWorldProjection}
+                phase={gamePhase}
+                playerCount={preferences.playerCount}
+                showCameraPreview={preferences.cameraPreviewVisibility['hand-rhythm']}
+                showDetectionOverlay={preferences.detectionOverlayVisibility['hand-rhythm']}
+                showFloor={preferences.showHandRhythmFloor}
+                videoAspectRatio={videoAspectRatio}
+                videoRef={camera.videoRef}
+              />
+            ) : (
+              <PoseRunnerScene
+                gameplayInputRef={detector.gameplayInputRef}
+                onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
+                onWorldProjectionChange={setWorldProjection}
+                phase={gamePhase}
+                playerCount={preferences.playerCount}
+                selectedGameId={preferences.selectedRunnerGameId}
+                videoAspectRatio={videoAspectRatio}
+              />
+            )}
           </Suspense>
           {gamePhase !== 'running' ? (
             <LevelBoard
@@ -429,7 +431,7 @@ function MotionRunnerApp(): ReactElement {
             </div>
             <div className="selected-level-summary">
               <span>{t('home.selectedLevel')}</span>
-              <strong>{t(getRunnerLevel(preferences.selectedRunnerGameId).titleKey)}</strong>
+              <strong>{t(getGameDescriptor(preferences.selectedRunnerGameId).titleKey)}</strong>
             </div>
             <div className="run-controls">
               <button

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { PLAYER_BASE_Y, PLAYER_Z } from './gameConstants';
-import type { RunnerGameId, TrackWorld } from './gameTypes';
-import type { RunnerLevelDefinition } from './levelRegistry';
+import type { HandRhythmTrackWorld, PoseRunnerGameId, RunnerGameId, TrackWorld } from './gameTypes';
+import type { CameraFraming } from './levelRegistry';
 import type { HandRhythmCell, HandRhythmGridSize } from './levels/handRhythmLevel';
 import { handRhythmPlayerWidth, HAND_RHYTHM_ROW_Y } from './levels/handRhythmLayout';
 import {
@@ -18,7 +18,7 @@ function setObjectLayer(object: THREE.Object3D, layer: number): void {
 export function createTrackCameras(
   gameId: RunnerGameId,
   playerCount: number,
-  cameraFraming: RunnerLevelDefinition['camera']
+  cameraFraming: CameraFraming
 ): THREE.PerspectiveCamera[] {
   const cameraCount = gameId === 'hand-rhythm' ? Math.max(1, playerCount) : 1;
 
@@ -225,15 +225,15 @@ function createHandRhythmGrid(scene: THREE.Scene, playerCount: number, gridSize:
   };
 }
 
-export function createTrackWorld(
+function createTrackWorldInternal(
   mount: HTMLDivElement,
   initialPlayerPositions: number[],
   gameId: RunnerGameId,
-  cameraFraming: RunnerLevelDefinition['camera'],
+  cameraFraming: CameraFraming,
   handRhythmGridSize: HandRhythmGridSize = 3,
   showHandRhythmFloor = true,
   cameraOverlayOptions?: HandRhythmCameraOverlayOptions
-): TrackWorld {
+): HandRhythmTrackWorld {
   let disposed = false;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#101416');
@@ -413,4 +413,36 @@ export function createTrackWorld(
       renderer.domElement.remove();
     },
   };
+}
+
+export function createPoseRunnerWorld(
+  mount: HTMLDivElement,
+  initialPlayerPositions: number[],
+  gameId: PoseRunnerGameId,
+  cameraFraming: CameraFraming
+): TrackWorld {
+  return createTrackWorldInternal(mount, initialPlayerPositions, gameId, cameraFraming);
+}
+
+export function createHandRhythmWorld(
+  mount: HTMLDivElement,
+  playerCount: number,
+  cameraFraming: CameraFraming,
+  gridSize: HandRhythmGridSize,
+  showFloor: boolean,
+  cameraOverlayOptions: HandRhythmCameraOverlayOptions
+): HandRhythmTrackWorld {
+  const initialPlayerPositions = Array.from(
+    { length: Math.max(1, playerCount) },
+    (_, index) => (index + 1) / (Math.max(1, playerCount) + 1)
+  );
+  return createTrackWorldInternal(
+    mount,
+    initialPlayerPositions,
+    'hand-rhythm',
+    cameraFraming,
+    gridSize,
+    showFloor,
+    cameraOverlayOptions
+  );
 }

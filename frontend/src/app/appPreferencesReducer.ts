@@ -8,7 +8,7 @@ import {
   type MediaPipeModelId,
   type YoloModelId,
 } from '../pose-detection/aiDetector';
-import { getRunnerLevel } from '../game/levelRegistry';
+import { getGameDescriptor } from '../game/levelRegistry';
 import type { HandRhythmGridSize } from '../game/levels/handRhythmLevel';
 import type { HandRhythmDifficulty } from '../game/handRhythmDifficulty';
 import type { RunnerGameId } from '../game/gameTypes';
@@ -46,7 +46,7 @@ export function appPreferencesReducer(
         : {
             ...preferences,
             selectedRunnerGameId: action.gameId,
-            selectedBackendId: getRunnerLevel(action.gameId).defaultBackend,
+            selectedBackendId: getGameDescriptor(action.gameId).defaultBackend,
           };
     case 'backendSelected':
       return action.backendId === preferences.selectedBackendId
@@ -129,7 +129,7 @@ export function appPreferencesReducer(
 }
 
 export function getDetectorConfigurationKey(preferences: AppPreferences): string {
-  const level = getRunnerLevel(preferences.selectedRunnerGameId);
+  const level = getGameDescriptor(preferences.selectedRunnerGameId);
   return JSON.stringify({
     task: level.detectorTask,
     backend: preferences.selectedBackendId,

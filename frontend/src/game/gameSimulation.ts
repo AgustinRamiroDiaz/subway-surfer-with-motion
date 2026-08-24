@@ -1,11 +1,9 @@
-import type { HandInput } from '../motion-mapping/gameplayInput';
 import type {
   HorizontalAction,
   JumpDuckCell,
   VerticalAction,
 } from '../motion-mapping/jumpDuckActions';
-import type { GamePhase, GameStats, JumpDuckObstaclePiece, RunnerGameId } from './gameTypes';
-import type { HandRhythmCell } from './levels/handRhythmLevel';
+import type { GamePhase, GameStats, JumpDuckObstaclePiece, PoseRunnerGameId } from './gameTypes';
 
 export type RandomSource = () => number;
 
@@ -115,7 +113,7 @@ export function clearHitStatus(stats: GameStats): GameStats {
 }
 
 type CollisionInput = {
-  kind: RunnerGameId;
+  kind: PoseRunnerGameId;
   obstacleX: number;
   obstacleY: number;
   obstacleZ: number;
@@ -129,12 +127,8 @@ type CollisionInput = {
 
 export function isPlayerInCollisionRange(input: CollisionInput): boolean {
   const canHitPlayer = input.kind !== 'sideways' || !input.alreadyHit;
-  const radiusX = input.kind === 'hand-rhythm' ? 0.6 : input.radiusX;
-  const isWithinY = input.kind !== 'hand-rhythm' || Math.abs(input.obstacleY - input.playerY) < 0.6;
-
   return canHitPlayer &&
-    Math.abs(input.obstacleX - input.playerX) < radiusX &&
-    isWithinY &&
+    Math.abs(input.obstacleX - input.playerX) < input.radiusX &&
     Math.abs(input.obstacleZ - input.playerZ) < input.radiusZ;
 }
 
@@ -158,17 +152,6 @@ export function findJumpDuckPieceHits(
       piece.blockedHorizontals.includes(horizontalAction);
     return isHit ? [{ key, pieceIndex }] : [];
   });
-}
-
-export function isHandRhythmTargetMatch(
-  hand: HandInput | null,
-  actualCell: HandRhythmCell,
-  expectedGesture: string | undefined,
-  expectedCell: HandRhythmCell | undefined
-): boolean {
-  return hand?.gesture === expectedGesture &&
-    actualCell.row === expectedCell?.row &&
-    actualCell.column === expectedCell.column;
 }
 
 export function randomIndex(length: number, random: RandomSource): number {

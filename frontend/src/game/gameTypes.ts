@@ -1,11 +1,11 @@
 import type * as THREE from 'three';
 import type { HorizontalAction, JumpDuckCell, VerticalAction } from '../motion-mapping/jumpDuckActions';
 import type { HandRhythmCell } from './levels/handRhythmLevel';
-import type { RhythmNote } from './rhythmTiming';
 
 export type GamePhase = 'ready' | 'running' | 'paused';
 
 export type RunnerGameId = 'sideways' | 'jump-duck' | 'hand-rhythm';
+export type PoseRunnerGameId = Exclude<RunnerGameId, 'hand-rhythm'>;
 
 export type JumpDuckObstacleRow = 'top' | 'bottom';
 export type JumpDuckObstacleColumn = 'left' | 'right';
@@ -23,17 +23,12 @@ export type JumpDuckObstaclePiece = {
 export type Obstacle = {
   root: THREE.Group;
   x: number;
-  kind: RunnerGameId;
+  kind: PoseRunnerGameId;
   targetPlayerIndex: number | null;
   blockedCells: JumpDuckCell[];
-  gesture?: string;
-  handCell?: HandRhythmCell;
-  handResult?: 'pending' | 'hit' | 'missed';
-  rhythmNote?: RhythmNote;
   hitBy: boolean[];
   hitPieces: Set<string>;
   hitMaterials: THREE.MeshStandardMaterial[];
-  feedbackMaterials: THREE.MeshStandardMaterial[];
   pieces: JumpDuckObstaclePiece[];
 };
 
@@ -84,13 +79,15 @@ export type TrackWorld = {
   players: PlayerAvatar[];
   render: () => void;
   resize: (width: number, height: number) => void;
-  updateHandRhythmGrid: (cells: Array<HandRhythmCell[] | undefined>) => void;
   dispose: () => void;
+};
+
+export type HandRhythmTrackWorld = TrackWorld & {
+  updateHandRhythmGrid: (cells: Array<HandRhythmCell[] | undefined>) => void;
 };
 
 export type ObstacleSystem = {
   obstacles: Obstacle[];
-  spawnHandRhythmTarget: (note: RhythmNote, targetPlayerIndex: number) => void;
   spawnObstacle: () => void;
   dispose: () => void;
 };
