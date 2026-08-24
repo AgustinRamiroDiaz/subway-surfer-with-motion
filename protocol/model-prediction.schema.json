@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://subway-surfer-with-motion.local/protocol/model-prediction.schema.json",
+  "$id": "https://webcam-motion-games.local/protocol/model-prediction.schema.json",
   "title": "Model prediction protocol",
   "type": "object",
   "required": ["protocolVersion", "type", "frame", "detections", "timings"],

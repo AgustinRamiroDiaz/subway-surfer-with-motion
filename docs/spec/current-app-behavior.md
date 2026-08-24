@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Subway Surfer with Motion is a camera-controlled runner game. Players use body or hand movement in front of a camera to control avatars in the game area and avoid or match incoming targets.
+Webcam Motion Games is a camera-controlled game collection. Players use body or hand movement in front of a camera to control avatars and avoid or match incoming targets.
 
 ## Main Screen
 

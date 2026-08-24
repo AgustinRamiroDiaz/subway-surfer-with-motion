@@ -550,7 +550,7 @@ async function main() {
   await mkdir(outputDir, { recursive: true });
 
   if (shouldBuild) {
-    await runCommand('pnpm', ['--filter', '@subway-surfer-with-motion/frontend', 'build']);
+    await runCommand('pnpm', ['--filter', '@webcam-motion-games/frontend', 'build']);
   }
 
   const server = startDevServer();

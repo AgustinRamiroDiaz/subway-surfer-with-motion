@@ -1,6 +1,6 @@
 # App Behavior Specs
 
-This folder describes the current user-facing behavior of Subway Surfer with Motion.
+This folder describes the current user-facing behavior of Webcam Motion Games.
 
 These specs should stay aligned with the app. When behavior changes, update the relevant spec in the same change.
 

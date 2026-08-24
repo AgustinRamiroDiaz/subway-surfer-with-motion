@@ -1,5 +1,5 @@
 {
-  "name": "subway-surfer-with-motion",
+  "name": "webcam-motion-games",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.22.0",
@@ -8,15 +8,15 @@
   ],
   "scripts": {
     "prepare": "husky",
-    "start": "pnpm --filter @subway-surfer-with-motion/frontend start",
-    "build": "pnpm --filter @subway-surfer-with-motion/frontend build",
-    "test": "pnpm --filter @subway-surfer-with-motion/frontend test",
-    "test:e2e": "pnpm --filter @subway-surfer-with-motion/frontend test:e2e",
+    "start": "pnpm --filter @webcam-motion-games/frontend start",
+    "build": "pnpm --filter @webcam-motion-games/frontend build",
+    "test": "pnpm --filter @webcam-motion-games/frontend test",
+    "test:e2e": "pnpm --filter @webcam-motion-games/frontend test:e2e",
     "test:python": "uv run --project pose-estimation-tracker-server pytest",
-    "lint": "pnpm --filter @subway-surfer-with-motion/frontend lint",
+    "lint": "pnpm --filter @webcam-motion-games/frontend lint",
     "lint:python": "uv run --project pose-estimation-tracker-server ruff check pose-estimation-tracker-server/src pose-estimation-tracker-server/tests && uv run --project pose-estimation-tracker-server mypy pose-estimation-tracker-server/src",
     "verify": "pnpm lint && pnpm test && pnpm build && pnpm lint:python && pnpm test:python",
-    "lint:fix": "pnpm --filter @subway-surfer-with-motion/frontend lint:fix",
+    "lint:fix": "pnpm --filter @webcam-motion-games/frontend lint:fix",
     "profile:e2e": "node scripts/profile-e2e.mjs"
   },
   "devDependencies": {

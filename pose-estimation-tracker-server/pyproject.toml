@@ -1,7 +1,7 @@
 [project]
 name = "pose-estimation-tracker-server"
 version = "0.1.0"
-description = "WebRTC pose tracker for the Subway Surfer motion UI"
+description = "WebRTC pose tracker for the Webcam Motion Games UI"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -2,7 +2,7 @@
 
 ## Project
 
-Subway Surfer with Motion is a React/Vite motion-controlled runner game. The frontend uses camera-based person detection to move one or two players in a Three.js scene.
+Webcam Motion Games is a React/Vite motion-controlled game collection. The frontend uses camera-based person detection to control players in Three.js minigames.
 
 ## Structure
 

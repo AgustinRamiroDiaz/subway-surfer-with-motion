@@ -28,7 +28,7 @@ export function TrackingInternalsDocs(): ReactElement {
         <>
           {t('docs.python.beforeLink')}
           <a
-            href="https://github.com/AgustinRamiroDiaz/subway-surfer-with-motion/releases"
+            href="https://github.com/AgustinRamiroDiaz/webcam-motion-games/releases"
             target="_blank"
             rel="noopener noreferrer"
           >

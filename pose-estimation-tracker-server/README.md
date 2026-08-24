@@ -1,6 +1,6 @@
 # Pose Estimation Tracker Server
 
-Python WebRTC pose tracker for the React motion runner UI. The browser keeps
+Python WebRTC pose tracker for the Webcam Motion Games UI. The browser keeps
 camera ownership, streams video to this server over WebRTC, and receives
 frontend-compatible person detections over a low-latency data channel.
 
@@ -15,7 +15,7 @@ uv run pose-tracker-server
 
 ### Standalone Binary
 
-You can download pre-compiled binaries for Windows, macOS, and Linux from the [GitHub Releases](https://github.com/AgustinRamiroDiaz/subway-surfer-with-motion/releases) page.
+You can download pre-compiled binaries for Windows, macOS, and Linux from the [GitHub Releases](https://github.com/AgustinRamiroDiaz/webcam-motion-games/releases) page.
 
 1. Download the binary for your platform.
 2. Run it from the terminal:

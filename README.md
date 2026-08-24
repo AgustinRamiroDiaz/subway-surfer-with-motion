@@ -1,8 +1,8 @@
-# Subway Surfer With Motion
+# Webcam Motion Games
 
 A browser-based motion-control game prototype. The app uses the user's camera to detect a person, maps their horizontal position into three lanes, and drives a Three.js runner scene where the player dodges incoming obstacle balls.
 
-Play now at https://agustinramirodiaz.github.io/subway-surfer-with-motion/!
+Play now at https://agustinramirodiaz.github.io/webcam-motion-games/!
 
 ## Features
 
@@ -70,7 +70,7 @@ pnpm run build
 For the GitHub Pages path used by this repository:
 
 ```bash
-PUBLIC_URL=/subway-surfer-with-motion/ pnpm run build
+PUBLIC_URL=/webcam-motion-games/ pnpm run build
 ```
 
 ## How It Works
@@ -108,7 +108,7 @@ GitHub Pages deployment is configured in:
 The workflow runs on pushes to `main` and can also be started manually. It installs with pnpm, runs tests, builds with:
 
 ```bash
-PUBLIC_URL=/subway-surfer-with-motion/ pnpm run build
+PUBLIC_URL=/webcam-motion-games/ pnpm run build
 ```
 
 Then it publishes the `frontend/dist/` directory through GitHub Pages.

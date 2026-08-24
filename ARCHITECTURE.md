@@ -1,6 +1,6 @@
 # System Architecture
 
-Subway Surfer with Motion is a React/Vite runner game backed by browser or Python pose detection. The code is organized around explicit boundaries: detector output is validated at the transport edge, converted into detector-independent gameplay input, then consumed by deterministic game rules and a Three.js renderer.
+Webcam Motion Games is a React/Vite motion game collection backed by browser or Python pose detection. The code is organized around explicit boundaries: detector output is validated at the transport edge, converted into detector-independent gameplay input, then consumed by deterministic game rules and a Three.js renderer.
 
 ## High-Level Flow
 
