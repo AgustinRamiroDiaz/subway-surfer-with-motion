@@ -46,16 +46,6 @@ export function getPersonPosition(detection: PersonDetection, frameWidth: number
   return getDetectionPosition(detection, frameWidth);
 }
 
-export function assignHandDetectionsToPlayerSections(
-  detections: HandGestureDetection[],
-  frameWidth: number,
-  cameraMirrored: boolean,
-  playerCount = DEFAULT_PLAYER_COUNT
-): Array<HandGestureDetection | null> {
-  return assignHandsToPlayerSections(detections, frameWidth, cameraMirrored, playerCount)
-    .map((playerHands) => playerHands[0] ?? null);
-}
-
 export function assignHandsToPlayerSections(
   detections: HandGestureDetection[],
   frameWidth: number,

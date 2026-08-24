@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { HandGestureDetection, PersonDetection } from '../pose-detection/detectionSchema';
 import {
-  assignHandDetectionsToPlayerSections,
+  assignHandsToPlayerSections,
   DEFAULT_PLAYER_POSITIONS,
   getDefaultPlayerPositions,
   getPlayerPositions,
@@ -77,47 +77,47 @@ describe('getPlayerPositions', () => {
   });
 });
 
-describe('assignHandDetectionsToPlayerSections', () => {
+describe('assignHandsToPlayerSections', () => {
   test('assigns hands only to their camera-width player sections', () => {
-    const assignments = assignHandDetectionsToPlayerSections([
+    const assignments = assignHandsToPlayerSections([
       makeHandDetection(325, 375, 0.7, 'Thumb_Up'),
       makeHandDetection(25, 75, 0.9, 'Victory'),
       makeHandDetection(225, 275, 0.8, 'Open_Palm'),
     ], 400, false, 4);
 
-    expect(assignments.map((detection) => detection?.gesture ?? null)).toEqual([
-      'Victory',
-      null,
-      'Open_Palm',
-      'Thumb_Up',
+    expect(assignments.map((hands) => hands.map((hand) => hand.gesture))).toEqual([
+      ['Victory'],
+      [],
+      ['Open_Palm'],
+      ['Thumb_Up'],
     ]);
   });
 
   test('assigns mirrored camera sections by displayed position', () => {
-    const assignments = assignHandDetectionsToPlayerSections([
+    const assignments = assignHandsToPlayerSections([
       makeHandDetection(25, 75, 0.9, 'Victory'),
       makeHandDetection(325, 375, 0.8, 'Closed_Fist'),
     ], 400, true, 4);
 
-    expect(assignments.map((detection) => detection?.gesture ?? null)).toEqual([
-      'Closed_Fist',
-      null,
-      null,
-      'Victory',
+    expect(assignments.map((hands) => hands.map((hand) => hand.gesture))).toEqual([
+      ['Closed_Fist'],
+      [],
+      [],
+      ['Victory'],
     ]);
   });
 
-  test('keeps the highest-confidence hand when multiple hands land in one section', () => {
-    const assignments = assignHandDetectionsToPlayerSections([
+  test('keeps every hand when multiple hands land in one section', () => {
+    const assignments = assignHandsToPlayerSections([
       makeHandDetection(25, 75, 0.6, 'Victory'),
       makeHandDetection(35, 85, 0.95, 'ILoveYou'),
     ], 400, false, 4);
 
-    expect(assignments.map((detection) => detection?.gesture ?? null)).toEqual([
-      'ILoveYou',
-      null,
-      null,
-      null,
+    expect(assignments.map((hands) => hands.map((hand) => hand.gesture))).toEqual([
+      ['ILoveYou', 'Victory'],
+      [],
+      [],
+      [],
     ]);
   });
 });

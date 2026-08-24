@@ -63,10 +63,7 @@ export type AppPreferences = {
   devCameraMultiplier: number;
 };
 
-type StoredAppPreferences = Partial<AppPreferences> & {
-  devCameraMultiplierEnabled?: boolean;
-  showCameraPreview?: boolean;
-};
+type StoredAppPreferences = Partial<AppPreferences>;
 
 export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   selectedRunnerGameId: 'sideways',
@@ -121,19 +118,15 @@ function normalizeProbability(value: unknown, fallback: number): number {
     : fallback;
 }
 
-function normalizeCameraPreviewVisibility(
-  value: unknown,
-  legacyVisibility: unknown
-): Record<RunnerGameId, boolean> {
+function normalizeCameraPreviewVisibility(value: unknown): Record<RunnerGameId, boolean> {
   const storedVisibility = value && typeof value === 'object'
     ? value as Partial<Record<RunnerGameId, unknown>>
     : {};
-  const fallback = typeof legacyVisibility === 'boolean' ? legacyVisibility : true;
 
   return Object.fromEntries(
     RUNNER_GAME_IDS.map((gameId) => [
       gameId,
-      typeof storedVisibility[gameId] === 'boolean' ? storedVisibility[gameId] : fallback,
+      storedVisibility[gameId] !== false,
     ])
   ) as Record<RunnerGameId, boolean>;
 }
@@ -206,10 +199,7 @@ export function readStoredAppPreferences(): AppPreferences {
           : defaults.threshold,
       cameraMirrored:
         typeof stored.cameraMirrored === 'boolean' ? stored.cameraMirrored : defaults.cameraMirrored,
-      cameraPreviewVisibility: normalizeCameraPreviewVisibility(
-        stored.cameraPreviewVisibility,
-        stored.showCameraPreview
-      ),
+      cameraPreviewVisibility: normalizeCameraPreviewVisibility(stored.cameraPreviewVisibility),
       detectionOverlayVisibility: normalizeDetectionOverlayVisibility(stored.detectionOverlayVisibility),
       cameraFacingMode: isCameraFacingMode(stored.cameraFacingMode)
         ? stored.cameraFacingMode
@@ -221,7 +211,7 @@ export function readStoredAppPreferences(): AppPreferences {
       devCameraMultiplier:
         typeof stored.devCameraMultiplier === 'number'
           ? stored.devCameraMultiplier
-          : stored.devCameraMultiplierEnabled === true ? 2 : defaults.devCameraMultiplier,
+          : defaults.devCameraMultiplier,
     };
   } catch {
     return defaults;
