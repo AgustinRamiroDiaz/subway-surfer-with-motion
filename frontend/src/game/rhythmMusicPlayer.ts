@@ -1,4 +1,4 @@
-import type { RhythmSong } from './rhythmTiming';
+import type { RhythmPlaybackDefinition } from './rhythmTiming';
 
 export type RhythmMusicClock = {
   getCountInBeat: () => number | null;
@@ -15,7 +15,7 @@ export type RhythmMusicPlayer = RhythmMusicClock & {
   unlock: () => Promise<void>;
 };
 
-export function createRhythmMusicPlayer(song: RhythmSong): RhythmMusicPlayer {
+export function createRhythmMusicPlayer(song: RhythmPlaybackDefinition): RhythmMusicPlayer {
   let context: AudioContext | null = null;
   let musicGain: GainNode | null = null;
   let buffer: AudioBuffer | null = null;

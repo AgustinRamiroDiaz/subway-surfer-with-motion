@@ -5,9 +5,12 @@ export type RhythmNote = {
   beat: number;
   cell: HandRhythmCell;
   gesture: HandRhythmGesture;
+  kind: 'normal' | 'accent' | 'burst';
+  strength: number;
+  twoHandEligible: boolean;
 };
 
-export type RhythmSong = {
+export type RhythmPlaybackDefinition = {
   id: string;
   title: string;
   audioUrl: string;
@@ -16,8 +19,9 @@ export type RhythmSong = {
   durationSeconds: number;
   beatsPerBar: number;
   approachBeats: number;
-  notes: readonly RhythmNote[];
 };
+
+export type RhythmSong = RhythmPlaybackDefinition & { notes: readonly RhythmNote[] };
 
 export function beatToTime(song: Pick<RhythmSong, 'bpm' | 'beatOffsetSeconds'>, beat: number): number {
   return song.beatOffsetSeconds + beat * 60 / song.bpm;

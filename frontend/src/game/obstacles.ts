@@ -251,6 +251,8 @@ export function createObstacleSystem(
         getHandRhythmGridSize()
       );
       const gestureObstacle = createGestureObstacleRoot(note.gesture);
+      const targetScale = 0.9 + note.strength * 0.28;
+      gestureObstacle.root.scale.setScalar(targetScale);
       gestureObstacle.root.position.set(handPosition.x, handPosition.y, OBSTACLE_SPAWN_Z);
       if (playerCount > 1) {
         gestureObstacle.root.traverse((child) => child.layers.set(targetPlayerIndex + 1));

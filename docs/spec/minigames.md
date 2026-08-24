@@ -71,7 +71,17 @@ The player avatar follows the detected hand cell in that player's section. The p
 
 The level plays its music through a dedicated music channel. Before the first count-in, every player must hold an open palm in the central area of their grid. Each player panel shows whether that player is ready. All players must remain ready together briefly before the four-beat audible count-in begins. This central readiness area is the same for both grid sizes and does not require a literal center cell. Resuming a paused level begins another four-beat count-in without repeating the hand-readiness step. Pausing stops both music and target movement at the same song position.
 
-Targets appear as gesture prompts placed in grid cells. The target chart is aligned to the song's quarter-note beat grid, and every configured player receives each chart prompt. Targets move according to the current song position so that they reach the hit zone on their assigned beat. By default, each player has a 10% chance for one chart prompt to create two targets in different cells at the same beat, requiring both hands to respond simultaneously; this chance is configurable in the Hand Rhythm controls. The player succeeds by making the prompted gesture while their detected hand is in the prompted cell as the target reaches the hit zone.
+Targets appear as gesture prompts placed in grid cells. The target chart follows the song's beat grid, and every configured player receives each chart prompt. Targets move according to the current song position so that they reach the hit zone on their assigned beat.
+
+Players can choose a saved difficulty before playing. Every difficulty follows the same analyzed musical accents, sections, and quiet rests:
+
+- Easy leaves at least two beats between targets, uses a smaller gesture set, has no rapid bursts, and never requires both hands at once.
+- Medium leaves at least one beat between targets, uses more gestures, has no rapid bursts, and reserves simultaneous two-hand targets for only the strongest eligible accents.
+- Hard is the original full music-aware chart. It has the highest target density, the full gesture variety, limited eighth-note bursts, and all eligible two-hand accents.
+
+Quiet beats create rests instead of targets. Louder attacks create larger targets, while the balance of low, middle, and high sound energy influences target rows and gesture families. Strong musical accents can create two targets in different cells at the same beat, requiring both hands simultaneously. The simultaneous-target control determines how many of the strongest eligible accents use both hands; zero disables simultaneous targets. Section intensity controls overall note density, and rapid passages limit movement between consecutive cells so that prompts remain physically reachable.
+
+The player succeeds by making the prompted gesture while their detected hand is in the prompted cell as the target reaches the hit zone.
 
 Supported gesture prompts are:
 

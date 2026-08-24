@@ -56,4 +56,15 @@ describe('appPreferencesReducer', () => {
       chance: 2,
     }).handRhythmDoubleTargetChance).toBe(1);
   });
+
+  test('defaults to Medium and stores the Hand Rhythm difficulty without reloading the detector', () => {
+    expect(DEFAULT_APP_PREFERENCES.handRhythmDifficulty).toBe('medium');
+    const changed = appPreferencesReducer(DEFAULT_APP_PREFERENCES, {
+      type: 'handRhythmDifficultyChanged',
+      difficulty: 'hard',
+    });
+
+    expect(changed.handRhythmDifficulty).toBe('hard');
+    expect(getDetectorConfigurationKey(changed)).toBe(getDetectorConfigurationKey(DEFAULT_APP_PREFERENCES));
+  });
 });

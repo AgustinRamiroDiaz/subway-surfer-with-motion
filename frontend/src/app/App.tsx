@@ -33,7 +33,7 @@ import { DetectionControls } from '../ui/DetectionControls';
 import type { GamePhase, RunnerGameId } from '../game/gameTypes';
 import type { WorldProjection } from '../game/GameScene';
 import { getRunnerLevel } from '../game/levelRegistry';
-import { HAND_RHYTHM_SONG } from '../game/handRhythmSong';
+import { HAND_RHYTHM_PLAYBACK } from '../game/handRhythmSongMetadata';
 import { createRhythmMusicPlayer } from '../game/rhythmMusicPlayer';
 import { useI18n } from './i18n';
 import { useCameraController } from '../hooks/useCameraController';
@@ -193,7 +193,7 @@ function MotionRunnerApp(): ReactElement {
   const [videoAspectRatio, setVideoAspectRatio] = useState(4 / 3);
   const detectorConfigurationKey = getDetectorConfigurationKey(preferences);
   const previousDetectorConfigurationKeyRef = useRef(detectorConfigurationKey);
-  const handRhythmMusic = useMemo(() => createRhythmMusicPlayer(HAND_RHYTHM_SONG), []);
+  const handRhythmMusic = useMemo(() => createRhythmMusicPlayer(HAND_RHYTHM_PLAYBACK), []);
 
   const detectorTask = useMemo(() => {
     return getRunnerLevel(preferences.selectedRunnerGameId).detectorTask;
@@ -375,6 +375,7 @@ function MotionRunnerApp(): ReactElement {
               detectionOverlayRef={camera.overlayRef}
               phase={gamePhase}
               playerCount={preferences.playerCount}
+              handRhythmDifficulty={preferences.handRhythmDifficulty}
               handRhythmGridSize={preferences.handRhythmGridSize}
               handRhythmDoubleTargetChance={preferences.handRhythmDoubleTargetChance}
               handRhythmMusicClock={handRhythmMusic}
@@ -468,6 +469,7 @@ function MotionRunnerApp(): ReactElement {
             onMediaPipeModelChange={handleMediaPipeModelChange}
             onModelChange={handleModelChange}
             onPlayerCountChange={handlePlayerCountChange}
+            onHandRhythmDifficultyChange={(difficulty) => dispatchPreferences({ type: 'handRhythmDifficultyChanged', difficulty })}
             onHandRhythmGridSizeChange={(gridSize) => dispatchPreferences({ type: 'handRhythmGridChanged', gridSize })}
             onHandRhythmDoubleTargetChanceChange={(chance) => dispatchPreferences({ type: 'handRhythmDoubleTargetChanceChanged', chance })}
             onHandRhythmFloorChange={(visible) => dispatchPreferences({ type: 'handRhythmFloorChanged', visible })}

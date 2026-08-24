@@ -10,6 +10,7 @@ import {
 } from '../pose-detection/aiDetector';
 import { getRunnerLevel } from '../game/levelRegistry';
 import type { HandRhythmGridSize } from '../game/levels/handRhythmLevel';
+import type { HandRhythmDifficulty } from '../game/handRhythmDifficulty';
 import type { RunnerGameId } from '../game/gameTypes';
 import type { AppPreferences } from './appPreferences';
 
@@ -27,6 +28,7 @@ export type AppPreferencesAction =
   | { type: 'cameraMirrorChanged'; mirrored: boolean }
   | { type: 'cameraPreviewChanged'; visible: boolean }
   | { type: 'detectionOverlayChanged'; visible: boolean }
+  | { type: 'handRhythmDifficultyChanged'; difficulty: HandRhythmDifficulty }
   | { type: 'handRhythmGridChanged'; gridSize: HandRhythmGridSize }
   | { type: 'handRhythmDoubleTargetChanceChanged'; chance: number }
   | { type: 'handRhythmFloorChanged'; visible: boolean };
@@ -106,6 +108,10 @@ export function appPreferencesReducer(
           [preferences.selectedRunnerGameId]: action.visible,
         },
       };
+    case 'handRhythmDifficultyChanged':
+      return action.difficulty === preferences.handRhythmDifficulty
+        ? preferences
+        : { ...preferences, handRhythmDifficulty: action.difficulty };
     case 'handRhythmGridChanged':
       return action.gridSize === preferences.handRhythmGridSize
         ? preferences

@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import type { AppPreferences } from '../../app/appPreferences';
 import { LANGUAGES, useI18n } from '../../app/i18n';
 import { formatPercent } from '../../formatters';
+import { isHandRhythmDifficulty, type HandRhythmDifficulty } from '../../game/handRhythmDifficulty';
 import type { CameraControlOption } from '../../hooks/useCameraController';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../../motion-mapping/playerPositions';
 import type { DetectorTask } from '../../pose-detection/aiDetector';
@@ -19,6 +20,7 @@ type QuickDetectionSettingsProps = {
   onCameraPreviewChange: (value: boolean) => void;
   onDetectionOverlayChange: (value: boolean) => void;
   onPlayerCountChange: (value: number) => void;
+  onHandRhythmDifficultyChange: (value: HandRhythmDifficulty) => void;
   onHandRhythmGridSizeChange: (value: 2 | 3) => void;
   onHandRhythmDoubleTargetChanceChange: (value: number) => void;
   onHandRhythmFloorChange: (value: boolean) => void;
@@ -36,6 +38,7 @@ export function QuickDetectionSettings({
   onCameraPreviewChange,
   onDetectionOverlayChange,
   onPlayerCountChange,
+  onHandRhythmDifficultyChange,
   onHandRhythmGridSizeChange,
   onHandRhythmDoubleTargetChanceChange,
   onHandRhythmFloorChange,
@@ -99,6 +102,22 @@ export function QuickDetectionSettings({
       </div>
       {task === 'gesture' && (
         <>
+          <Select
+            aria-label={t('controls.handRhythmDifficulty')}
+            className="model-control"
+            data={[
+              { value: 'easy', label: t('controls.handRhythmDifficultyEasy') },
+              { value: 'medium', label: t('controls.handRhythmDifficultyMedium') },
+              { value: 'hard', label: t('controls.handRhythmDifficultyHard') },
+            ]}
+            label={<ControlHelpLabel help={t('controls.handRhythmDifficultyHelp')}>{t('controls.handRhythmDifficulty')}</ControlHelpLabel>}
+            value={preferences.handRhythmDifficulty}
+            onChange={(value) => {
+              if (isHandRhythmDifficulty(value)) {
+                onHandRhythmDifficultyChange(value);
+              }
+            }}
+          />
           <Select
             aria-label={t('controls.handRhythmGrid')}
             className="model-control"

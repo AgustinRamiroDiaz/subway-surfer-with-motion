@@ -12,6 +12,22 @@ test('selects and persists a runner level', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /ritmo de manos/i })).toBeVisible();
 });
 
+test('selects and persists the Hand Rhythm difficulty', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('combobox', { name: /dificultad/i })).toHaveCount(0);
+
+  await page.getByRole('button', { name: /ritmo de manos/i }).click();
+  const difficultySelect = page.getByRole('combobox', { name: /dificultad/i });
+  await expect(difficultySelect).toHaveValue(/media/i);
+
+  await difficultySelect.click();
+  await page.getByRole('option', { name: /difícil/i }).click();
+  await expect(difficultySelect).toHaveValue(/difícil/i);
+
+  await page.reload();
+  await expect(page.getByRole('combobox', { name: /dificultad/i })).toHaveValue(/difícil/i);
+});
+
 test('opens the tracking documentation route', async ({ page }) => {
   await page.goto('/docs/tracking-internals');
 

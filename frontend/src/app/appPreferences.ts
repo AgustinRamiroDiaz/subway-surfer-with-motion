@@ -29,6 +29,11 @@ import {
   HAND_RHYTHM_GRID_SIZES,
   type HandRhythmGridSize,
 } from '../game/levels/handRhythmLevel';
+import {
+  DEFAULT_HAND_RHYTHM_DIFFICULTY,
+  isHandRhythmDifficulty,
+  type HandRhythmDifficulty,
+} from '../game/handRhythmDifficulty';
 
 export const DEFAULT_THRESHOLD = 0.45;
 export const DEFAULT_CAMERA_MIRRORED = true;
@@ -51,6 +56,7 @@ export type AppPreferences = {
   selectedMediaPipeModelId: MediaPipeModelId;
   selectedMediaPipeDelegateId: MediaPipeDelegateId;
   playerCount: number;
+  handRhythmDifficulty: HandRhythmDifficulty;
   handRhythmGridSize: HandRhythmGridSize;
   handRhythmDoubleTargetChance: number;
   showHandRhythmFloor: boolean;
@@ -74,6 +80,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   selectedMediaPipeModelId: DEFAULT_MEDIAPIPE_MODEL_ID,
   selectedMediaPipeDelegateId: DEFAULT_MEDIAPIPE_DELEGATE_ID,
   playerCount: DEFAULT_PLAYER_COUNT,
+  handRhythmDifficulty: DEFAULT_HAND_RHYTHM_DIFFICULTY,
   handRhythmGridSize: DEFAULT_HAND_RHYTHM_GRID_SIZE,
   handRhythmDoubleTargetChance: DEFAULT_HAND_RHYTHM_DOUBLE_TARGET_CHANCE,
   showHandRhythmFloor: true,
@@ -186,6 +193,9 @@ export function readStoredAppPreferences(): AppPreferences {
         ? stored.selectedMediaPipeDelegateId
         : defaults.selectedMediaPipeDelegateId,
       playerCount: normalizePlayerCount(stored.playerCount),
+      handRhythmDifficulty: isHandRhythmDifficulty(stored.handRhythmDifficulty)
+        ? stored.handRhythmDifficulty
+        : defaults.handRhythmDifficulty,
       handRhythmGridSize: normalizeHandRhythmGridSize(stored.handRhythmGridSize),
       handRhythmDoubleTargetChance: normalizeProbability(
         stored.handRhythmDoubleTargetChance,

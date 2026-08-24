@@ -53,8 +53,10 @@ import { applyMarkerPose, disposeObject, getPoseAnimationState, updatePlayerGest
 import { createTrackWorld } from './trackWorld';
 import { handRhythmPlayerWidth } from './levels/handRhythmLayout';
 import { playerTrackX } from './trackLayout';
-import { fitRhythmNoteToGrid, getCompanionRhythmNote, HAND_RHYTHM_SONG } from './handRhythmSong';
+import { fitRhythmNoteToGrid, getCompanionRhythmNote, getHandRhythmSong } from './handRhythmSong';
+import type { HandRhythmDifficulty } from './handRhythmDifficulty';
 import type { RhythmMusicClock } from './rhythmMusicPlayer';
+import { shouldAddCompanionTarget } from './rhythmChartGenerator';
 import { getRhythmNoteTimes, getRhythmTargetZ, isRhythmNoteVisible } from './rhythmTiming';
 
 export type { GamePhase };
@@ -64,6 +66,7 @@ type GameSceneProps = {
   detectionOverlayRef: React.RefObject<HTMLCanvasElement | null>;
   phase: GamePhase;
   playerCount: number;
+  handRhythmDifficulty: HandRhythmDifficulty;
   handRhythmGridSize: HandRhythmGridSize;
   handRhythmDoubleTargetChance: number;
   handRhythmMusicClock: RhythmMusicClock;
@@ -131,6 +134,7 @@ export function GameScene({
   detectionOverlayRef,
   phase,
   playerCount,
+  handRhythmDifficulty,
   handRhythmGridSize,
   handRhythmDoubleTargetChance,
   handRhythmMusicClock,
@@ -146,6 +150,7 @@ export function GameScene({
   videoAspectRatio,
 }: GameSceneProps): ReactElement {
   const { t } = useI18n();
+  const handRhythmSong = getHandRhythmSong(handRhythmDifficulty);
   const mountRef = useRef<HTMLDivElement | null>(null);
   const selectedGameIdRef = useRef<RunnerGameId>(selectedGameId);
   const gamePhaseRef = useRef<GamePhase>(phase);
@@ -465,13 +470,13 @@ export function GameScene({
 
       if (isHandRhythmGame) {
         const songTime = handRhythmMusicClock.getSongTime();
-        while (nextRhythmNoteIndex < HAND_RHYTHM_SONG.notes.length) {
-          const note = HAND_RHYTHM_SONG.notes[nextRhythmNoteIndex];
-          if (!note || songTime < getRhythmNoteTimes(HAND_RHYTHM_SONG, note).spawnTimeSeconds) {
+        while (nextRhythmNoteIndex < handRhythmSong.notes.length) {
+          const note = handRhythmSong.notes[nextRhythmNoteIndex];
+          if (!note || songTime < getRhythmNoteTimes(handRhythmSong, note).spawnTimeSeconds) {
             break;
           }
           if (isRhythmNoteVisible(
-            HAND_RHYTHM_SONG,
+            handRhythmSong,
             note,
             songTime,
             OBSTACLE_SPAWN_Z,
@@ -481,7 +486,7 @@ export function GameScene({
             const gridNote = fitRhythmNoteToGrid(note, handRhythmGridSize);
             for (let playerIndex = 0; playerIndex < playerCount; playerIndex += 1) {
               obstacleSystem.spawnHandRhythmTarget(gridNote, playerIndex);
-              if (Math.random() < handRhythmDoubleTargetChance) {
+              if (shouldAddCompanionTarget(note, handRhythmDoubleTargetChance)) {
                 obstacleSystem.spawnHandRhythmTarget(
                   getCompanionRhythmNote(gridNote, handRhythmGridSize),
                   playerIndex
@@ -499,7 +504,7 @@ export function GameScene({
         const obstacle = obstacleSystem.obstacles[index];
         if (obstacle.kind === 'hand-rhythm' && obstacle.rhythmNote) {
           obstacle.root.position.z = getRhythmTargetZ(
-            HAND_RHYTHM_SONG,
+            handRhythmSong,
             obstacle.rhythmNote,
             handRhythmMusicClock.getSongTime(),
             OBSTACLE_SPAWN_Z,
@@ -615,7 +620,7 @@ export function GameScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [cameraMirrored, detectionOverlayRef, gameplayInputRef, handRhythmDoubleTargetChance, handRhythmGridSize, handRhythmMusicClock, isHandRhythmGame, onHandRhythmPlayersReady, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, selectedLevel.camera, selectedLevel.spawnIntervalMs, showCameraPreview, showDetectionOverlay, showHandRhythmFloor, videoAspectRatio, videoRef]);
+  }, [cameraMirrored, detectionOverlayRef, gameplayInputRef, handRhythmDoubleTargetChance, handRhythmGridSize, handRhythmMusicClock, handRhythmSong, isHandRhythmGame, onHandRhythmPlayersReady, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, selectedLevel.camera, selectedLevel.spawnIntervalMs, showCameraPreview, showDetectionOverlay, showHandRhythmFloor, videoAspectRatio, videoRef]);
 
   return (
     <div

@@ -24,6 +24,9 @@ const note: RhythmNote = {
   beat: 8,
   cell: { row: 1, column: 1 },
   gesture: 'Open_Palm',
+  kind: 'normal',
+  strength: 0.5,
+  twoHandEligible: false,
 };
 
 describe('rhythm timing', () => {
