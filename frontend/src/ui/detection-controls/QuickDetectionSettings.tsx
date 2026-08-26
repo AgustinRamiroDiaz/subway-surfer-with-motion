@@ -100,7 +100,7 @@ export function QuickDetectionSettings({
         <strong>{preferences.playerCount}</strong>
         <Slider thumbLabel={t('controls.players')} min={MIN_PLAYERS} max={MAX_PLAYERS} step={1} value={preferences.playerCount} onChange={onPlayerCountChange} />
       </div>
-      {task === 'gesture' && (
+      {task === 'gesture' && preferences.selectedRunnerGameId === 'hand-rhythm' && (
         <>
           <Select
             aria-label={t('controls.handRhythmDifficulty')}

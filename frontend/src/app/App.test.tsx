@@ -38,6 +38,7 @@ test('renders the motion game shell', async () => {
   expect(await screen.findByRole('heading', { name: /carrera lateral/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /carrera lateral/i })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByRole('button', { name: /saltar y agacharse/i })).toHaveAttribute('aria-pressed', 'false');
+  expect(screen.getByRole('button', { name: /escalada con manos/i })).toHaveAttribute('aria-pressed', 'false');
   expect(screen.getByLabelText(/juego principal/i)).toBeInTheDocument();
   expect(within(screen.getByLabelText(/juego principal/i)).getByLabelText(/vista de cámara/i)).toHaveClass('in-game-camera');
   expect(within(screen.getByLabelText(/controles del juego/i)).getByRole('button', { name: /activar cámara/i })).toBeEnabled();
@@ -148,6 +149,17 @@ test('uses hand-rhythm guides without pose position markers', () => {
   expect(screen.getByTestId('hand-rhythm-player-viewports')).toHaveTextContent('P1');
   expect(screen.getByTestId('hand-rhythm-player-viewports')).toHaveTextContent('P2');
   expect(screen.getByRole('slider', { name: /dos objetivos simultáneos/i })).toHaveAttribute('aria-valuenow', '0.1');
+});
+
+test('selects the climber as an independent gesture level', async () => {
+  renderApp();
+  fireEvent.click(screen.getByRole('button', { name: /escalada con manos/i }));
+
+  expect(await screen.findByRole('heading', { name: /^escalada$/i })).toBeInTheDocument();
+  expect(screen.queryAllByTestId('camera-position-marker')).toHaveLength(0);
+  expect(screen.queryAllByTestId('camera-hand-grid')).toHaveLength(0);
+  expect(screen.queryByRole('slider', { name: /dos objetivos simultáneos/i })).not.toBeInTheDocument();
+  expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"selectedRunnerGameId":"climber"');
 });
 
 test('ignores invalid stored levels', async () => {

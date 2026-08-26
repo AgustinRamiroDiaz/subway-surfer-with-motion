@@ -2,15 +2,12 @@
 
 ## Shared Behavior
 
-All minigames run inside the same runner stage:
+All minigames run inside the same game stage:
 
 - Player avatars react continuously to the latest camera input.
-- Incoming obstacles or targets move toward the players.
-- New obstacles or targets appear only while the game is running.
-- Spawning pauses while a mode is waiting for required calibration.
-- Obstacles or targets that pass the players without being hit or matched count as dodged.
-- Hits are counted globally and per player.
-- A recent hit briefly changes the game status before returning to running.
+- Gameplay advances only while the selected mode is running.
+- Pausing preserves the current level state until play resumes.
+- Each configured player receives an independent control section.
 
 ## Sideways Run
 
@@ -23,6 +20,23 @@ The player moves horizontally based on their position in the camera view:
 - The avatar stays near the center when the player is centered or not detected.
 
 Obstacles appear at random horizontal positions and move toward the player. A collision counts as one hit for the colliding player. If an obstacle passes all players without a collision, it counts as dodged.
+
+This mode does not require calibration.
+
+## Climber
+
+Climber uses the gesture detector and gives every configured player a separate view onto a long vertical wall. Only a portion of the wall is visible at once, and each player climbs independently.
+
+- Closing a fist near a wall knob grabs it.
+- Each hand must grab a different knob; one knob cannot be held by both hands.
+- The wall only moves when both hands are attached and both closed fists move downward together.
+- Pulling the wall downward raises the player's viewpoint and advances their height.
+- Opening a hand releases its knob so that the player can reach up and grab another one.
+- A fist that is not close enough to a knob does not attach, and the player's status explains why.
+
+Small hand jitter does not move the wall, and a single hand cannot create progress. The slower of the two coordinated downward movements determines how far the wall travels, with sudden frame-to-frame movement limited to prevent tracking errors from creating large jumps. The height indicator shows progress toward the marked top of the wall. A player completes the level when their view reaches the top.
+
+Detected hand cursors are white while neutral, yellow for an unattached closed fist, green for an open palm, and orange while attached. Attached knobs grow and glow orange, the goal is marked in green, and each player's completion panel turns green at the top.
 
 This mode does not require calibration.
 

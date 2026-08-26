@@ -22,6 +22,7 @@ The game mode selector offers:
 - Sideways run.
 - Jump and duck.
 - Hand Rhythm.
+- Climber.
 
 Changing game mode while a run is active pauses the run. Each mode can use its own camera-preview and detection-overlay visibility preference.
 
@@ -60,11 +61,11 @@ For body-controlled modes:
 - If fewer players are detected than configured, missing players use evenly spaced default positions.
 - When tracking identity is available, player assignment persists briefly through temporary detection loss.
 
-For hand-controlled mode:
+For hand-controlled modes:
 
 - The camera view is divided into one section per configured player.
-- Each section can be assigned one detected hand.
-- The highest-confidence hand in a section controls that player for the current frame.
+- Each section can track up to two detected hands.
+- Hand identities follow the nearest prior positions so detector result ordering does not swap controls.
 
 ## Controls And Preferences
 

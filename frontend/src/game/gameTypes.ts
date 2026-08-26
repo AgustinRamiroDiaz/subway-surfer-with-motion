@@ -4,8 +4,8 @@ import type { HandRhythmCell } from './levels/handRhythmLevel';
 
 export type GamePhase = 'ready' | 'running' | 'paused';
 
-export type RunnerGameId = 'sideways' | 'jump-duck' | 'hand-rhythm';
-export type PoseRunnerGameId = Exclude<RunnerGameId, 'hand-rhythm'>;
+export type RunnerGameId = 'sideways' | 'jump-duck' | 'hand-rhythm' | 'climber';
+export type PoseRunnerGameId = Exclude<RunnerGameId, 'hand-rhythm' | 'climber'>;
 
 export type JumpDuckObstacleRow = 'top' | 'bottom';
 export type JumpDuckObstacleColumn = 'left' | 'right';

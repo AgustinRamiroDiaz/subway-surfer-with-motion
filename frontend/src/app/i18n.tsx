@@ -8,6 +8,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
+import { CLIMBER_TRANSLATIONS } from '../game/games/climber/climberTranslations';
 
 export const LANGUAGES = [
   { id: 'es', label: 'Español' },
@@ -37,6 +38,7 @@ const translations = {
     'home.jumpDuckBody': 'Usa altura corporal y lados para superar barreras.',
     'home.handRhythmTitle': 'Ritmo de manos',
     'home.handRhythmBody': 'Marca celdas con gestos de mano al ritmo del nivel.',
+    ...CLIMBER_TRANSLATIONS.es,
     'home.poseInput': 'Pose',
     'home.gestureInput': 'Gestos',
     'home.quickStart': 'Inicio rápido',
@@ -239,6 +241,7 @@ const translations = {
     'home.jumpDuckBody': 'Use body height and sides to clear split barriers.',
     'home.handRhythmTitle': 'Hand Rhythm',
     'home.handRhythmBody': 'Hit grid cells with hand gestures in rhythm.',
+    ...CLIMBER_TRANSLATIONS.en,
     'home.poseInput': 'Pose',
     'home.gestureInput': 'Gestures',
     'home.quickStart': 'Quick start',

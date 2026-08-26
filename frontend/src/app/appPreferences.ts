@@ -39,12 +39,12 @@ export const DEFAULT_THRESHOLD = 0.45;
 export const DEFAULT_CAMERA_MIRRORED = true;
 export const CAMERA_FACING_MODES = ['user', 'environment'] as const;
 export const APP_PREFERENCES_STORAGE_KEY = 'motion-runner:detection-preferences:v1';
-const RUNNER_GAME_IDS: readonly RunnerGameId[] = ['sideways', 'jump-duck', 'hand-rhythm'];
+const RUNNER_GAME_IDS: readonly RunnerGameId[] = ['sideways', 'jump-duck', 'hand-rhythm', 'climber'];
 
 export type CameraFacingMode = (typeof CAMERA_FACING_MODES)[number];
 
 function isRunnerGameId(value: unknown): value is RunnerGameId {
-  return value === 'sideways' || value === 'jump-duck' || value === 'hand-rhythm';
+  return value === 'sideways' || value === 'jump-duck' || value === 'hand-rhythm' || value === 'climber';
 }
 
 export type AppPreferences = {
@@ -90,11 +90,13 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
     sideways: true,
     'jump-duck': true,
     'hand-rhythm': true,
+    climber: true,
   },
   detectionOverlayVisibility: {
     sideways: true,
     'jump-duck': true,
     'hand-rhythm': true,
+    climber: true,
   },
   cameraFacingMode: 'user',
   cameraDeviceId: null,

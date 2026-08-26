@@ -3,13 +3,14 @@ import { GAME_CATALOG, POSE_RUNNER_LEVELS, getGameDescriptor, getPoseRunnerLevel
 
 describe('game catalog', () => {
   test('contains one descriptor for every selectable game', () => {
-    expect(GAME_CATALOG.map((game) => game.id)).toEqual(['sideways', 'jump-duck', 'hand-rhythm']);
+    expect(GAME_CATALOG.map((game) => game.id)).toEqual(['sideways', 'jump-duck', 'hand-rhythm', 'climber']);
     expect(new Set(GAME_CATALOG.map((game) => game.id)).size).toBe(GAME_CATALOG.length);
   });
 
   test('keeps detector compatibility in selection metadata', () => {
     expect(getGameDescriptor('sideways')).toMatchObject({ detectorTask: 'pose', defaultBackend: 'mediapipe' });
     expect(getGameDescriptor('hand-rhythm')).toMatchObject({ detectorTask: 'gesture', defaultBackend: 'mediapipe-gesture' });
+    expect(getGameDescriptor('climber')).toMatchObject({ detectorTask: 'gesture', defaultBackend: 'mediapipe-gesture' });
   });
 });
 

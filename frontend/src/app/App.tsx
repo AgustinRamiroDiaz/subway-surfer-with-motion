@@ -36,6 +36,7 @@ import { getGameDescriptor } from '../game/levelRegistry';
 import { PoseRunnerScene } from '../game/games/pose-runner/PoseRunnerScene';
 import { HandRhythmScene } from '../game/games/hand-rhythm/HandRhythmScene';
 import { useHandRhythmMusic } from '../game/games/hand-rhythm/useHandRhythmMusic';
+import { ClimberScene } from '../game/games/climber/ClimberScene';
 import { useI18n } from './i18n';
 import { useCameraController } from '../hooks/useCameraController';
 import { useMotionDetector } from '../hooks/useMotionDetector';
@@ -43,8 +44,8 @@ import '../App.css';
 
 type LevelBoardMetadata = {
   id: RunnerGameId;
-  boardTitleKey: 'home.sidewaysTitle' | 'home.jumpDuckTitle' | 'home.handRhythmTitle';
-  boardBodyKey: 'home.sidewaysBody' | 'home.jumpDuckBody' | 'home.handRhythmBody';
+  boardTitleKey: 'home.sidewaysTitle' | 'home.jumpDuckTitle' | 'home.handRhythmTitle' | 'home.climberTitle';
+  boardBodyKey: 'home.sidewaysBody' | 'home.jumpDuckBody' | 'home.handRhythmBody' | 'home.climberBody';
   inputLabelKey: 'home.poseInput' | 'home.gestureInput';
   setupLabelKey: 'home.quickStart' | 'home.calibration';
   marker: string;
@@ -74,6 +75,14 @@ const LEVEL_BOARD_METADATA: readonly LevelBoardMetadata[] = [
     inputLabelKey: 'home.gestureInput',
     setupLabelKey: 'home.quickStart',
     marker: '03',
+  },
+  {
+    id: 'climber',
+    boardTitleKey: 'home.climberTitle',
+    boardBodyKey: 'home.climberBody',
+    inputLabelKey: 'home.gestureInput',
+    setupLabelKey: 'home.quickStart',
+    marker: '04',
   },
 ] as const;
 
@@ -381,6 +390,13 @@ function MotionRunnerApp(): ReactElement {
                 videoAspectRatio={videoAspectRatio}
                 videoRef={camera.videoRef}
               />
+            ) : preferences.selectedRunnerGameId === 'climber' ? (
+              <ClimberScene
+                gameplayInputRef={detector.gameplayInputRef}
+                onWorldProjectionChange={setWorldProjection}
+                phase={gamePhase}
+                playerCount={preferences.playerCount}
+              />
             ) : (
               <PoseRunnerScene
                 gameplayInputRef={detector.gameplayInputRef}
@@ -412,6 +428,7 @@ function MotionRunnerApp(): ReactElement {
             jumpDuckGuides={jumpDuckGuides}
             handRhythmGridSize={preferences.handRhythmGridSize}
             showHandRhythmGrid={preferences.selectedRunnerGameId === 'hand-rhythm'}
+            showPlayerPositionMarkers={detectorTask === 'pose'}
             overlayRef={camera.overlayRef}
             playerPositions={detector.playerPositions}
             presentation="game-overlay"

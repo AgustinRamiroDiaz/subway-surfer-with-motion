@@ -12,6 +12,7 @@ type CameraFeedbackPanelProps = {
   jumpDuckGuides: JumpDuckGuide[];
   handRhythmGridSize: HandRhythmGridSize;
   showHandRhythmGrid: boolean;
+  showPlayerPositionMarkers?: boolean;
   playerPositions: number[];
   selectedTrackerLabel: string;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -31,6 +32,7 @@ export function CameraFeedbackPanel({
   jumpDuckGuides,
   handRhythmGridSize,
   showHandRhythmGrid,
+  showPlayerPositionMarkers = true,
   playerPositions,
   selectedTrackerLabel,
   videoRef,
@@ -118,7 +120,7 @@ export function CameraFeedbackPanel({
             </div>
           ))}
         </div>
-        {!showHandRhythmGrid && (
+        {!showHandRhythmGrid && showPlayerPositionMarkers && (
           <>
             <div className="camera-center-line" />
             {playerPositions.map((playerPosition, index) => (

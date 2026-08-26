@@ -54,6 +54,7 @@ export const GAME_CATALOG: readonly GameDescriptor[] = [
   { id: 'sideways', modeLabelKey: 'game.sidewaysMode', titleKey: 'game.sidewaysTitle', detectorTask: 'pose', defaultBackend: 'mediapipe' },
   { id: 'jump-duck', modeLabelKey: 'game.jumpDuckMode', titleKey: 'game.jumpDuckTitle', detectorTask: 'pose', defaultBackend: 'mediapipe' },
   { id: 'hand-rhythm', modeLabelKey: 'game.handRhythmMode', titleKey: 'game.handRhythmTitle', detectorTask: 'gesture', defaultBackend: 'mediapipe-gesture' },
+  { id: 'climber', modeLabelKey: 'game.climberMode', titleKey: 'game.climberTitle', detectorTask: 'gesture', defaultBackend: 'mediapipe-gesture' },
 ] as const;
 
 function getPosePlayer(context: PoseRunnerMotionContext): PosePlayerInput | undefined {
