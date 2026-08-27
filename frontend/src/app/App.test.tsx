@@ -46,7 +46,7 @@ test('renders the motion game shell', async () => {
   expect(screen.getByDisplayValue('Cámara frontal')).toBeInTheDocument();
   expect(screen.getByRole('switch', { name: /espejar cámara/i })).toBeChecked();
   expect(screen.getByRole('switch', { name: /mostrar overlay del nivel/i })).toBeChecked();
-  expect(screen.getByRole('switch', { name: /mostrar detección/i })).toBeChecked();
+  expect(screen.getByRole('switch', { name: /mostrar detección/i })).not.toBeChecked();
   expect(screen.getByText(/ninguno/i)).toBeInTheDocument();
   expect(screen.getByRole('slider', { name: /multiplicador de cámara/i })).toHaveAttribute('aria-valuenow', '1');
   expect(screen.getByRole('slider', { name: /jugadores/i })).toHaveAttribute('aria-valuenow', '2');
@@ -127,20 +127,24 @@ test('toggles camera and detection overlays independently', () => {
   const cameraSwitch = screen.getByRole('switch', { name: /mostrar overlay del nivel/i });
   const detectionSwitch = screen.getByRole('switch', { name: /mostrar detección/i });
 
+  expect(detectionSwitch).not.toBeChecked();
+
   fireEvent.click(cameraSwitch);
   expect(cameraSwitch).not.toBeChecked();
-  expect(detectionSwitch).toBeChecked();
+  expect(detectionSwitch).not.toBeChecked();
 
   fireEvent.click(detectionSwitch);
   expect(cameraSwitch).not.toBeChecked();
-  expect(detectionSwitch).not.toBeChecked();
+  expect(detectionSwitch).toBeChecked();
 });
 
 test('uses hand-rhythm guides without pose position markers', () => {
   renderApp();
 
+  fireEvent.click(screen.getByRole('switch', { name: /mostrar detección/i }));
   expect(screen.getAllByTestId('camera-position-marker')).toHaveLength(2);
   fireEvent.click(screen.getByRole('button', { name: /ritmo de manos/i }));
+  fireEvent.click(screen.getByRole('switch', { name: /mostrar detección/i }));
 
   expect(screen.queryAllByTestId('camera-position-marker')).toHaveLength(0);
   expect(screen.getAllByTestId('camera-hand-grid')).toHaveLength(2);

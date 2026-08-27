@@ -92,9 +92,9 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
     'hand-rhythm': true,
   },
   detectionOverlayVisibility: {
-    sideways: true,
-    'jump-duck': true,
-    'hand-rhythm': true,
+    sideways: false,
+    'jump-duck': false,
+    'hand-rhythm': false,
   },
   cameraFacingMode: 'user',
   cameraDeviceId: null,
@@ -144,7 +144,7 @@ function normalizeDetectionOverlayVisibility(value: unknown): Record<RunnerGameI
     : {};
 
   return Object.fromEntries(
-    RUNNER_GAME_IDS.map((gameId) => [gameId, storedVisibility[gameId] !== false])
+    RUNNER_GAME_IDS.map((gameId) => [gameId, storedVisibility[gameId] === true])
   ) as Record<RunnerGameId, boolean>;
 }
 
