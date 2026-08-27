@@ -54,3 +54,41 @@ test('selects and persists a detector backend', async ({ page }) => {
   await page.getByRole('button', { name: /seguimiento avanzado/i }).click();
   await expect(page.getByRole('combobox', { name: /detector/i })).toHaveValue(/Python WebRTC/i);
 });
+
+test('changes and persists the live game render FPS limit', async ({ page }) => {
+  await page.goto('/');
+  const renderFpsSlider = page.getByRole('slider', { name: /fps de renderizado/i });
+
+  await expect(renderFpsSlider).toHaveAttribute('aria-valuenow', '60');
+  await renderFpsSlider.focus();
+  await renderFpsSlider.press('End');
+  await expect(renderFpsSlider).toHaveAttribute('aria-valuenow', '165');
+
+  await page.reload();
+  await expect(page.getByRole('slider', { name: /fps de renderizado/i })).toHaveAttribute('aria-valuenow', '165');
+});
+
+test('normalizes an invalid saved game render FPS', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      'motion-runner:detection-preferences:v1',
+      JSON.stringify({ gameRenderFps: 999 })
+    );
+  });
+  await page.goto('/');
+
+  await expect(page.getByRole('slider', { name: /fps de renderizado/i })).toHaveAttribute('aria-valuenow', '165');
+});
+
+test('keeps the render FPS control usable in a narrow viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const renderFpsSlider = page.getByRole('slider', { name: /fps de renderizado/i });
+
+  await renderFpsSlider.scrollIntoViewIfNeeded();
+  await expect(renderFpsSlider).toBeVisible();
+  const bounds = await renderFpsSlider.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+});

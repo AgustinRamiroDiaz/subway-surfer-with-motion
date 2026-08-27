@@ -178,6 +178,10 @@ function MotionRunnerApp(): ReactElement {
     dispatchPreferences({ type: 'thresholdChanged', threshold });
   }, []);
 
+  const handleGameRenderFpsChange = useCallback((fps: number) => {
+    dispatchPreferences({ type: 'gameRenderFpsChanged', fps });
+  }, []);
+
   const handleStopCamera = useCallback(() => {
     handRhythmMusic.stop();
     detector.stopDetection();
@@ -308,6 +312,7 @@ function MotionRunnerApp(): ReactElement {
                 onWorldProjectionChange={setWorldProjection}
                 phase={gamePhase}
                 playerCount={preferences.playerCount}
+                renderFps={preferences.gameRenderFps}
                 showCameraPreview={preferences.cameraPreviewVisibility['hand-rhythm']}
                 showDetectionOverlay={preferences.detectionOverlayVisibility['hand-rhythm']}
                 showFloor={preferences.showHandRhythmFloor}
@@ -321,6 +326,7 @@ function MotionRunnerApp(): ReactElement {
                 onWorldProjectionChange={setWorldProjection}
                 phase={gamePhase}
                 playerCount={preferences.playerCount}
+                renderFps={preferences.gameRenderFps}
                 selectedGameId={preferences.selectedRunnerGameId}
                 videoAspectRatio={videoAspectRatio}
               />
@@ -417,6 +423,7 @@ function MotionRunnerApp(): ReactElement {
               onCameraMirrorChange={(mirrored) => dispatchPreferences({ type: 'cameraMirrorChanged', mirrored })}
               onCameraPreviewChange={(visible) => dispatchPreferences({ type: 'cameraPreviewChanged', visible })}
               onDetectionOverlayChange={(visible) => dispatchPreferences({ type: 'detectionOverlayChanged', visible })}
+              onGameRenderFpsChange={handleGameRenderFpsChange}
               onMediaPipeDelegateChange={handleMediaPipeDelegateChange}
               onMediaPipeModelChange={handleMediaPipeModelChange}
               onModelChange={handleModelChange}

@@ -11,6 +11,7 @@ All minigames run inside the same runner stage:
 - Obstacles or targets that pass the players without being hit or matched count as dodged.
 - Hits are counted globally and per player.
 - A recent hit briefly changes the game status before returning to running.
+- The saved render-rate control defaults to 60 frames per second and limits visual updates between 15 and 165 frames per second without changing detector frequency or elapsed-time-based gameplay timing.
 
 ## Sideways Run
 

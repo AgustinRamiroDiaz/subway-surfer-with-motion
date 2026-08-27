@@ -49,6 +49,7 @@ test('renders the motion game shell', async () => {
   expect(screen.getByRole('switch', { name: /mostrar detección/i })).not.toBeChecked();
   expect(screen.getByText(/ninguno/i)).toBeInTheDocument();
   expect(screen.getByRole('slider', { name: /multiplicador de cámara/i })).toHaveAttribute('aria-valuenow', '1');
+  expect(screen.getByRole('slider', { name: /fps de renderizado/i })).toHaveAttribute('aria-valuenow', '60');
   expect(screen.getByRole('slider', { name: /jugadores/i })).toHaveAttribute('aria-valuenow', '2');
   expect(screen.getByRole('button', { name: /detener cámara/i })).toBeDisabled();
 });
@@ -73,6 +74,7 @@ test('restores persisted detector decisions', () => {
     playerCount: 4,
     cameraMirrored: false,
     devCameraMultiplier: 2,
+    gameRenderFps: 60,
   }));
   renderApp();
 
@@ -87,9 +89,11 @@ test('restores persisted detector decisions', () => {
   expect(screen.getByRole('switch', { name: /espejar cámara/i })).not.toBeChecked();
   expect(screen.getByText(/2x/i)).toBeInTheDocument();
   expect(screen.getByRole('slider', { name: /multiplicador de cámara/i })).toHaveAttribute('aria-valuenow', '2');
+  expect(screen.getByRole('slider', { name: /fps de renderizado/i })).toHaveAttribute('aria-valuenow', '60');
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"selectedBackendId":"yolo"');
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"cameraFacingMode":"environment"');
   expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"devCameraMultiplier":2');
+  expect(window.localStorage.getItem(APP_PREFERENCES_STORAGE_KEY)).toContain('"gameRenderFps":60');
 });
 
 test('remembers the selected level across remounts', async () => {

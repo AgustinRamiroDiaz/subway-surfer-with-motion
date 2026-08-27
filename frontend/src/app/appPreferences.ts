@@ -34,6 +34,10 @@ import {
   isHandRhythmDifficulty,
   type HandRhythmDifficulty,
 } from '../game/handRhythmDifficulty';
+import {
+  DEFAULT_GAME_RENDER_FPS,
+  normalizeGameRenderFps,
+} from '../game/shared/renderFrameLimiter';
 
 export const DEFAULT_THRESHOLD = 0.45;
 export const DEFAULT_CAMERA_MIRRORED = true;
@@ -60,6 +64,7 @@ export type AppPreferences = {
   handRhythmGridSize: HandRhythmGridSize;
   handRhythmDoubleTargetChance: number;
   showHandRhythmFloor: boolean;
+  gameRenderFps: number;
   threshold: number;
   cameraMirrored: boolean;
   cameraPreviewVisibility: Record<RunnerGameId, boolean>;
@@ -84,6 +89,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   handRhythmGridSize: DEFAULT_HAND_RHYTHM_GRID_SIZE,
   handRhythmDoubleTargetChance: DEFAULT_HAND_RHYTHM_DOUBLE_TARGET_CHANCE,
   showHandRhythmFloor: true,
+  gameRenderFps: DEFAULT_GAME_RENDER_FPS,
   threshold: DEFAULT_THRESHOLD,
   cameraMirrored: DEFAULT_CAMERA_MIRRORED,
   cameraPreviewVisibility: {
@@ -203,6 +209,7 @@ export function readStoredAppPreferences(): AppPreferences {
       ),
       showHandRhythmFloor:
         typeof stored.showHandRhythmFloor === 'boolean' ? stored.showHandRhythmFloor : defaults.showHandRhythmFloor,
+      gameRenderFps: normalizeGameRenderFps(stored.gameRenderFps),
       threshold:
         typeof stored.threshold === 'number' && Number.isFinite(stored.threshold)
           ? Math.min(0.9, Math.max(0.1, stored.threshold))

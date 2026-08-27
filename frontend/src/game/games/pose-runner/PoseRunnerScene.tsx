@@ -32,6 +32,7 @@ import { createObstacleSystem } from '../../obstacles';
 import { applyMarkerPose, disposeObject, getPoseAnimationState } from '../../playerAvatar';
 import { createPoseRunnerWorld } from '../../trackWorld';
 import { projectWorldPoint, type WorldProjection } from '../../shared/worldProjection';
+import { createRenderFrameLimiter } from '../../shared/renderFrameLimiter';
 
 export type PoseRunnerSceneProps = {
   gameplayInputRef: React.RefObject<GameplayInputFrame>;
@@ -39,6 +40,7 @@ export type PoseRunnerSceneProps = {
   onWorldProjectionChange: (projection: WorldProjection) => void;
   phase: GamePhase;
   playerCount: number;
+  renderFps: number;
   selectedGameId: PoseRunnerGameId;
   videoAspectRatio: number;
 };
@@ -62,12 +64,15 @@ export function PoseRunnerScene({
   onWorldProjectionChange,
   phase,
   playerCount,
+  renderFps,
   selectedGameId,
   videoAspectRatio,
 }: PoseRunnerSceneProps): ReactElement {
   const { t } = useI18n();
   const mountRef = useRef<HTMLDivElement | null>(null);
   const phaseRef = useRef<GamePhase>(phase);
+  const renderFpsRef = useRef(renderFps);
+  renderFpsRef.current = renderFps;
   const calibrationRef = useRef<CalibrationRun>(createCalibrationRun(playerCount));
   const lastCalibrationProgressRef = useRef(-1);
   const jumpDuckActionsRef = useRef(getInitialJumpDuckActions(playerCount));
@@ -122,6 +127,12 @@ export function PoseRunnerScene({
       () => selectedGameId,
       () => playerCount
     );
+    const renderFrameLimiter = createRenderFrameLimiter();
+    const renderWorld = (nowMs: number): void => {
+      if (renderFrameLimiter.shouldRender(nowMs, renderFpsRef.current)) {
+        world.render();
+      }
+    };
 
     const resize = (): void => {
       const width = Math.max(1, mount.clientWidth);
@@ -158,7 +169,7 @@ export function PoseRunnerScene({
       simulationClock = step.clock;
 
       if (phaseRef.current !== 'running') {
-        world.render();
+        renderWorld(now);
         animationFrame = window.requestAnimationFrame(animate);
         return;
       }
@@ -202,7 +213,7 @@ export function PoseRunnerScene({
           onJumpDuckGuidesChange(update.guides);
           simulationClock = delayNextSpawn(simulationClock, now);
         }
-        world.render();
+        renderWorld(now);
         animationFrame = window.requestAnimationFrame(animate);
         return;
       }
@@ -263,7 +274,7 @@ export function PoseRunnerScene({
         }
       }
       if (step.shouldClearHitStatus) setStats(clearHitStatus);
-      world.render();
+      renderWorld(now);
       animationFrame = window.requestAnimationFrame(animate);
     };
 

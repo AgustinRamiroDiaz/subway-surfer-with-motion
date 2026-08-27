@@ -27,6 +27,7 @@ const mediaPipeDelegate = process.env.PROFILE_MEDIAPIPE_DELEGATE ?? 'GPU';
 const mediaPipeModel = process.env.PROFILE_MEDIAPIPE_MODEL ?? 'lite';
 const runnerGame = process.env.PROFILE_GAME ?? 'sideways';
 const playerCount = Number.parseInt(process.env.PROFILE_PLAYERS ?? '1', 10);
+const renderFps = Number.parseInt(process.env.PROFILE_RENDER_FPS ?? '60', 10);
 const showCameraPreview = process.env.PROFILE_SHOW_CAMERA_PREVIEW === 'true';
 const performanceProbeEnabled = process.env.PROFILE_PERFORMANCE_PROBE === 'true';
 const requireHands = process.env.PROFILE_REQUIRE_HANDS === 'true';
@@ -711,7 +712,7 @@ async function main() {
     const client = await context.newCDPSession(page);
 
     await page.addInitScript(
-      ({ backend, mediaPipeDelegate, mediaPipeModel, playerCount, runnerGame, showCameraPreview }) => {
+      ({ backend, mediaPipeDelegate, mediaPipeModel, playerCount, renderFps, runnerGame, showCameraPreview }) => {
         window.localStorage.setItem(
           'motion-runner:detection-preferences:v1',
           JSON.stringify({
@@ -723,16 +724,26 @@ async function main() {
             selectedMediaPipeModelId: mediaPipeModel,
             selectedMediaPipeDelegateId: mediaPipeDelegate,
             playerCount,
+            gameRenderFps: renderFps,
             threshold: 0.45,
             cameraMirrored: true,
-            showCameraPreview,
+            cameraPreviewVisibility: {
+              sideways: showCameraPreview,
+              'jump-duck': showCameraPreview,
+              'hand-rhythm': showCameraPreview,
+            },
+            detectionOverlayVisibility: {
+              sideways: false,
+              'jump-duck': false,
+              'hand-rhythm': false,
+            },
             cameraFacingMode: 'user',
             cameraDeviceId: null,
             devCameraMultiplier: 1,
           })
         );
       },
-      { backend, mediaPipeDelegate, mediaPipeModel, playerCount, runnerGame, showCameraPreview }
+      { backend, mediaPipeDelegate, mediaPipeModel, playerCount, renderFps, runnerGame, showCameraPreview }
     );
 
     await client.send('Performance.enable');
@@ -841,6 +852,7 @@ async function main() {
         mediaPipeModel,
         runnerGame,
         playerCount,
+        renderFps,
         showCameraPreview,
       },
       performanceProbeEnabled,

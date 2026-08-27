@@ -67,4 +67,15 @@ describe('appPreferencesReducer', () => {
     expect(changed.handRhythmDifficulty).toBe('hard');
     expect(getDetectorConfigurationKey(changed)).toBe(getDetectorConfigurationKey(DEFAULT_APP_PREFERENCES));
   });
+
+  test('stores a normalized render FPS without reloading the detector', () => {
+    expect(DEFAULT_APP_PREFERENCES.gameRenderFps).toBe(60);
+    const changed = appPreferencesReducer(DEFAULT_APP_PREFERENCES, {
+      type: 'gameRenderFpsChanged',
+      fps: 62,
+    });
+
+    expect(changed.gameRenderFps).toBe(60);
+    expect(getDetectorConfigurationKey(changed)).toBe(getDetectorConfigurationKey(DEFAULT_APP_PREFERENCES));
+  });
 });

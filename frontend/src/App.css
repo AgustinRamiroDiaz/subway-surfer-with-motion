@@ -1227,7 +1227,8 @@
 
 .model-control,
 .toggle-control,
-.threshold-control {
+.threshold-control,
+.render-fps-control {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
@@ -1343,19 +1344,23 @@
 }
 
 .threshold-control .mantine-Slider-root,
-.multiplier-control .mantine-Slider-root {
+.multiplier-control .mantine-Slider-root,
+.render-fps-control .mantine-Slider-root {
   grid-column: 1 / -1;
 }
 
 .threshold-control .mantine-Slider-track::before,
-.multiplier-control .mantine-Slider-track::before {
+.multiplier-control .mantine-Slider-track::before,
+.render-fps-control .mantine-Slider-track::before {
   background: var(--surface-4);
 }
 
 .threshold-control .mantine-Slider-bar,
 .multiplier-control .mantine-Slider-bar,
+.render-fps-control .mantine-Slider-bar,
 .threshold-control .mantine-Slider-thumb,
-.multiplier-control .mantine-Slider-thumb {
+.multiplier-control .mantine-Slider-thumb,
+.render-fps-control .mantine-Slider-thumb {
   accent-color: var(--accent);
   border-color: var(--accent);
   background: var(--accent);

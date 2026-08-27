@@ -37,6 +37,7 @@ type DetectionControlsProps = {
   onCameraMirrorChange: (value: boolean) => void;
   onCameraPreviewChange: (value: boolean) => void;
   onDetectionOverlayChange: (value: boolean) => void;
+  onGameRenderFpsChange: (value: number) => void;
   onMediaPipeDelegateChange: (value: MediaPipeDelegateId) => void;
   onMediaPipeModelChange: (value: MediaPipeModelId) => void;
   onModelChange: (value: YoloModelId) => void;
@@ -65,6 +66,7 @@ export function DetectionControls({
   onCameraMirrorChange,
   onCameraPreviewChange,
   onDetectionOverlayChange,
+  onGameRenderFpsChange,
   onMediaPipeDelegateChange,
   onMediaPipeModelChange,
   onModelChange,
@@ -96,6 +98,7 @@ export function DetectionControls({
         onCameraMirrorChange={onCameraMirrorChange}
         onCameraPreviewChange={onCameraPreviewChange}
         onDetectionOverlayChange={onDetectionOverlayChange}
+        onGameRenderFpsChange={onGameRenderFpsChange}
         onThresholdChange={onThresholdChange}
       />
       <AdvancedDetectorSettings

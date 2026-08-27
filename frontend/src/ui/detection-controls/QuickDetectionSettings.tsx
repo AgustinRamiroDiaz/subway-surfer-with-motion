@@ -5,6 +5,11 @@ import { LANGUAGES, useI18n } from '../../app/i18n';
 import type { CameraControlOption } from '../../hooks/useCameraController';
 import { formatPercent } from '../../formatters';
 import { ControlHelpLabel } from './ControlHelpLabel';
+import {
+  GAME_RENDER_FPS_STEP,
+  MAX_GAME_RENDER_FPS,
+  MIN_GAME_RENDER_FPS,
+} from '../../game/shared/renderFrameLimiter';
 
 type QuickDetectionSettingsProps = {
   preferences: AppPreferences;
@@ -15,6 +20,7 @@ type QuickDetectionSettingsProps = {
   onCameraMirrorChange: (value: boolean) => void;
   onCameraPreviewChange: (value: boolean) => void;
   onDetectionOverlayChange: (value: boolean) => void;
+  onGameRenderFpsChange: (value: number) => void;
   onThresholdChange: (value: number) => void;
 };
 
@@ -27,6 +33,7 @@ export function QuickDetectionSettings({
   onCameraMirrorChange,
   onCameraPreviewChange,
   onDetectionOverlayChange,
+  onGameRenderFpsChange,
   onThresholdChange,
 }: QuickDetectionSettingsProps): ReactElement {
   const { language, setLanguage, t } = useI18n();
@@ -92,6 +99,19 @@ export function QuickDetectionSettings({
           value={preferences.threshold}
           label={(value) => formatPercent(value)}
           onChange={onThresholdChange}
+        />
+      </div>
+      <div className="render-fps-control">
+        <ControlHelpLabel help={t('controls.renderFpsHelp')}>{t('controls.renderFps')}</ControlHelpLabel>
+        <strong>{t('controls.renderFpsValue', { fps: preferences.gameRenderFps })}</strong>
+        <Slider
+          thumbLabel={t('controls.renderFps')}
+          min={MIN_GAME_RENDER_FPS}
+          max={MAX_GAME_RENDER_FPS}
+          step={GAME_RENDER_FPS_STEP}
+          value={preferences.gameRenderFps}
+          label={(value) => t('controls.renderFpsValue', { fps: value })}
+          onChange={onGameRenderFpsChange}
         />
       </div>
     </div>

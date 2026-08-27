@@ -39,6 +39,7 @@ import {
 } from './handRhythmTargets';
 import { isHandRhythmTargetMatch } from './handRhythmJudgment';
 import { recordHandRhythmRender } from '../../../debug/handRhythmPerformanceProbe';
+import { createRenderFrameLimiter } from '../../shared/renderFrameLimiter';
 
 const HAND_RHYTHM_CAMERA = {
   positionY: 2.45,
@@ -58,6 +59,7 @@ export type HandRhythmSceneProps = {
   onWorldProjectionChange: (projection: WorldProjection) => void;
   phase: GamePhase;
   playerCount: number;
+  renderFps: number;
   showCameraPreview: boolean;
   showDetectionOverlay: boolean;
   showFloor: boolean;
@@ -77,6 +79,7 @@ export function HandRhythmScene({
   onWorldProjectionChange,
   phase,
   playerCount,
+  renderFps,
   showCameraPreview,
   showDetectionOverlay,
   showFloor,
@@ -87,6 +90,8 @@ export function HandRhythmScene({
   const song = getHandRhythmSong(difficulty);
   const mountRef = useRef<HTMLDivElement | null>(null);
   const phaseRef = useRef<GamePhase>(phase);
+  const renderFpsRef = useRef(renderFps);
+  renderFpsRef.current = renderFps;
   const preflightCompleteRef = useRef(false);
   const [stats, setStats] = useState(() => createDefaultStats(playerCount));
   const [countInBeat, setCountInBeat] = useState<number | null>(null);
@@ -143,7 +148,9 @@ export function HandRhythmScene({
       }
     );
     const targets = createHandRhythmTargetSystem(world.scene, playerCount, gridSize);
+    const renderFrameLimiter = createRenderFrameLimiter();
     const renderWorld = (frameStartedAtMs: number): void => {
+      if (!renderFrameLimiter.shouldRender(frameStartedAtMs, renderFpsRef.current)) return;
       const renderStartedAtMs = performance.now();
       world.render();
       recordHandRhythmRender(frameStartedAtMs, renderStartedAtMs, performance.now());

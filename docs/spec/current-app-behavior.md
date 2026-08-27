@@ -76,10 +76,13 @@ The control panel exposes:
 - Detection overlay visibility.
 - Player count.
 - Detection confidence threshold.
+- Game render rate from 15 to 165 frames per second, defaulting to 60.
 - Hand Rhythm grid size when Hand Rhythm is selected.
 - Advanced tracking options.
 
 Preferences are saved locally and restored on the next visit when possible. Invalid or unsupported saved values fall back to defaults.
+
+Changing the game render rate takes effect immediately without restarting the detector. It limits visual frame submission only; camera detection and game simulation continue on their own schedules.
 
 Changing tracking configuration resets the active detector state and returns the game to ready.
 
