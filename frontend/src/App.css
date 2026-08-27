@@ -1083,6 +1083,7 @@
 }
 
 .panel-toggle svg {
+  transform: rotate(180deg);
   transition: transform 200ms ease;
 }
 
@@ -1091,7 +1092,7 @@
 }
 
 .control-panel.collapsed .panel-toggle svg {
-  transform: rotate(180deg);
+  transform: none;
 }
 
 .eyebrow {
