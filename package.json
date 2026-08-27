@@ -19,6 +19,7 @@
     "lint:fix": "pnpm --filter @webcam-motion-games/frontend lint:fix",
     "profile:e2e": "node scripts/profile-e2e.mjs",
     "test:e2e:performance": "node scripts/benchmark-hand-rhythm-e2e.mjs",
+    "profile:mediapipe": "node scripts/profile-mediapipe-example.mjs",
     "analyze:beats": "python3 scripts/analyze-beats.py"
   },
   "devDependencies": {

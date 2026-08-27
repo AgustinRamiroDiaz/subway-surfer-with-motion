@@ -1,0 +1,21 @@
+{
+  "name": "@webcam-motion-games/test-mediapipe",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "predev": "node copy-wasm.js",
+    "build": "tsc --noEmit && vite build",
+    "prebuild": "node copy-wasm.js",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2"
+  }
+}

@@ -1,5 +1,6 @@
 packages:
   - frontend
+  - test-mediapipe
 
 allowBuilds:
   core-js: true

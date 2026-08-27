@@ -3,6 +3,7 @@
 # dependencies
 /node_modules
 /frontend/node_modules
+/test-mediapipe/node_modules
 /.pnp
 .pnp.js
 
@@ -12,10 +13,12 @@
 /frontend/playwright-report
 /frontend/test-results
 /profile-results*
+/test-mediapipe/public/wasm
 
 # production
 /build
 /frontend/build
+/test-mediapipe/dist
 
 # misc
 .DS_Store

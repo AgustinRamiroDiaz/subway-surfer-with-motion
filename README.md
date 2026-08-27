@@ -74,6 +74,16 @@ numbers, run:
 PROFILE_REAL_GPU=true PROFILE_HEADLESS=false pnpm test:e2e:performance
 ```
 
+The standalone copy of Google's MediaPipe Gesture Recognizer web sample lives in
+`test-mediapipe/`. Profile its worker inference without the game pipeline using:
+
+```bash
+pnpm profile:mediapipe
+```
+
+Use `MEDIAPIPE_PROFILE_REAL_GPU=true MEDIAPIPE_PROFILE_HEADLESS=false` for local hardware-GPU
+measurements.
+
 ## Lint
 
 ```bash

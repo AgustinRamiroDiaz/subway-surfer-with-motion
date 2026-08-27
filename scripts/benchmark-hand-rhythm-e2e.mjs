@@ -3,10 +3,10 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { generateFakeHandVideo } from './fake-hand-video.mjs';
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const rootDirectory = path.resolve(scriptDirectory, '..');
-const sourceImage = path.join(rootDirectory, 'frontend/e2e/fixtures/hand-rhythm-palms.png');
 const outputDirectory = process.env.PROFILE_OUTPUT_DIR ?? 'profile-results-hand-rhythm';
 const durationMs = process.env.PROFILE_DURATION_MS ?? '15000';
 const warmupMs = process.env.PROFILE_WARMUP_MS ?? '5000';
@@ -32,16 +32,7 @@ const fakeVideo = path.join(temporaryDirectory, 'hands.y4m');
 
 try {
   const durationSeconds = Math.ceil((Number(durationMs) + Number(warmupMs) + 10_000) / 1_000);
-  await run('ffmpeg', [
-    '-hide_banner',
-    '-loglevel', 'error',
-    '-loop', '1',
-    '-i', sourceImage,
-    '-vf', "scale=352:264,crop=320:240:x='16+12*sin(n/24)':y='12+8*cos(n/31)',fps=15,format=yuv420p",
-    '-t', String(durationSeconds),
-    '-f', 'yuv4mpegpipe',
-    '-y', fakeVideo,
-  ]);
+  await generateFakeHandVideo(fakeVideo, durationSeconds);
 
   await run(process.execPath, [path.join(scriptDirectory, 'profile-e2e.mjs')], {
     env: {
@@ -61,4 +52,3 @@ try {
 } finally {
   await rm(temporaryDirectory, { recursive: true, force: true });
 }
-
