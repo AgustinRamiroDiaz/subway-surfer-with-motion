@@ -40,8 +40,8 @@ test('renders the motion game shell', async () => {
   expect(screen.getByRole('button', { name: /saltar y agacharse/i })).toHaveAttribute('aria-pressed', 'false');
   expect(screen.getByLabelText(/juego principal/i)).toBeInTheDocument();
   expect(within(screen.getByLabelText(/juego principal/i)).getByLabelText(/vista de cámara/i)).toHaveClass('in-game-camera');
-  expect(within(screen.getByLabelText(/controles del juego/i)).getByRole('button', { name: /activar cámara/i })).toBeEnabled();
-  expect(within(screen.getByLabelText(/controles del juego/i)).getByRole('button', { name: /pausar/i })).toBeDisabled();
+  expect(within(screen.getByLabelText(/menú de minijuegos/i)).getByRole('button', { name: /activar cámara/i })).toBeEnabled();
+  expect(screen.queryByRole('button', { name: /^menú$/i })).not.toBeInTheDocument();
   expect(screen.getByDisplayValue('Español')).toBeInTheDocument();
   expect(screen.getByDisplayValue('Cámara frontal')).toBeInTheDocument();
   expect(screen.getByRole('switch', { name: /espejar cámara/i })).toBeChecked();

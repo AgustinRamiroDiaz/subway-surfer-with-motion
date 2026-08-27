@@ -2,15 +2,11 @@ import { Select, Slider, Switch } from '@mantine/core';
 import type { ReactElement } from 'react';
 import type { AppPreferences } from '../../app/appPreferences';
 import { LANGUAGES, useI18n } from '../../app/i18n';
-import { formatPercent } from '../../formatters';
-import { isHandRhythmDifficulty, type HandRhythmDifficulty } from '../../game/handRhythmDifficulty';
 import type { CameraControlOption } from '../../hooks/useCameraController';
-import { MAX_PLAYERS, MIN_PLAYERS } from '../../motion-mapping/playerPositions';
-import type { DetectorTask } from '../../pose-detection/aiDetector';
+import { formatPercent } from '../../formatters';
 import { ControlHelpLabel } from './ControlHelpLabel';
 
 type QuickDetectionSettingsProps = {
-  task: DetectorTask;
   preferences: AppPreferences;
   cameraOptions: CameraControlOption[];
   selectedCameraValue: string;
@@ -19,16 +15,10 @@ type QuickDetectionSettingsProps = {
   onCameraMirrorChange: (value: boolean) => void;
   onCameraPreviewChange: (value: boolean) => void;
   onDetectionOverlayChange: (value: boolean) => void;
-  onPlayerCountChange: (value: number) => void;
-  onHandRhythmDifficultyChange: (value: HandRhythmDifficulty) => void;
-  onHandRhythmGridSizeChange: (value: 2 | 3) => void;
-  onHandRhythmDoubleTargetChanceChange: (value: number) => void;
-  onHandRhythmFloorChange: (value: boolean) => void;
   onThresholdChange: (value: number) => void;
 };
 
 export function QuickDetectionSettings({
-  task,
   preferences,
   cameraOptions,
   selectedCameraValue,
@@ -37,11 +27,6 @@ export function QuickDetectionSettings({
   onCameraMirrorChange,
   onCameraPreviewChange,
   onDetectionOverlayChange,
-  onPlayerCountChange,
-  onHandRhythmDifficultyChange,
-  onHandRhythmGridSizeChange,
-  onHandRhythmDoubleTargetChanceChange,
-  onHandRhythmFloorChange,
   onThresholdChange,
 }: QuickDetectionSettingsProps): ReactElement {
   const { language, setLanguage, t } = useI18n();
@@ -49,6 +34,7 @@ export function QuickDetectionSettings({
 
   return (
     <div className="quick-settings">
+      <p className="eyebrow">{t('controls.cameraTrackingTitle')}</p>
       <Select
         aria-label={t('language.label')}
         className="model-control"
@@ -95,65 +81,6 @@ export function QuickDetectionSettings({
         <strong>{preferences.devCameraMultiplier === 1 ? t('controls.multiplierNone') : `${preferences.devCameraMultiplier}x`}</strong>
         <Slider thumbLabel={t('controls.cameraMultiplier')} min={1} max={4} step={1} value={preferences.devCameraMultiplier} onChange={onDevCameraMultiplierChange} />
       </div>
-      <div className="player-count-control">
-        <ControlHelpLabel help={t('controls.playersHelp')}>{t('controls.players')}</ControlHelpLabel>
-        <strong>{preferences.playerCount}</strong>
-        <Slider thumbLabel={t('controls.players')} min={MIN_PLAYERS} max={MAX_PLAYERS} step={1} value={preferences.playerCount} onChange={onPlayerCountChange} />
-      </div>
-      {task === 'gesture' && (
-        <>
-          <Select
-            aria-label={t('controls.handRhythmDifficulty')}
-            className="model-control"
-            data={[
-              { value: 'easy', label: t('controls.handRhythmDifficultyEasy') },
-              { value: 'medium', label: t('controls.handRhythmDifficultyMedium') },
-              { value: 'hard', label: t('controls.handRhythmDifficultyHard') },
-            ]}
-            label={<ControlHelpLabel help={t('controls.handRhythmDifficultyHelp')}>{t('controls.handRhythmDifficulty')}</ControlHelpLabel>}
-            value={preferences.handRhythmDifficulty}
-            onChange={(value) => {
-              if (isHandRhythmDifficulty(value)) {
-                onHandRhythmDifficultyChange(value);
-              }
-            }}
-          />
-          <Select
-            aria-label={t('controls.handRhythmGrid')}
-            className="model-control"
-            data={[
-              { value: '2', label: t('controls.handRhythmGrid2') },
-              { value: '3', label: t('controls.handRhythmGrid3') },
-            ]}
-            label={<ControlHelpLabel help={t('controls.handRhythmGridHelp')}>{t('controls.handRhythmGrid')}</ControlHelpLabel>}
-            value={String(preferences.handRhythmGridSize)}
-            onChange={(value) => {
-              if (value === '2' || value === '3') {
-                onHandRhythmGridSizeChange(Number(value) as 2 | 3);
-              }
-            }}
-          />
-          <Switch
-            checked={preferences.showHandRhythmFloor}
-            className="toggle-control"
-            label={<ControlHelpLabel help={t('controls.handRhythmFloorHelp')}>{t('controls.handRhythmFloor')}</ControlHelpLabel>}
-            onChange={(event) => onHandRhythmFloorChange(event.currentTarget.checked)}
-          />
-          <div className="double-target-control">
-            <ControlHelpLabel help={t('controls.handRhythmDoubleTargetChanceHelp')}>{t('controls.handRhythmDoubleTargetChance')}</ControlHelpLabel>
-            <strong>{formatPercent(preferences.handRhythmDoubleTargetChance)}</strong>
-            <Slider
-              thumbLabel={t('controls.handRhythmDoubleTargetChance')}
-              min={0}
-              max={1}
-              step={0.05}
-              value={preferences.handRhythmDoubleTargetChance}
-              label={(value) => formatPercent(value)}
-              onChange={onHandRhythmDoubleTargetChanceChange}
-            />
-          </div>
-        </>
-      )}
       <div className="threshold-control">
         <ControlHelpLabel help={t('controls.confidenceHelp')}>{t('controls.confidence')}</ControlHelpLabel>
         <strong>{formatPercent(preferences.threshold)}</strong>

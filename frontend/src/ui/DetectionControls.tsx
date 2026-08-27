@@ -2,7 +2,6 @@ import { Button } from '@mantine/core';
 import type { ReactElement } from 'react';
 import type { AppPreferences } from '../app/appPreferences';
 import { useI18n } from '../app/i18n';
-import type { HandRhythmDifficulty } from '../game/handRhythmDifficulty';
 import type { CameraControlOption } from '../hooks/useCameraController';
 import type { FrameTimings } from '../hooks/motionDetectorTypes';
 import type {
@@ -41,11 +40,6 @@ type DetectionControlsProps = {
   onMediaPipeDelegateChange: (value: MediaPipeDelegateId) => void;
   onMediaPipeModelChange: (value: MediaPipeModelId) => void;
   onModelChange: (value: YoloModelId) => void;
-  onPlayerCountChange: (value: number) => void;
-  onHandRhythmDifficultyChange: (value: HandRhythmDifficulty) => void;
-  onHandRhythmGridSizeChange: (value: 2 | 3) => void;
-  onHandRhythmDoubleTargetChanceChange: (value: number) => void;
-  onHandRhythmFloorChange: (value: boolean) => void;
   onQuantizationChange: (value: DetectorQuantizationId) => void;
   onRuntimeChange: (value: DetectorRuntimeId) => void;
   onStopCamera: () => void;
@@ -74,11 +68,6 @@ export function DetectionControls({
   onMediaPipeDelegateChange,
   onMediaPipeModelChange,
   onModelChange,
-  onPlayerCountChange,
-  onHandRhythmDifficultyChange,
-  onHandRhythmGridSizeChange,
-  onHandRhythmDoubleTargetChanceChange,
-  onHandRhythmFloorChange,
   onQuantizationChange,
   onRuntimeChange,
   onStopCamera,
@@ -99,7 +88,6 @@ export function DetectionControls({
       </div>
       {error && <p className="error-message">{error}</p>}
       <QuickDetectionSettings
-        task={task}
         preferences={preferences}
         cameraOptions={cameraOptions}
         selectedCameraValue={selectedCameraValue}
@@ -108,11 +96,6 @@ export function DetectionControls({
         onCameraMirrorChange={onCameraMirrorChange}
         onCameraPreviewChange={onCameraPreviewChange}
         onDetectionOverlayChange={onDetectionOverlayChange}
-        onPlayerCountChange={onPlayerCountChange}
-        onHandRhythmDifficultyChange={onHandRhythmDifficultyChange}
-        onHandRhythmGridSizeChange={onHandRhythmGridSizeChange}
-        onHandRhythmDoubleTargetChanceChange={onHandRhythmDoubleTargetChanceChange}
-        onHandRhythmFloorChange={onHandRhythmFloorChange}
         onThresholdChange={onThresholdChange}
       />
       <AdvancedDetectorSettings

@@ -30,6 +30,9 @@ import {
 import type { JumpDuckGuide } from '../motion-mapping/jumpDuckActions';
 import { CameraFeedbackPanel } from '../ui/CameraFeedbackPanel';
 import { DetectionControls } from '../ui/DetectionControls';
+import { LevelBoard } from '../ui/LevelBoard';
+import { PauseOverlay } from '../ui/PauseOverlay';
+import { MenuIcon, PanelToggleIcon } from '../ui/icons';
 import type { GamePhase, RunnerGameId } from '../game/gameTypes';
 import type { WorldProjection } from '../game/shared/worldProjection';
 import { getGameDescriptor } from '../game/levelRegistry';
@@ -41,42 +44,6 @@ import { useCameraController } from '../hooks/useCameraController';
 import { useMotionDetector } from '../hooks/useMotionDetector';
 import '../App.css';
 
-type LevelBoardMetadata = {
-  id: RunnerGameId;
-  boardTitleKey: 'home.sidewaysTitle' | 'home.jumpDuckTitle' | 'home.handRhythmTitle';
-  boardBodyKey: 'home.sidewaysBody' | 'home.jumpDuckBody' | 'home.handRhythmBody';
-  inputLabelKey: 'home.poseInput' | 'home.gestureInput';
-  setupLabelKey: 'home.quickStart' | 'home.calibration';
-  marker: string;
-};
-
-const LEVEL_BOARD_METADATA: readonly LevelBoardMetadata[] = [
-  {
-    id: 'sideways',
-    boardTitleKey: 'home.sidewaysTitle',
-    boardBodyKey: 'home.sidewaysBody',
-    inputLabelKey: 'home.poseInput',
-    setupLabelKey: 'home.quickStart',
-    marker: '01',
-  },
-  {
-    id: 'jump-duck',
-    boardTitleKey: 'home.jumpDuckTitle',
-    boardBodyKey: 'home.jumpDuckBody',
-    inputLabelKey: 'home.poseInput',
-    setupLabelKey: 'home.calibration',
-    marker: '02',
-  },
-  {
-    id: 'hand-rhythm',
-    boardTitleKey: 'home.handRhythmTitle',
-    boardBodyKey: 'home.handRhythmBody',
-    inputLabelKey: 'home.gestureInput',
-    setupLabelKey: 'home.quickStart',
-    marker: '03',
-  },
-] as const;
-
 const TrackingInternalsDocs = lazy(async () => {
   const module = await import('../ui/TrackingInternalsDocs');
   return { default: module.TrackingInternalsDocs };
@@ -84,83 +51,6 @@ const TrackingInternalsDocs = lazy(async () => {
 
 function LoadingRegion(): ReactElement {
   return <div aria-busy="true" className="loading-region" />;
-}
-
-function LevelBoard({
-  disabled,
-  isLoading,
-  selectedGameId,
-  startLabel,
-  onSelectGame,
-  onStartRun,
-}: {
-  disabled: boolean;
-  isLoading: boolean;
-  selectedGameId: RunnerGameId;
-  startLabel: string;
-  onSelectGame: (gameId: RunnerGameId) => void;
-  onStartRun: () => void;
-}): ReactElement {
-  const { t } = useI18n();
-  const selectedMetadata = LEVEL_BOARD_METADATA.find((item) => item.id === selectedGameId) ?? LEVEL_BOARD_METADATA[0];
-
-  return (
-    <section className="home-board" aria-label={t('home.menu')}>
-      <div className="home-board-header">
-        <p className="eyebrow">{t('home.eyebrow')}</p>
-        <h1>{t('home.title')}</h1>
-        <p>{t('home.subtitle')}</p>
-      </div>
-
-      <div className="level-card-grid" aria-label={t('game.modeSelector')}>
-        {LEVEL_BOARD_METADATA.map((level) => {
-          const selected = level.id === selectedGameId;
-          return (
-            <button
-              key={level.id}
-              type="button"
-              className={`level-card level-card-${level.id}${selected ? ' selected' : ''}`}
-              aria-label={t(getGameDescriptor(level.id).modeLabelKey)}
-              aria-current={selected ? 'true' : undefined}
-              aria-pressed={selected}
-              onClick={() => onSelectGame(level.id)}
-            >
-              <span className="level-card-marker" aria-hidden="true">{level.marker}</span>
-              <span className="level-card-art" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </span>
-              <span className="level-card-copy">
-                <span className="level-card-kicker">{t(level.inputLabelKey)}</span>
-                <strong>{t(level.boardTitleKey)}</strong>
-                <span>{t(level.boardBodyKey)}</span>
-              </span>
-              <span className="level-card-footer">
-                <span>{t(level.setupLabelKey)}</span>
-                <span>{selected ? t('home.selected') : t('home.select')}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="home-board-actions">
-        <div>
-          <span>{t('home.selectedLevel')}</span>
-          <strong>{t(selectedMetadata.boardTitleKey)}</strong>
-        </div>
-        <button
-          className="primary-action"
-          type="button"
-          disabled={disabled}
-          onClick={onStartRun}
-        >
-          {isLoading ? t('app.loadingModel') : startLabel}
-        </button>
-      </div>
-    </section>
-  );
 }
 
 function App(): ReactElement {
@@ -185,6 +75,8 @@ function MotionRunnerApp(): ReactElement {
     readStoredAppPreferences
   );
   const [gamePhase, setGamePhase] = useState<GamePhase>('ready');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [jumpDuckGuides, setJumpDuckGuides] = useState<JumpDuckGuide[]>([]);
   const [worldProjection, setWorldProjection] = useState<WorldProjection | null>(null);
   const [videoAspectRatio, setVideoAspectRatio] = useState(4 / 3);
@@ -323,6 +215,46 @@ function MotionRunnerApp(): ReactElement {
     setGamePhase('paused');
   }, [detector, handRhythmMusic]);
 
+  const handleOpenMenu = useCallback(() => {
+    handlePauseRun();
+    setMenuOpen(true);
+  }, [handlePauseRun]);
+
+  const handleResumeFromMenu = useCallback(async () => {
+    await handleStartRun();
+    setMenuOpen(false);
+  }, [handleStartRun]);
+
+  const handleResumeClick = useCallback((): void => {
+    void handleResumeFromMenu();
+  }, [handleResumeFromMenu]);
+
+  const handleChangeLevelFromMenu = useCallback(() => {
+    setMenuOpen(false);
+  }, []);
+
+  const handleExitFromMenu = useCallback(() => {
+    setMenuOpen(false);
+    handleStopCamera();
+  }, [handleStopCamera]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      if (menuOpen) {
+        event.preventDefault();
+        void handleResumeFromMenu();
+      } else if (gamePhase === 'running') {
+        event.preventDefault();
+        handleOpenMenu();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [gamePhase, handleOpenMenu, handleResumeFromMenu, menuOpen]);
+
   const handleGameSelection = useCallback((selectedRunnerGameId: RunnerGameId) => {
     if (gamePhase === 'running') {
       handlePauseRun();
@@ -346,6 +278,7 @@ function MotionRunnerApp(): ReactElement {
   }, [camera]);
 
   const startLabel = camera.cameraEnabled ? t('app.startRun') : t('app.enableCamera');
+  const showLevelBoard = gamePhase === 'ready' || (gamePhase === 'paused' && !menuOpen);
   const cameraReadiness = !camera.cameraEnabled
     ? { label: t('camera.readinessOff'), tone: 'off' }
     : detector.isLoading
@@ -358,7 +291,7 @@ function MotionRunnerApp(): ReactElement {
     <main className="app-shell">
       <section className="workspace" aria-label={t('app.workspace')}>
         <section
-          className={`game-stage${gamePhase !== 'running' ? ' game-stage-home' : ''}`}
+          className={`game-stage${showLevelBoard ? ' game-stage-home' : ''}`}
           aria-label={t('app.mainGame')}
         >
           <Suspense fallback={<LoadingRegion />}>
@@ -393,14 +326,44 @@ function MotionRunnerApp(): ReactElement {
               />
             )}
           </Suspense>
-          {gamePhase !== 'running' ? (
+          {showLevelBoard ? (
             <LevelBoard
               disabled={detector.isLoading}
               isLoading={detector.isLoading}
+              preferences={preferences}
               selectedGameId={preferences.selectedRunnerGameId}
               startLabel={startLabel}
               onSelectGame={handleGameSelection}
               onStartRun={handleStartRun}
+              onPlayerCountChange={handlePlayerCountChange}
+              onHandRhythmDifficultyChange={(difficulty) => dispatchPreferences({ type: 'handRhythmDifficultyChanged', difficulty })}
+              onHandRhythmGridSizeChange={(gridSize) => dispatchPreferences({ type: 'handRhythmGridChanged', gridSize })}
+              onHandRhythmDoubleTargetChanceChange={(chance) => dispatchPreferences({ type: 'handRhythmDoubleTargetChanceChanged', chance })}
+              onHandRhythmFloorChange={(visible) => dispatchPreferences({ type: 'handRhythmFloorChanged', visible })}
+            />
+          ) : null}
+          <div className="stage-hud">
+            <div className={`stage-monitor camera-readiness-${cameraReadiness.tone}`} role="status" aria-live="polite">
+              <span className="camera-readiness-dot" aria-hidden="true" />
+              <span>{cameraReadiness.label}</span>
+              {detector.lastInferenceMs !== null ? (
+                <span className="stage-monitor-ms">{detector.lastInferenceMs}ms</span>
+              ) : null}
+            </div>
+            {gamePhase === 'running' ? (
+              <button type="button" className="menu-trigger" onClick={handleOpenMenu}>
+                <MenuIcon />
+                {t('controls.menu')}
+                <kbd aria-hidden="true">Esc</kbd>
+              </button>
+            ) : null}
+          </div>
+          {menuOpen ? (
+            <PauseOverlay
+              isLoading={detector.isLoading}
+              onResume={handleResumeClick}
+              onChangeLevel={handleChangeLevelFromMenu}
+              onExit={handleExitFromMenu}
             />
           ) : null}
           <CameraFeedbackPanel
@@ -423,63 +386,46 @@ function MotionRunnerApp(): ReactElement {
           />
         </section>
 
-        <aside className="control-panel" aria-label={t('app.detectionControls')}>
-          <section className="run-panel" aria-label={t('game.controls')}>
-            <div className={`camera-readiness camera-readiness-${cameraReadiness.tone}`} role="status" aria-live="polite">
-              <span className="camera-readiness-dot" aria-hidden="true" />
-              <span>{cameraReadiness.label}</span>
-            </div>
-            <div className="selected-level-summary">
-              <span>{t('home.selectedLevel')}</span>
-              <strong>{t(getGameDescriptor(preferences.selectedRunnerGameId).titleKey)}</strong>
-            </div>
-            <div className="run-controls">
-              <button
-                className="primary-action"
-                type="button"
-                disabled={detector.isLoading || gamePhase === 'running'}
-                onClick={handleStartRun}
-              >
-                {detector.isLoading ? t('app.loadingModel') : startLabel}
-              </button>
-              <button type="button" disabled={gamePhase !== 'running'} onClick={handlePauseRun}>
-                {t('game.pause')}
-              </button>
-            </div>
-          </section>
+        <aside className={`control-panel${sidebarCollapsed ? ' collapsed' : ''}`} aria-label={t('app.detectionControls')}>
+          <button
+            type="button"
+            className="panel-toggle"
+            aria-label={sidebarCollapsed ? t('controls.showPanel') : t('controls.hidePanel')}
+            aria-expanded={!sidebarCollapsed}
+            onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+          >
+            <PanelToggleIcon />
+          </button>
 
-          <DetectionControls
-            task={detectorTask}
-            detections={detector.detections}
-            error={detector.error ?? camera.error}
-            frameTimings={detector.frameTimings}
-            isLoading={detector.isLoading}
-            lastInferenceMs={detector.lastInferenceMs}
-            modelStatus={detector.modelStatus}
-            preferences={preferences}
-            status={detector.status}
-            stopDisabled={!camera.cameraEnabled && !detector.isDetecting}
-            onBackendChange={handleBackendChange}
-            cameraOptions={camera.cameraOptions}
-            selectedCameraValue={camera.selectedCameraValue}
-            onCameraChange={camera.changeCamera}
-            onDevCameraMultiplierChange={camera.changeDevCameraMultiplier}
-            onCameraMirrorChange={(mirrored) => dispatchPreferences({ type: 'cameraMirrorChanged', mirrored })}
-            onCameraPreviewChange={(visible) => dispatchPreferences({ type: 'cameraPreviewChanged', visible })}
-            onDetectionOverlayChange={(visible) => dispatchPreferences({ type: 'detectionOverlayChanged', visible })}
-            onMediaPipeDelegateChange={handleMediaPipeDelegateChange}
-            onMediaPipeModelChange={handleMediaPipeModelChange}
-            onModelChange={handleModelChange}
-            onPlayerCountChange={handlePlayerCountChange}
-            onHandRhythmDifficultyChange={(difficulty) => dispatchPreferences({ type: 'handRhythmDifficultyChanged', difficulty })}
-            onHandRhythmGridSizeChange={(gridSize) => dispatchPreferences({ type: 'handRhythmGridChanged', gridSize })}
-            onHandRhythmDoubleTargetChanceChange={(chance) => dispatchPreferences({ type: 'handRhythmDoubleTargetChanceChanged', chance })}
-            onHandRhythmFloorChange={(visible) => dispatchPreferences({ type: 'handRhythmFloorChanged', visible })}
-            onQuantizationChange={handleQuantizationChange}
-            onRuntimeChange={handleRuntimeChange}
-            onStopCamera={handleStopCamera}
-            onThresholdChange={handleThresholdChange}
-          />
+          {!sidebarCollapsed && (
+            <DetectionControls
+              task={detectorTask}
+              detections={detector.detections}
+              error={detector.error ?? camera.error}
+              frameTimings={detector.frameTimings}
+              isLoading={detector.isLoading}
+              lastInferenceMs={detector.lastInferenceMs}
+              modelStatus={detector.modelStatus}
+              preferences={preferences}
+              status={detector.status}
+              stopDisabled={!camera.cameraEnabled && !detector.isDetecting}
+              onBackendChange={handleBackendChange}
+              cameraOptions={camera.cameraOptions}
+              selectedCameraValue={camera.selectedCameraValue}
+              onCameraChange={camera.changeCamera}
+              onDevCameraMultiplierChange={camera.changeDevCameraMultiplier}
+              onCameraMirrorChange={(mirrored) => dispatchPreferences({ type: 'cameraMirrorChanged', mirrored })}
+              onCameraPreviewChange={(visible) => dispatchPreferences({ type: 'cameraPreviewChanged', visible })}
+              onDetectionOverlayChange={(visible) => dispatchPreferences({ type: 'detectionOverlayChanged', visible })}
+              onMediaPipeDelegateChange={handleMediaPipeDelegateChange}
+              onMediaPipeModelChange={handleMediaPipeModelChange}
+              onModelChange={handleModelChange}
+              onQuantizationChange={handleQuantizationChange}
+              onRuntimeChange={handleRuntimeChange}
+              onStopCamera={handleStopCamera}
+              onThresholdChange={handleThresholdChange}
+            />
+          )}
         </aside>
       </section>
     </main>
