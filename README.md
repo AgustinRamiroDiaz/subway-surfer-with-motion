@@ -55,6 +55,25 @@ Open the local URL printed by Vite. If the default port is busy, Vite will offer
 pnpm test --watchAll=false
 ```
 
+To benchmark the complete Hand Rhythm camera-to-render pipeline with a deterministic fake-camera
+video, run:
+
+```bash
+pnpm test:e2e:performance
+```
+
+The command requires `ffmpeg`. It builds a production frontend, generates a temporary Y4M camera
+stream from the hand fixture, warms up MediaPipe, and records steady-state latency, render-frame,
+CPU, heap, process, and GPU diagnostics in `profile-results-hand-rhythm/summary.json`. Override the
+sample and warm-up windows with `PROFILE_DURATION_MS` and `PROFILE_WARMUP_MS`.
+
+Headless mode uses software graphics for a reproducible CI baseline. For representative local GPU
+numbers, run:
+
+```bash
+PROFILE_REAL_GPU=true PROFILE_HEADLESS=false pnpm test:e2e:performance
+```
+
 ## Lint
 
 ```bash

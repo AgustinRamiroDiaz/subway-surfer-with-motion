@@ -38,6 +38,7 @@ import {
   setHandRhythmTargetFeedback,
 } from './handRhythmTargets';
 import { isHandRhythmTargetMatch } from './handRhythmJudgment';
+import { recordHandRhythmRender } from '../../../debug/handRhythmPerformanceProbe';
 
 const HAND_RHYTHM_CAMERA = {
   positionY: 2.45,
@@ -142,6 +143,11 @@ export function HandRhythmScene({
       }
     );
     const targets = createHandRhythmTargetSystem(world.scene, playerCount, gridSize);
+    const renderWorld = (frameStartedAtMs: number): void => {
+      const renderStartedAtMs = performance.now();
+      world.render();
+      recordHandRhythmRender(frameStartedAtMs, renderStartedAtMs, performance.now());
+    };
 
     const resize = (): void => {
       const width = Math.max(1, mount.clientWidth);
@@ -181,7 +187,7 @@ export function HandRhythmScene({
       lastFrameAt = now;
 
       if (phaseRef.current !== 'running') {
-        world.render();
+        renderWorld(now);
         animationFrame = window.requestAnimationFrame(animate);
         return;
       }
@@ -192,7 +198,7 @@ export function HandRhythmScene({
           lastCountInBeat = nextBeat;
           setCountInBeat(nextBeat);
         }
-        world.render();
+        renderWorld(now);
         animationFrame = window.requestAnimationFrame(animate);
         return;
       }
@@ -248,7 +254,7 @@ export function HandRhythmScene({
           setPreflightComplete(true);
           onPlayersReady();
         }
-        world.render();
+        renderWorld(now);
         animationFrame = window.requestAnimationFrame(animate);
         return;
       }
@@ -290,7 +296,7 @@ export function HandRhythmScene({
         if (target.root.position.z > OBSTACLE_DESPAWN_Z) targets.remove(target);
       }
 
-      world.render();
+      renderWorld(now);
       animationFrame = window.requestAnimationFrame(animate);
     };
 

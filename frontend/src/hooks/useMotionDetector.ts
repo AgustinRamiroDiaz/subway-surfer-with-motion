@@ -29,6 +29,17 @@ import { DETECTOR_UI_UPDATE_INTERVAL_MS, createEmptyPlayerDetections, createFram
 import type { FrameTimings, MotionDetectorControls, UseMotionDetectorOptions } from './motionDetectorTypes';
 import { useLatest } from './useLatest';
 import { useDetectorSession } from './useDetectorSession';
+import {
+  recordCameraFrame,
+  recordMappedDetectorResult,
+} from '../debug/handRhythmPerformanceProbe';
+
+type VideoFrameTiming = {
+  mediaTimeMs: number;
+  presentedFrames: number;
+  expectedDisplayTimeMs: number;
+  videoCallbackAtMs: number;
+};
 
 export function useMotionDetector({
   task,
@@ -43,7 +54,7 @@ export function useMotionDetector({
 }: UseMotionDetectorOptions): MotionDetectorControls {
   const { t, tn } = useI18n();
   const videoFrameCallbackRef = useRef<number | null>(null);
-  const runDetectionRef = useRef<(() => void) | null>(null);
+  const runDetectionRef = useRef<((videoFrameTiming: VideoFrameTiming | null) => void) | null>(null);
   const detectorResultHandlerRef = useRef<((result: DetectorResult, captureMs: number, loopStartedAt: number | null) => void) | null>(null);
   const detectingRef = useRef(false);
   const frameSequenceRef = useRef(0);
@@ -128,9 +139,14 @@ export function useMotionDetector({
       return;
     }
 
-    videoFrameCallbackRef.current = video.requestVideoFrameCallback(() => {
+    videoFrameCallbackRef.current = video.requestVideoFrameCallback((now, metadata) => {
       videoFrameCallbackRef.current = null;
-      runDetectionRef.current?.();
+      runDetectionRef.current?.({
+        mediaTimeMs: metadata.mediaTime * 1_000,
+        presentedFrames: metadata.presentedFrames,
+        expectedDisplayTimeMs: metadata.expectedDisplayTime,
+        videoCallbackAtMs: now,
+      });
     });
   }, [detectorSession.modeRef, videoRef]);
 
@@ -199,13 +215,23 @@ export function useMotionDetector({
         players: assignedHands.map((hands) => ({ hand: hands.find((hand) => hand !== null) ?? null, hands })),
       };
       
-      const drawStartedAt = performance.now();
+      const mappingDoneAt = performance.now();
+      const drawStartedAt = mappingDoneAt;
       const analysisMs = drawStartedAt - analysisStartedAt;
       const overlay = overlayRef.current;
       if (overlay) {
         drawDetections(overlay, sorted);
       }
       const drawDoneAt = performance.now();
+      recordMappedDetectorResult(
+        result.frame.frameId,
+        analysisStartedAt,
+        mappingDoneAt,
+        drawDoneAt,
+        sorted.length,
+        handDetections.length,
+        result.timings
+      );
       publishFrameTimings(analysisMs, drawDoneAt - drawStartedAt, drawDoneAt);
       return;
     }
@@ -242,13 +268,23 @@ export function useMotionDetector({
       setStatus(sorted.length ? tn('status.detectedPeople', sorted.length) : t('status.scanning'));
     }
 
-    const drawStartedAt = performance.now();
+    const mappingDoneAt = performance.now();
+    const drawStartedAt = mappingDoneAt;
     const analysisMs = drawStartedAt - analysisStartedAt;
     const overlay = overlayRef.current;
     if (overlay) {
       drawDetections(overlay, sorted);
     }
     const drawDoneAt = performance.now();
+    recordMappedDetectorResult(
+      result.frame.frameId,
+      analysisStartedAt,
+      mappingDoneAt,
+      drawDoneAt,
+      sorted.length,
+      0,
+      result.timings
+    );
     publishFrameTimings(analysisMs, drawDoneAt - drawStartedAt, drawDoneAt);
   }, [overlayRef, preferencesRef, t, tn]);
 
@@ -264,7 +300,7 @@ export function useMotionDetector({
     setStatus(cameraEnabledRef.current ? t('status.cameraReady') : t('status.cameraIdle'));
   }, [cameraEnabledRef, cancelScheduledDetectionFrame, detectorSession, t]);
 
-  const runDetection = useCallback(async () => {
+  const runDetection = useCallback(async (videoFrameTiming: VideoFrameTiming | null) => {
     const detector = detectorSession.detectorRef.current;
     const video = videoRef.current;
 
@@ -296,7 +332,9 @@ export function useMotionDetector({
 
     const captureDoneAt = performance.now();
     frameSequenceRef.current += 1;
-    const cameraFrame = createCameraFrame(bitmap, `camera-frame-${frameSequenceRef.current}`, loopStartedAt);
+    const frameId = `camera-frame-${frameSequenceRef.current}`;
+    const cameraFrame = createCameraFrame(bitmap, frameId, loopStartedAt);
+    recordCameraFrame(frameId, videoFrameTiming, loopStartedAt, captureDoneAt);
 
     try {
       const result = await detector(cameraFrame, {
@@ -330,7 +368,7 @@ export function useMotionDetector({
   }, [detectorSession.detectorRef, handleDetectorResult, preferencesRef, scheduleDetectionFrame, syncCanvasSize, t, task, videoRef]);
 
   useEffect(() => {
-    runDetectionRef.current = () => { void runDetection(); };
+    runDetectionRef.current = (videoFrameTiming) => { void runDetection(videoFrameTiming); };
   }, [runDetection]);
 
   const resetDetector = useCallback(() => {

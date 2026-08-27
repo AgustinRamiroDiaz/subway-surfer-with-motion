@@ -28,6 +28,9 @@ const mediaPipeModel = process.env.PROFILE_MEDIAPIPE_MODEL ?? 'lite';
 const runnerGame = process.env.PROFILE_GAME ?? 'sideways';
 const playerCount = Number.parseInt(process.env.PROFILE_PLAYERS ?? '1', 10);
 const showCameraPreview = process.env.PROFILE_SHOW_CAMERA_PREVIEW === 'true';
+const performanceProbeEnabled = process.env.PROFILE_PERFORMANCE_PROBE === 'true';
+const requireHands = process.env.PROFILE_REQUIRE_HANDS === 'true';
+const warmupMs = Number.parseInt(process.env.PROFILE_WARMUP_MS ?? (performanceProbeEnabled ? '5000' : '0'), 10);
 const traceCategories = [
   'devtools.timeline',
   'v8',
@@ -507,6 +510,80 @@ function summarizeHeapSampling(profile) {
     .slice(0, 40);
 }
 
+function percentile(values, quantile) {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((left, right) => left - right);
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(quantile * sorted.length) - 1));
+  return sorted[index];
+}
+
+function summarizeDistribution(values) {
+  const finiteValues = values.filter(Number.isFinite);
+  if (finiteValues.length === 0) return { count: 0, mean: null, p50: null, p95: null, p99: null, max: null };
+  return {
+    count: finiteValues.length,
+    mean: finiteValues.reduce((sum, value) => sum + value, 0) / finiteValues.length,
+    p50: percentile(finiteValues, 0.5),
+    p95: percentile(finiteValues, 0.95),
+    p99: percentile(finiteValues, 0.99),
+    max: Math.max(...finiteValues),
+  };
+}
+
+function summarizeHandRhythmProbe(snapshot) {
+  if (!snapshot) return null;
+  const completedSamples = snapshot.samples.filter((sample) => sample.renderSubmittedAtMs !== null);
+  const completedDetectorSamples = snapshot.samples.filter((sample) => sample.mappingDoneAtMs !== null);
+  const stageValues = {
+    capture: completedDetectorSamples.map((sample) => sample.captureDoneAtMs - sample.captureStartedAtMs),
+    rawImage: completedDetectorSamples.map((sample) => sample.detectorTimings?.rawImageMs).filter(Number.isFinite),
+    preprocess: completedDetectorSamples.map((sample) => sample.detectorTimings?.preprocessMs).filter(Number.isFinite),
+    model: completedDetectorSamples.map((sample) => sample.detectorTimings?.modelMs).filter(Number.isFinite),
+    postprocess: completedDetectorSamples.map((sample) => sample.detectorTimings?.postprocessMs).filter(Number.isFinite),
+    mapping: completedDetectorSamples.map((sample) => sample.mappingDoneAtMs - sample.detectorDoneAtMs),
+    overlay: completedDetectorSamples.map((sample) => sample.overlayDoneAtMs - sample.mappingDoneAtMs),
+    mappedToRender: completedSamples.map((sample) => sample.renderSubmittedAtMs - sample.mappingDoneAtMs),
+    renderCpu: snapshot.renderFrames.map((frame) => frame.renderCpuMs),
+  };
+  const stages = Object.fromEntries(
+    Object.entries(stageValues).map(([name, values]) => [name, summarizeDistribution(values)])
+  );
+  const rankedStages = Object.entries(stages)
+    .filter(([, summary]) => summary.p95 !== null)
+    .sort((left, right) => right[1].p95 - left[1].p95)
+    .map(([stage, summary]) => ({ stage, p50Ms: summary.p50, p95Ms: summary.p95 }));
+  const frameIntervals = snapshot.renderFrames
+    .map((frame) => frame.frameIntervalMs)
+    .filter(Number.isFinite);
+  const durationSeconds = Math.max(0.001, (snapshot.capturedAtMs - snapshot.startedAtMs) / 1_000);
+
+  return {
+    durationMs: snapshot.capturedAtMs - snapshot.startedAtMs,
+    cameraFrames: snapshot.samples.length,
+    completedDetectorFrames: completedDetectorSamples.length,
+    renderedInputFrames: completedSamples.length,
+    detectionFramesPerSecond: completedDetectorSamples.length / durationSeconds,
+    framesWithHands: completedDetectorSamples.filter((sample) => sample.handCount > 0).length,
+    handDetectionRatio: completedDetectorSamples.length === 0
+      ? 0
+      : completedDetectorSamples.filter((sample) => sample.handCount > 0).length / completedDetectorSamples.length,
+    inputToRenderMs: summarizeDistribution(
+      completedSamples.map((sample) => sample.renderSubmittedAtMs - sample.videoCallbackAtMs)
+    ),
+    expectedDisplayToRenderMs: summarizeDistribution(
+      completedSamples
+        .filter((sample) => sample.expectedDisplayTimeMs !== null)
+        .map((sample) => sample.renderSubmittedAtMs - sample.expectedDisplayTimeMs)
+    ),
+    renderFrameIntervalMs: summarizeDistribution(frameIntervals),
+    framesOver16_67Ms: frameIntervals.filter((value) => value > 16.67).length,
+    framesOver33_33Ms: frameIntervals.filter((value) => value > 33.33).length,
+    stages,
+    rankedStages,
+    likelyPipelineBottleneck: rankedStages[0] ?? null,
+  };
+}
+
 async function readTracingStream(client, streamHandle) {
   const chunks = [];
 
@@ -662,10 +739,26 @@ async function main() {
     await client.send('Profiler.enable');
     await client.send('HeapProfiler.enable');
 
-    await page.goto(baseUrl, { waitUntil: 'networkidle' });
+    const profileUrl = new URL(baseUrl);
+    if (performanceProbeEnabled) profileUrl.searchParams.set('handRhythmPerformanceProbe', '1');
+    await page.goto(profileUrl.toString(), { waitUntil: 'networkidle' });
     await page.screenshot({ path: path.join(outputDir, 'profile-start-screen.png'), fullPage: true });
     await page.locator('.primary-action').click({ timeout: 30000 });
     await page.locator('.timing-panel').waitFor({ timeout: 120000 });
+    if (performanceProbeEnabled) {
+      await page.waitForFunction(() => Boolean(window.__handRhythmPerformanceProbe), null, { timeout: 30000 });
+      if (requireHands) {
+        await page.waitForFunction(
+          () => window.__handRhythmPerformanceProbe?.getSnapshot().samples.some((sample) => (sample.handCount ?? 0) > 0),
+          null,
+          { timeout: 120000 }
+        );
+      }
+      if (warmupMs > 0) await page.waitForTimeout(warmupMs);
+      await page.evaluate(() => window.__handRhythmPerformanceProbe?.reset());
+      osResourceSamples.length = 0;
+      await captureOsSample();
+    }
 
     await client.send('Profiler.start');
     await client.send('HeapProfiler.startSampling', { samplingInterval: 32768 });
@@ -690,6 +783,9 @@ async function main() {
     clearInterval(osSampleTimer);
     await captureOsSample();
 
+    const handRhythmPerformanceSnapshot = performanceProbeEnabled
+      ? await page.evaluate(() => window.__handRhythmPerformanceProbe?.getSnapshot() ?? null)
+      : null;
     const [cpuProfileResult, heapProfileResult, traceJson, finalMetrics] = await Promise.all([
       client.send('Profiler.stop'),
       client.send('HeapProfiler.stopSampling'),
@@ -705,10 +801,28 @@ async function main() {
     await writeFile(path.join(outputDir, 'trace.json'), traceJson);
     await writeFile(path.join(outputDir, 'performance-metrics.json'), JSON.stringify({ metrics, finalMetrics }, null, 2));
     await writeFile(path.join(outputDir, 'gpu-info.json'), JSON.stringify(gpuInfo, null, 2));
+    if (handRhythmPerformanceSnapshot) {
+      await writeFile(
+        path.join(outputDir, 'hand-rhythm-performance-samples.json'),
+        JSON.stringify(handRhythmPerformanceSnapshot, null, 2)
+      );
+    }
     await writeFile(
       path.join(outputDir, 'os-process-thread-samples.json'),
       JSON.stringify(osResourceSamples, null, 2)
     );
+
+    const handRhythmPerformance = summarizeHandRhythmProbe(handRhythmPerformanceSnapshot);
+    if (performanceProbeEnabled && (
+      !handRhythmPerformance ||
+      handRhythmPerformance.completedDetectorFrames === 0 ||
+      handRhythmPerformance.renderedInputFrames === 0
+    )) {
+      throw new Error('The performance probe did not observe a complete camera-to-render sample.');
+    }
+    if (requireHands && handRhythmPerformance.framesWithHands === 0) {
+      throw new Error('The fake camera ran, but MediaPipe did not detect hands during the measured window.');
+    }
 
     const summary = {
       capturedAt: new Date().toISOString(),
@@ -729,6 +843,8 @@ async function main() {
         playerCount,
         showCameraPreview,
       },
+      performanceProbeEnabled,
+      warmupMs,
       gpuInfoSummary: {
         featureStatus: gpuInfo.gpu?.featureStatus ?? null,
         devices: gpuInfo.gpu?.devices?.map((device) => ({
@@ -745,6 +861,7 @@ async function main() {
       osResourceSummary: summarizeOsResourceSamples(osResourceSamples),
       topCpuSelfTime: summarizeCpuProfile(cpuProfileResult.profile),
       topHeapSelfBytes: summarizeHeapSampling(heapProfileResult.profile),
+      handRhythmPerformance,
       artifacts: {
         osProcessThreadSamples: path.join(outputDir, 'os-process-thread-samples.json'),
         cpuProfile: path.join(outputDir, 'cpu.cpuprofile'),
@@ -754,6 +871,9 @@ async function main() {
         gpuInfo: path.join(outputDir, 'gpu-info.json'),
         screenshot: screenshotPath,
         startupScreenshot: path.join(outputDir, 'profile-start-screen.png'),
+        handRhythmPerformanceSamples: handRhythmPerformanceSnapshot
+          ? path.join(outputDir, 'hand-rhythm-performance-samples.json')
+          : null,
       },
     };
 
