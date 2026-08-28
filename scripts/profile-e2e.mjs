@@ -48,6 +48,10 @@ const traceCategories = [
 const clockTicksPerSecond = Number.parseInt(process.env.PROFILE_CLK_TCK ?? '100', 10);
 const pageSizeBytes = Number.parseInt(process.env.PROFILE_PAGE_SIZE_BYTES ?? '4096', 10);
 
+if (renderFps < 15 || renderFps > 165 || (renderFps - 15) % 5 !== 0) {
+  throw new Error('PROFILE_RENDER_FPS must be between 15 and 165 in increments of 5.');
+}
+
 function parseProcStat(stat) {
   const openParenIndex = stat.indexOf('(');
   const closeParenIndex = stat.lastIndexOf(')');
@@ -712,7 +716,7 @@ async function main() {
     const client = await context.newCDPSession(page);
 
     await page.addInitScript(
-      ({ backend, mediaPipeDelegate, mediaPipeModel, playerCount, renderFps, runnerGame, showCameraPreview }) => {
+      ({ backend, mediaPipeDelegate, mediaPipeModel, playerCount, runnerGame, showCameraPreview }) => {
         window.localStorage.setItem(
           'motion-runner:detection-preferences:v1',
           JSON.stringify({
@@ -724,7 +728,6 @@ async function main() {
             selectedMediaPipeModelId: mediaPipeModel,
             selectedMediaPipeDelegateId: mediaPipeDelegate,
             playerCount,
-            gameRenderFps: renderFps,
             threshold: 0.45,
             cameraMirrored: true,
             cameraPreviewVisibility: {
@@ -743,7 +746,7 @@ async function main() {
           })
         );
       },
-      { backend, mediaPipeDelegate, mediaPipeModel, playerCount, renderFps, runnerGame, showCameraPreview }
+      { backend, mediaPipeDelegate, mediaPipeModel, playerCount, runnerGame, showCameraPreview }
     );
 
     await client.send('Performance.enable');
@@ -753,6 +756,16 @@ async function main() {
     const profileUrl = new URL(baseUrl);
     if (performanceProbeEnabled) profileUrl.searchParams.set('handRhythmPerformanceProbe', '1');
     await page.goto(profileUrl.toString(), { waitUntil: 'networkidle' });
+    const renderFpsSlider = page.getByRole('slider', { name: /fps de renderizado|render fps/i });
+    await renderFpsSlider.focus();
+    await renderFpsSlider.press('Home');
+    for (let fps = 15; fps < renderFps; fps += 5) {
+      await renderFpsSlider.press('ArrowRight');
+    }
+    const appliedRenderFps = Number.parseInt(await renderFpsSlider.getAttribute('aria-valuenow'), 10);
+    if (appliedRenderFps !== renderFps) {
+      throw new Error(`Render FPS slider reported ${appliedRenderFps}; expected ${renderFps}.`);
+    }
     await page.screenshot({ path: path.join(outputDir, 'profile-start-screen.png'), fullPage: true });
     await page.locator('.primary-action').click({ timeout: 30000 });
     await page.locator('.timing-panel').waitFor({ timeout: 120000 });
@@ -853,6 +866,7 @@ async function main() {
         runnerGame,
         playerCount,
         renderFps,
+        renderFpsControlMethod: 'ui-slider-keyboard',
         showCameraPreview,
       },
       performanceProbeEnabled,

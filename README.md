@@ -65,7 +65,12 @@ pnpm test:e2e:performance
 The command requires `ffmpeg`. It builds a production frontend, generates a temporary Y4M camera
 stream from the hand fixture, warms up MediaPipe, and records steady-state latency, render-frame,
 CPU, heap, process, and GPU diagnostics in `profile-results-hand-rhythm/summary.json`. Override the
-sample and warm-up windows with `PROFILE_DURATION_MS` and `PROFILE_WARMUP_MS`.
+sample and warm-up windows with `PROFILE_DURATION_MS` and `PROFILE_WARMUP_MS`. Set
+`PROFILE_RENDER_FPS` to a supported slider value (15–165 in steps of 5); the profiler applies it
+through the visible in-app render-rate control before warm-up and records that control path.
+
+See [Hand Rhythm performance findings](docs/hand-rhythm-performance.md) for the measured 60 FPS
+versus 15 FPS comparison, interpretation, and reproduction commands.
 
 Headless mode uses software graphics for a reproducible CI baseline. For representative local GPU
 numbers, run:
