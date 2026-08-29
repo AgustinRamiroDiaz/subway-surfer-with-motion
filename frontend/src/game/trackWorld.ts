@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PLAYER_BASE_Y, PLAYER_Z } from './gameConstants';
+import { PLAYER_BASE_Y, PLAYER_Z, TRACK_WIDTH } from './gameConstants';
 import type { HandRhythmTrackWorld, PoseRunnerGameId, RunnerGameId, TrackWorld } from './gameTypes';
 import type { CameraFraming } from './levelRegistry';
 import type { HandRhythmCell, HandRhythmGridSize } from './levels/handRhythmLevel';
@@ -26,6 +26,9 @@ export function createTrackCameras(
     const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 100);
     const centerX = cameraCount === 1 ? 0 : playerTrackX(playerIndex, playerCount);
     camera.name = cameraCount === 1 ? 'main-camera' : `player-${playerIndex + 1}-camera`;
+    camera.userData.playableWidth = gameId === 'hand-rhythm'
+      ? handRhythmPlayerWidth(playerCount)
+      : TRACK_WIDTH;
     camera.position.set(centerX, cameraFraming.positionY, cameraFraming.positionZ);
     camera.lookAt(centerX, cameraFraming.positionY, cameraFraming.targetZ);
     if (cameraCount > 1) {
@@ -45,9 +48,24 @@ export function resizeTrackCameras(
 
   cameras.forEach((camera) => {
     camera.aspect = viewportAspect;
-    // Preserve the existing portrait behavior while allowing each split camera's
-    // horizontal field of view to shrink to its player's share of the arena.
-    camera.zoom = fullAspect < 1 ? fullAspect : 1;
+    camera.zoom = 1;
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld();
+
+    const playableWidth = Number(camera.userData.playableWidth) || TRACK_WIDTH;
+    const halfWidth = playableWidth / 2;
+    const left = new THREE.Vector3(
+      camera.position.x - halfWidth,
+      PLAYER_BASE_Y,
+      PLAYER_Z
+    ).project(camera).x;
+    const right = new THREE.Vector3(
+      camera.position.x + halfWidth,
+      PLAYER_BASE_Y,
+      PLAYER_Z
+    ).project(camera).x;
+    const projectedHalfWidth = Math.max(Math.abs(left), Math.abs(right));
+    camera.zoom = projectedHalfWidth > 0 ? 1 / projectedHalfWidth : 1;
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld();
   });

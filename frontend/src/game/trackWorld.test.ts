@@ -6,6 +6,7 @@ import { getJumpDuckPlayerMotion } from './levels/jumpDuckLevel';
 import { playerTrackWidth, playerTrackX } from './trackLayout';
 import { createTrackCameras, resizeTrackCameras } from './trackWorld';
 import { getPlayerTextureCrop } from './handRhythmCameraOverlay';
+import { projectWorldPoint } from './shared/worldProjection';
 
 describe('lane-based player layout', () => {
   test('splits the track width into one centered segment per player', () => {
@@ -91,14 +92,54 @@ describe('hand rhythm virtual cameras', () => {
     expect(cameras[0]?.position.x).toBe(0);
   });
 
-  test('uses each split viewport aspect without portrait zooming each panel independently', () => {
-    const cameras = createTrackCameras('hand-rhythm', 2, framing);
-    resizeTrackCameras(cameras, 1200, 800);
+  test('fits each split camera to the full width of its player segment', () => {
+    [1, 2, 3, 4].forEach((playerCount) => {
+      const cameras = createTrackCameras('hand-rhythm', playerCount, framing);
+      resizeTrackCameras(cameras, 1200, 800);
 
-    cameras.forEach((camera) => {
-      expect(camera.aspect).toBeCloseTo(0.75);
-      expect(camera.zoom).toBe(1);
+      cameras.forEach((camera, index) => {
+        const centerX = playerTrackX(index, playerCount);
+        const halfWidth = handRhythmPlayerWidth(playerCount) / 2;
+        expect(camera.aspect).toBeCloseTo(1.5 / playerCount);
+        expect(projectWorldPoint(
+          camera,
+          centerX - halfWidth,
+          0.05,
+          2.6,
+          index,
+          playerCount,
+        ).x).toBeCloseTo(index / playerCount);
+        expect(projectWorldPoint(
+          camera,
+          centerX + halfWidth,
+          0.05,
+          2.6,
+          index,
+          playerCount,
+        ).x).toBeCloseTo((index + 1) / playerCount);
+      });
     });
+  });
+
+  test('fits the full pose-controlled track to both landscape and portrait viewports', () => {
+    [
+      { width: 1600, height: 900 },
+      { width: 390, height: 844 },
+    ].forEach(({ width, height }) => {
+      const camera = createTrackCameras('sideways', 4, framing)[0];
+      resizeTrackCameras([camera], width, height);
+
+      expect(projectWorldPoint(camera, TRACK_MIN_X, 0.05, 2.6).x).toBeCloseTo(0);
+      expect(projectWorldPoint(camera, TRACK_MAX_X, 0.05, 2.6).x).toBeCloseTo(1);
+    });
+  });
+
+  test('preserves vertical projection overflow for aspect-correct camera cropping', () => {
+    const camera = createTrackCameras('sideways', 4, framing)[0];
+    resizeTrackCameras([camera], 1600, 700);
+
+    expect(projectWorldPoint(camera, 0, 20, 2.6).y).toBeLessThan(0);
+    expect(projectWorldPoint(camera, 0, -20, 2.6).y).toBeGreaterThan(1);
   });
 
   test('crops and mirrors each physical-camera section for its player plane', () => {

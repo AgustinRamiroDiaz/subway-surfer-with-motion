@@ -19,6 +19,8 @@ export function projectWorldPoint(
   const localX = THREE.MathUtils.clamp((projected.x + 1) / 2, 0, 1);
   return {
     x: (viewportIndex + localX) / viewportCount,
-    y: THREE.MathUtils.clamp((1 - projected.y) / 2, 0, 1),
+    // Keep vertical overflow so an aspect-correct camera overlay can extend past
+    // the stage and be clipped there instead of being narrowed by object-fit.
+    y: (1 - projected.y) / 2,
   };
 }

@@ -92,3 +92,43 @@ test('keeps the render FPS control usable in a narrow viewport', async ({ page }
   expect(bounds!.x).toBeGreaterThanOrEqual(0);
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
 });
+
+test('expands the game view and camera overlay when the controls collapse', async ({ page }) => {
+  await page.goto('/');
+
+  const stage = page.locator('.game-stage');
+  const canvas = page.locator('.game-canvas');
+  const overlay = page.locator('.in-game-camera');
+  const hidePanel = page.getByRole('button', { name: /ocultar panel/i });
+
+  await expect.poll(async () => {
+    const stageBox = await stage.boundingBox();
+    const overlayBox = await overlay.boundingBox();
+    return stageBox && overlayBox ? overlayBox.width / stageBox.width : 0;
+  }).toBeCloseTo(1, 2);
+
+  const expandedStage = await stage.boundingBox();
+  const expandedOverlay = await overlay.boundingBox();
+  expect(expandedOverlay).not.toBeNull();
+  expect(expandedOverlay!.width / expandedOverlay!.height).toBeCloseTo(4 / 3, 2);
+  await hidePanel.click();
+  await expect(page.getByRole('button', { name: /mostrar panel/i })).toBeVisible();
+  await page.waitForTimeout(250);
+
+  const collapsedStage = await stage.boundingBox();
+  const collapsedCanvas = await canvas.boundingBox();
+  const collapsedOverlay = await overlay.boundingBox();
+  expect(expandedStage).not.toBeNull();
+  expect(collapsedStage).not.toBeNull();
+  expect(collapsedCanvas).not.toBeNull();
+  expect(collapsedOverlay).not.toBeNull();
+  expect(collapsedStage!.width).toBeGreaterThan(expandedStage!.width);
+  expect(collapsedCanvas!.width).toBeCloseTo(collapsedStage!.width, 0);
+  expect(collapsedOverlay!.x).toBeCloseTo(collapsedStage!.x, 0);
+  expect(collapsedOverlay!.width).toBeCloseTo(collapsedStage!.width, 0);
+  expect(collapsedOverlay!.width / collapsedOverlay!.height).toBeCloseTo(4 / 3, 2);
+  expect(collapsedOverlay!.y).toBeLessThan(collapsedStage!.y);
+  expect(collapsedOverlay!.y + collapsedOverlay!.height).toBeGreaterThan(
+    collapsedStage!.y + collapsedStage!.height
+  );
+});
