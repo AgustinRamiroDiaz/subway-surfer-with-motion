@@ -141,7 +141,7 @@ export function createObstacleSystem(
 
   return {
     obstacles,
-    spawnObstacle: () => {
+    spawnObstacle: (hitBeat) => {
       const gameId = getGameId();
       const playerCount = Math.max(1, getPlayerCount());
       const isJumpDuck = gameId === 'jump-duck';
@@ -162,6 +162,7 @@ export function createObstacleSystem(
         obstacles.push({
           root,
           x,
+          hitBeat,
           kind: gameId,
           targetPlayerIndex,
           blockedCells,

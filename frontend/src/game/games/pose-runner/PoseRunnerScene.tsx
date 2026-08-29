@@ -7,7 +7,7 @@ import {
   COLLISION_RADIUS_X,
   COLLISION_RADIUS_Z,
   OBSTACLE_DESPAWN_Z,
-  OBSTACLE_SPEED,
+  OBSTACLE_SPAWN_Z,
   PLAYER_BASE_Y,
   PLAYER_Z,
   TRACK_MAX_X,
@@ -19,7 +19,6 @@ import {
   clearHitStatus,
   createDefaultStats,
   createGameSimulationClock,
-  delayNextSpawn,
   findJumpDuckPieceHits,
   isPlayerInCollisionRange,
   recordDodgedObstacle,
@@ -33,10 +32,18 @@ import { applyMarkerPose, disposeObject, getPoseAnimationState } from '../../pla
 import { createPoseRunnerWorld } from '../../trackWorld';
 import { projectWorldPoint, type WorldProjection } from '../../shared/worldProjection';
 import { createRenderFrameLimiter } from '../../shared/renderFrameLimiter';
+import type { RhythmMusicClock } from '../../rhythmMusicPlayer';
+import { getRhythmNoteTimes, getRhythmTargetZ, isRhythmNoteVisible } from '../../rhythmTiming';
+import {
+  POSE_RUNNER_PLAYBACK,
+  POSE_RUNNER_RHYTHM_EVENTS,
+} from '../../poseRunnerRhythm';
 
 export type PoseRunnerSceneProps = {
   gameplayInputRef: React.RefObject<GameplayInputFrame>;
+  musicClock: RhythmMusicClock;
   onJumpDuckGuidesChange: (guides: JumpDuckGuide[]) => void;
+  onPlayersReady: () => void;
   onWorldProjectionChange: (projection: WorldProjection) => void;
   phase: GamePhase;
   playerCount: number;
@@ -60,7 +67,9 @@ function getJumpDuckPieceHitCount(obstacle: Obstacle, playerIndex: number, cell:
 
 export function PoseRunnerScene({
   gameplayInputRef,
+  musicClock,
   onJumpDuckGuidesChange,
+  onPlayersReady,
   onWorldProjectionChange,
   phase,
   playerCount,
@@ -78,6 +87,7 @@ export function PoseRunnerScene({
   const jumpDuckActionsRef = useRef(getInitialJumpDuckActions(playerCount));
   const level = getPoseRunnerLevel(selectedGameId);
   const [stats, setStats] = useState<GameStats>(() => createDefaultStats(playerCount));
+  const [countInBeat, setCountInBeat] = useState<number | null>(null);
   const [calibrationState, setCalibrationState] = useState<JumpDuckCalibrationState>({
     calibrated: !level.requiresCalibration,
     progress: level.requiresCalibration ? 0 : 1,
@@ -96,6 +106,7 @@ export function PoseRunnerScene({
       calibrated: !level.requiresCalibration,
       progress: level.requiresCalibration ? 0 : 1,
     });
+    setCountInBeat(null);
     onJumpDuckGuidesChange([]);
   }, [level.requiresCalibration, onJumpDuckGuidesChange, playerCount, selectedGameId]);
 
@@ -107,7 +118,9 @@ export function PoseRunnerScene({
       ? t('game.paused')
       : level.requiresCalibration && !calibrationState.calibrated
         ? t('game.calibrating', { progress: Math.round(calibrationState.progress * 100) })
-        : stats.status === 'hit' && stats.hitPlayer !== null
+        : countInBeat !== null
+          ? t('game.countIn', { beat: countInBeat })
+          : stats.status === 'hit' && stats.hitPlayer !== null
           ? t('game.playerHit', { player: stats.hitPlayer })
           : t('game.running');
 
@@ -116,8 +129,11 @@ export function PoseRunnerScene({
     if (!mount || import.meta.env.MODE === 'test') return undefined;
 
     let animationFrame = 0;
+    let nextRhythmEventIndex = 0;
+    let musicStartRequested = false;
+    let lastCountInBeat: number | null = null;
     const startedAt = performance.now();
-    let simulationClock = createGameSimulationClock(startedAt, level.spawnIntervalMs);
+    let simulationClock = createGameSimulationClock(startedAt, 0);
     const initialPositions = gameplayInputRef.current.kind === 'pose'
       ? gameplayInputRef.current.players.map((player) => player.normalizedX)
       : Array.from({ length: playerCount }, (_, index) => (index + 1) / (playerCount + 1));
@@ -163,8 +179,8 @@ export function PoseRunnerScene({
         simulationClock,
         now,
         phaseRef.current,
-        level.spawnIntervalMs,
-        !isCalibrating
+        0,
+        false
       );
       simulationClock = step.clock;
 
@@ -211,18 +227,61 @@ export function PoseRunnerScene({
         } else if (update.status === 'calibrated') {
           setCalibrationState({ calibrated: true, progress: 1 });
           onJumpDuckGuidesChange(update.guides);
-          simulationClock = delayNextSpawn(simulationClock, now);
         }
         renderWorld(now);
         animationFrame = window.requestAnimationFrame(animate);
         return;
       }
 
-      if (step.shouldSpawn) obstacleSystem.spawnObstacle();
+      if (!musicStartRequested) {
+        musicStartRequested = true;
+        onPlayersReady();
+        renderWorld(now);
+        animationFrame = window.requestAnimationFrame(animate);
+        return;
+      }
+
+      if (musicClock.isCountingIn()) {
+        const nextBeat = musicClock.getCountInBeat();
+        if (nextBeat !== lastCountInBeat) {
+          lastCountInBeat = nextBeat;
+          setCountInBeat(nextBeat);
+        }
+        renderWorld(now);
+        animationFrame = window.requestAnimationFrame(animate);
+        return;
+      }
+      if (lastCountInBeat !== null) {
+        lastCountInBeat = null;
+        setCountInBeat(null);
+      }
+
+      const songTime = musicClock.getSongTime();
+      while (nextRhythmEventIndex < POSE_RUNNER_RHYTHM_EVENTS.length) {
+        const event = POSE_RUNNER_RHYTHM_EVENTS[nextRhythmEventIndex];
+        if (!event || songTime < getRhythmNoteTimes(POSE_RUNNER_PLAYBACK, event).spawnTimeSeconds) break;
+        if (isRhythmNoteVisible(
+          POSE_RUNNER_PLAYBACK,
+          event,
+          songTime,
+          OBSTACLE_SPAWN_Z,
+          PLAYER_Z,
+          OBSTACLE_DESPAWN_Z
+        )) {
+          obstacleSystem.spawnObstacle(event.beat);
+        }
+        nextRhythmEventIndex += 1;
+      }
 
       for (let index = obstacleSystem.obstacles.length - 1; index >= 0; index -= 1) {
         const obstacle = obstacleSystem.obstacles[index];
-        obstacle.root.position.z += OBSTACLE_SPEED * step.deltaSeconds;
+        obstacle.root.position.z = getRhythmTargetZ(
+          POSE_RUNNER_PLAYBACK,
+          { beat: obstacle.hitBeat },
+          songTime,
+          OBSTACLE_SPAWN_Z,
+          PLAYER_Z
+        );
         if (obstacle.kind === 'sideways') {
           obstacle.root.rotation.x += step.deltaSeconds * 2.8;
           obstacle.root.rotation.z += step.deltaSeconds * 1.5;
@@ -285,7 +344,7 @@ export function PoseRunnerScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [gameplayInputRef, level, onJumpDuckGuidesChange, onWorldProjectionChange, playerCount, selectedGameId, videoAspectRatio]);
+  }, [gameplayInputRef, level, musicClock, onJumpDuckGuidesChange, onPlayersReady, onWorldProjectionChange, playerCount, selectedGameId, videoAspectRatio]);
 
   return (
     <div className={`game-scene${phase === 'running' ? ' game-running' : ''}`} ref={mountRef}>

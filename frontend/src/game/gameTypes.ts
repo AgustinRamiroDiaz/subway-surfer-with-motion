@@ -23,6 +23,7 @@ export type JumpDuckObstaclePiece = {
 export type Obstacle = {
   root: THREE.Group;
   x: number;
+  hitBeat: number;
   kind: PoseRunnerGameId;
   targetPlayerIndex: number | null;
   blockedCells: JumpDuckCell[];
@@ -88,6 +89,6 @@ export type HandRhythmTrackWorld = TrackWorld & {
 
 export type ObstacleSystem = {
   obstacles: Obstacle[];
-  spawnObstacle: () => void;
+  spawnObstacle: (hitBeat: number) => void;
   dispose: () => void;
 };

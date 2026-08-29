@@ -4,8 +4,8 @@ import type { JumpDuckCell, PlayerCalibration } from '../motion-mapping/jumpDuck
 import type { DetectorBackendId, DetectorTask } from '../pose-detection/aiDetector';
 import { PLAYER_BASE_Y } from './gameConstants';
 import type { PoseRunnerGameId, RunnerGameId } from './gameTypes';
-import { getJumpDuckPlayerMotion, JUMP_DUCK_SPAWN_INTERVAL_MS } from './levels/jumpDuckLevel';
-import { getSidewaysPlayerTargetX, SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS } from './levels/sidewaysLevel';
+import { getJumpDuckPlayerMotion } from './levels/jumpDuckLevel';
+import { getSidewaysPlayerTargetX } from './levels/sidewaysLevel';
 
 export type GameDescriptor = {
   id: RunnerGameId;
@@ -39,7 +39,6 @@ export type PoseRunnerMotionContext = {
 export type PoseRunnerLevelDefinition = GameDescriptor & {
   id: PoseRunnerGameId;
   requiresCalibration: boolean;
-  spawnIntervalMs: number;
   camera: CameraFraming;
   getPlayerMotion: (context: PoseRunnerMotionContext) => PoseRunnerPlayerMotion;
 };
@@ -67,7 +66,6 @@ export const POSE_RUNNER_LEVELS: readonly PoseRunnerLevelDefinition[] = [
     ...GAME_CATALOG[0],
     id: 'sideways',
     requiresCalibration: false,
-    spawnIntervalMs: SIDEWAYS_LEVEL_SPAWN_INTERVAL_MS,
     camera: RUNNER_CAMERA,
     getPlayerMotion: (context) => {
       const player = getPosePlayer(context);
@@ -84,7 +82,6 @@ export const POSE_RUNNER_LEVELS: readonly PoseRunnerLevelDefinition[] = [
     ...GAME_CATALOG[1],
     id: 'jump-duck',
     requiresCalibration: true,
-    spawnIntervalMs: JUMP_DUCK_SPAWN_INTERVAL_MS,
     camera: RUNNER_CAMERA,
     getPlayerMotion: (context) => {
       const player = getPosePlayer(context);

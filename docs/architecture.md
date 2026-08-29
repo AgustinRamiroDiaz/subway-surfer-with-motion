@@ -9,9 +9,11 @@ The game collection uses feature-oriented minigame slices on top of a small shar
 - Each minigame slice owns its gameplay loop, input interpretation, scheduling, collision or judgment rules, scoring, and HUD.
 - Shared game modules contain capabilities with the same meaning across games: Three.js world lifecycle, player avatars, projection math, player assignment, and track layout.
 
-Hand Rhythm is an independent slice because its song clock, readiness step, beatmap scheduling, gesture judgment, targets, and player score panels do not use the forward-obstacle runner model.
+The app shell owns one shared music player and its pause/resume lifecycle. Each minigame reads the audio playback clock and owns its own music-aware chart and target movement. This keeps visual frame rate and animation timing from becoming the source of musical time.
 
-Sideways and Jump/Duck currently share the Pose Runner slice. They both use pose input, a forward-moving obstacle clock, track collisions, and the same aggregate runner HUD. Their level definitions may configure that shared behavior without exposing rhythm-specific fields.
+Hand Rhythm remains an independent slice because its hand-readiness step, gesture judgment, grid targets, and player score panels do not use the forward-obstacle runner model.
+
+Sideways and Jump/Duck currently share the Pose Runner slice. They both use pose input, a shared music-aware obstacle chart, track collisions, and the same aggregate runner HUD. Obstacle positions are derived from absolute song time so they reach the player on their assigned beats even if rendering is throttled or a frame is delayed. Their level definitions may configure that shared behavior without exposing hand-rhythm-specific fields.
 
 ## Adding a game
 

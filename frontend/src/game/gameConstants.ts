@@ -6,7 +6,6 @@ export const PLAYER_BASE_Y = 0.05;
 export const OBSTACLE_SPAWN_Z = -18;
 export const OBSTACLE_DESPAWN_Z = 5.2;
 export const OBSTACLE_SPEED = 7.2;
-export const SPAWN_INTERVAL_MS = 2000;
 export const COLLISION_RADIUS_X = 0.92;
 export const COLLISION_RADIUS_Z = 0.78;
 export const PLAYER_COLORS = ['#2fffb2', '#66a3ff', '#ffd166', '#ff6a85'] as const;

@@ -8,6 +8,8 @@ All minigames run inside the same runner stage:
 - Incoming obstacles or targets move toward the players.
 - New obstacles or targets appear only while the game is running.
 - Spawning pauses while a mode is waiting for required calibration.
+- Every mode plays the same music and uses a four-beat audible count-in before music-synchronized play begins.
+- Pausing stops music and obstacle movement at the same song position. Resuming begins another four-beat count-in before continuing.
 - Obstacles or targets that pass the players without being hit or matched count as dodged.
 - Hits are counted globally and per player.
 - A recent hit briefly changes the game status before returning to running.
@@ -23,9 +25,9 @@ The player moves horizontally based on their position in the camera view:
 - Moving right in the displayed camera view moves the avatar right.
 - The avatar stays near the center when the player is centered or not detected.
 
-Obstacles appear at random horizontal positions and move toward the player. A collision counts as one hit for the colliding player. If an obstacle passes all players without a collision, it counts as dodged.
+Obstacles appear at random horizontal positions. One obstacle is assigned to the strongest audible beat of each selected musical bar, while quiet bars create rests. Each obstacle moves from its song position so that it reaches the player on its assigned beat. A collision counts as one hit for the colliding player. If an obstacle passes all players without a collision, it counts as dodged.
 
-This mode does not require calibration.
+This mode does not require calibration. Starting it begins the four-beat count-in immediately.
 
 ## Jump And Duck
 
@@ -43,6 +45,7 @@ Before play starts, each configured player must calibrate by raising both arms. 
 
 After calibration:
 
+- The music begins with a four-beat audible count-in.
 - Raising the body above the calibrated neutral height maps to jump.
 - Lowering the body below the calibrated neutral height maps to duck.
 - Leaning or shifting the face left or right of the calibrated shoulder range maps to left or right.
@@ -54,6 +57,8 @@ Obstacles are built from top or bottom pieces on the left or right side of each 
 - Bottom pieces block run and duck actions for their side.
 - Left pieces block left and center horizontal actions.
 - Right pieces block center and right horizontal actions.
+
+Each obstacle pattern is assigned to the strongest audible beat of a selected musical bar. Quiet bars create rests, and obstacle positions follow the song clock so the pattern reaches every player on its assigned beat.
 
 Each blocked piece that overlaps a player's current action cell counts as a hit. Multiple pieces can count as multiple hits. Hit pieces visibly change feedback color. If an obstacle passes without any player hitting any piece, it counts as dodged.
 
@@ -72,7 +77,7 @@ Each player has a section of the camera view. The selected grid size divides eac
 
 The player avatar follows the detected hand cell in that player's section. The player's visible hand marker uses a translucent emoji for the currently recognized gesture, so targets and the camera remain visible beneath it, and is sized to the detected hand. Its visual position and size smooth over small prediction fluctuations while catching up faster to deliberate larger movements. The marker follows the continuous detected hand position independently from the discrete grid cell used for matching, so crossing a cell boundary does not pull or snap the emoji to the cell center. This visual smoothing does not delay target matching. If tracking is temporarily lost, the marker retains its last visual transform and smoothly continues toward the new prediction when the hand returns.
 
-The level plays its music through a dedicated music channel. Before the first count-in, every player must hold an open palm in the central area of their grid. Each player panel shows whether that player is ready. All players must remain ready together briefly before the four-beat audible count-in begins. This central readiness area is the same for both grid sizes and does not require a literal center cell. Resuming a paused level begins another four-beat count-in without repeating the hand-readiness step. Pausing stops both music and target movement at the same song position.
+Before the first count-in, every player must hold an open palm in the central area of their grid. Each player panel shows whether that player is ready. All players must remain ready together briefly before the four-beat audible count-in begins. This central readiness area is the same for both grid sizes and does not require a literal center cell. Resuming a paused level begins another four-beat count-in without repeating the hand-readiness step.
 
 Targets appear as gesture prompts placed in grid cells. The target chart follows the song's beat grid, and every configured player receives each chart prompt. Targets move according to the current song position so that they reach the hit zone on their assigned beat.
 

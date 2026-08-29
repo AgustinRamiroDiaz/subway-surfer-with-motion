@@ -32,7 +32,6 @@ export const HAND_RHYTHM_GESTURES: HandRhythmGesture[] = [
   'ILoveYou',
 ];
 
-export const HAND_RHYTHM_SPAWN_INTERVAL_MS = 1500;
 export const DEFAULT_HAND_RHYTHM_DOUBLE_TARGET_CHANCE = 0.1;
 export const HAND_RHYTHM_GRID_SIZES = [2, 3] as const;
 export type HandRhythmGridSize = (typeof HAND_RHYTHM_GRID_SIZES)[number];

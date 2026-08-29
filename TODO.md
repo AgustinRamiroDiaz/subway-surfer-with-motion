@@ -1,3 +1,7 @@
+# Performance
+
+Test if 2d game gives better performance
+
 # New levels
 
 ## Top down games

@@ -38,7 +38,7 @@ import type { WorldProjection } from '../game/shared/worldProjection';
 import { getGameDescriptor } from '../game/levelRegistry';
 import { PoseRunnerScene } from '../game/games/pose-runner/PoseRunnerScene';
 import { HandRhythmScene } from '../game/games/hand-rhythm/HandRhythmScene';
-import { useHandRhythmMusic } from '../game/games/hand-rhythm/useHandRhythmMusic';
+import { useGameMusic } from '../game/useGameMusic';
 import { useI18n } from './i18n';
 import { useCameraController } from '../hooks/useCameraController';
 import { useMotionDetector } from '../hooks/useMotionDetector';
@@ -82,7 +82,7 @@ function MotionRunnerApp(): ReactElement {
   const [videoAspectRatio, setVideoAspectRatio] = useState(4 / 3);
   const detectorConfigurationKey = getDetectorConfigurationKey(preferences);
   const previousDetectorConfigurationKeyRef = useRef(detectorConfigurationKey);
-  const handRhythmMusic = useHandRhythmMusic();
+  const gameMusic = useGameMusic();
 
   const detectorTask = useMemo(() => {
     return getGameDescriptor(preferences.selectedRunnerGameId).detectorTask;
@@ -95,7 +95,7 @@ function MotionRunnerApp(): ReactElement {
     preferences,
     onPreferencesChange: handlePreferencesReplacement,
     onCameraRestart: () => {
-      handRhythmMusic.stop();
+      gameMusic.stop();
       detector.stopDetection();
       detector.clearDetectionState();
       setGamePhase('ready');
@@ -122,10 +122,10 @@ function MotionRunnerApp(): ReactElement {
       return;
     }
     previousDetectorConfigurationKeyRef.current = detectorConfigurationKey;
-    handRhythmMusic.stop();
+    gameMusic.stop();
     detector.resetDetector();
     setGamePhase('ready');
-  }, [detector, detectorConfigurationKey, handRhythmMusic]);
+  }, [detector, detectorConfigurationKey, gameMusic]);
 
   const selectedTrackerLabel = useMemo(() => {
     if (preferences.selectedBackendId === 'python-webrtc') {
@@ -183,41 +183,38 @@ function MotionRunnerApp(): ReactElement {
   }, []);
 
   const handleStopCamera = useCallback(() => {
-    handRhythmMusic.stop();
+    gameMusic.stop();
     detector.stopDetection();
     camera.stopCamera();
     detector.clearDetectionState();
     camera.clearError();
     setGamePhase('ready');
-  }, [camera, detector, handRhythmMusic]);
+  }, [camera, detector, gameMusic]);
 
   const handleStartRun = useCallback(async () => {
     camera.clearError();
-    const isHandRhythm = preferences.selectedRunnerGameId === 'hand-rhythm';
     const isResuming = gamePhase === 'paused';
-    if (isHandRhythm) {
-      await handRhythmMusic.unlock();
-    }
+    await gameMusic.unlock();
     const started = await detector.startDetection();
     if (started) {
-      if (isHandRhythm && isResuming) {
-        await handRhythmMusic.playWithCountIn();
+      if (isResuming) {
+        await gameMusic.playWithCountIn();
       } else {
-        handRhythmMusic.stop();
+        gameMusic.stop();
       }
       setGamePhase('running');
     }
-  }, [camera, detector, gamePhase, handRhythmMusic, preferences.selectedRunnerGameId]);
+  }, [camera, detector, gameMusic, gamePhase]);
 
-  const handleHandRhythmPlayersReady = useCallback(() => {
-    void handRhythmMusic.playWithCountIn();
-  }, [handRhythmMusic]);
+  const handleGameReady = useCallback(() => {
+    void gameMusic.playWithCountIn();
+  }, [gameMusic]);
 
   const handlePauseRun = useCallback(() => {
-    handRhythmMusic.pause();
+    gameMusic.pause();
     detector.stopDetection();
     setGamePhase('paused');
-  }, [detector, handRhythmMusic]);
+  }, [detector, gameMusic]);
 
   const handleOpenMenu = useCallback(() => {
     handlePauseRun();
@@ -264,10 +261,10 @@ function MotionRunnerApp(): ReactElement {
       handlePauseRun();
     }
     if (selectedRunnerGameId !== preferences.selectedRunnerGameId) {
-      handRhythmMusic.stop();
+      gameMusic.stop();
     }
     handleGameIdChange(selectedRunnerGameId);
-  }, [gamePhase, handRhythmMusic, handleGameIdChange, handlePauseRun, preferences.selectedRunnerGameId]);
+  }, [gameMusic, gamePhase, handleGameIdChange, handlePauseRun, preferences.selectedRunnerGameId]);
 
   const handleJumpDuckGuidesChange = useCallback((guides: JumpDuckGuide[]) => {
     setJumpDuckGuides(guides);
@@ -307,8 +304,8 @@ function MotionRunnerApp(): ReactElement {
                 doubleTargetChance={preferences.handRhythmDoubleTargetChance}
                 gameplayInputRef={detector.gameplayInputRef}
                 gridSize={preferences.handRhythmGridSize}
-                musicClock={handRhythmMusic}
-                onPlayersReady={handleHandRhythmPlayersReady}
+                musicClock={gameMusic}
+                onPlayersReady={handleGameReady}
                 onWorldProjectionChange={setWorldProjection}
                 phase={gamePhase}
                 playerCount={preferences.playerCount}
@@ -322,7 +319,9 @@ function MotionRunnerApp(): ReactElement {
             ) : (
               <PoseRunnerScene
                 gameplayInputRef={detector.gameplayInputRef}
+                musicClock={gameMusic}
                 onJumpDuckGuidesChange={handleJumpDuckGuidesChange}
+                onPlayersReady={handleGameReady}
                 onWorldProjectionChange={setWorldProjection}
                 phase={gamePhase}
                 playerCount={preferences.playerCount}

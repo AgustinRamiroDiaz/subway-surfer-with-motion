@@ -13,7 +13,6 @@ import {
 import type { PoseInput } from '../../motion-mapping/gameplayInput';
 import { playerTrackX } from '../trackLayout';
 
-export const JUMP_DUCK_SPAWN_INTERVAL_MS = 1700;
 export const JUMP_DUCK_CALIBRATION_MS = 3000;
 export const JUMP_DUCK_MIN_SAMPLES = 10;
 
