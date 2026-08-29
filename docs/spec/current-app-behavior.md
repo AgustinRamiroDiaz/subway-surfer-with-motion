@@ -43,7 +43,7 @@ Stopping the camera clears current detection state and returns the game to ready
 
 The camera feedback area shows the selected camera view when enabled. If the camera is off, the feedback area shows an empty camera state.
 
-The displayed camera view spans the full width of the game stage. Its left and right edges map to the left and right playable world boundaries, so the complete horizontal camera image remains usable for movement and targeting at every supported player count. When the stage is wider than the camera image, excess height is cropped at the stage boundaries instead of shrinking the camera view horizontally.
+The complete displayed camera view fits inside the game stage without changing its aspect ratio. The view expands until its width or height reaches the corresponding stage boundary, whichever happens first. Any remaining space outside the fitted camera view stays outside the camera-controlled area.
 
 Camera mirroring is enabled by default. Mirroring affects the displayed camera view and keeps player left/right control aligned with what the player sees.
 

@@ -159,13 +159,14 @@ export function HandRhythmScene({
     const resize = (): void => {
       const width = Math.max(1, mount.clientWidth);
       const height = Math.max(1, mount.clientHeight);
-      world.resize(width, height);
-      const projectionHeight = (TRACK_MAX_X - TRACK_MIN_X) / Math.max(0.1, videoAspectRatio);
+      world.resize(width, height, videoAspectRatio);
       const corners = world.cameras.flatMap((camera, viewportIndex) => {
         const centerX = world.cameras.length === 1 ? 0 : playerTrackX(viewportIndex, playerCount);
         const viewWidth = world.cameras.length === 1
           ? TRACK_MAX_X - TRACK_MIN_X
           : handRhythmPlayerWidth(playerCount);
+        const viewportCameraAspect = Math.max(0.1, videoAspectRatio) / world.cameras.length;
+        const projectionHeight = viewWidth / viewportCameraAspect;
         const leftX = centerX - viewWidth / 2;
         const rightX = centerX + viewWidth / 2;
         return [

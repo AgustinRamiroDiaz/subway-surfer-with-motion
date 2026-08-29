@@ -79,7 +79,7 @@ export type TrackWorld = {
   renderer: THREE.WebGLRenderer;
   players: PlayerAvatar[];
   render: () => void;
-  resize: (width: number, height: number) => void;
+  resize: (width: number, height: number, cameraAspectRatio?: number) => void;
   dispose: () => void;
 };
 

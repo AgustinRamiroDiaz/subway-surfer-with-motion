@@ -93,7 +93,7 @@ test('keeps the render FPS control usable in a narrow viewport', async ({ page }
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
 });
 
-test('expands the game view and camera overlay when the controls collapse', async ({ page }) => {
+test('contains and maximizes the camera overlay when the controls collapse', async ({ page }) => {
   await page.goto('/');
 
   const stage = page.locator('.game-stage');
@@ -101,11 +101,7 @@ test('expands the game view and camera overlay when the controls collapse', asyn
   const overlay = page.locator('.in-game-camera');
   const hidePanel = page.getByRole('button', { name: /ocultar panel/i });
 
-  await expect.poll(async () => {
-    const stageBox = await stage.boundingBox();
-    const overlayBox = await overlay.boundingBox();
-    return stageBox && overlayBox ? overlayBox.width / stageBox.width : 0;
-  }).toBeCloseTo(1, 2);
+  await expect.poll(async () => (await overlay.boundingBox())?.height ?? 0).toBeGreaterThan(0);
 
   const expandedStage = await stage.boundingBox();
   const expandedOverlay = await overlay.boundingBox();
@@ -124,11 +120,35 @@ test('expands the game view and camera overlay when the controls collapse', asyn
   expect(collapsedOverlay).not.toBeNull();
   expect(collapsedStage!.width).toBeGreaterThan(expandedStage!.width);
   expect(collapsedCanvas!.width).toBeCloseTo(collapsedStage!.width, 0);
-  expect(collapsedOverlay!.x).toBeCloseTo(collapsedStage!.x, 0);
-  expect(collapsedOverlay!.width).toBeCloseTo(collapsedStage!.width, 0);
+  expect(collapsedOverlay!.width).toBeGreaterThanOrEqual(expandedOverlay!.width);
   expect(collapsedOverlay!.width / collapsedOverlay!.height).toBeCloseTo(4 / 3, 2);
-  expect(collapsedOverlay!.y).toBeLessThan(collapsedStage!.y);
-  expect(collapsedOverlay!.y + collapsedOverlay!.height).toBeGreaterThan(
+  expect(collapsedOverlay!.x).toBeGreaterThanOrEqual(collapsedStage!.x);
+  expect(collapsedOverlay!.y).toBeGreaterThanOrEqual(collapsedStage!.y);
+  expect(collapsedOverlay!.x + collapsedOverlay!.width).toBeLessThanOrEqual(
+    collapsedStage!.x + collapsedStage!.width
+  );
+  expect(collapsedOverlay!.y + collapsedOverlay!.height).toBeLessThanOrEqual(
+    collapsedStage!.y + collapsedStage!.height
+  );
+
+  await page.locator('.camera-video').evaluate((video) => {
+    Object.defineProperty(video, 'videoWidth', { configurable: true, value: 720 });
+    Object.defineProperty(video, 'videoHeight', { configurable: true, value: 1280 });
+    video.dispatchEvent(new Event('loadedmetadata'));
+  });
+  await expect.poll(async () => {
+    const portraitOverlay = await overlay.boundingBox();
+    return portraitOverlay ? portraitOverlay.width / portraitOverlay.height : 0;
+  }).toBeCloseTo(9 / 16, 2);
+
+  const portraitOverlay = await overlay.boundingBox();
+  expect(portraitOverlay).not.toBeNull();
+  expect(portraitOverlay!.x).toBeGreaterThanOrEqual(collapsedStage!.x);
+  expect(portraitOverlay!.y).toBeGreaterThanOrEqual(collapsedStage!.y);
+  expect(portraitOverlay!.x + portraitOverlay!.width).toBeLessThanOrEqual(
+    collapsedStage!.x + collapsedStage!.width
+  );
+  expect(portraitOverlay!.y + portraitOverlay!.height).toBeLessThanOrEqual(
     collapsedStage!.y + collapsedStage!.height
   );
 });

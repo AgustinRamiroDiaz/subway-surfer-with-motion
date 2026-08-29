@@ -4,7 +4,7 @@
 
 All minigames run inside the same runner stage:
 
-- The full horizontal camera view maps edge-to-edge onto the playable game stage, so every visible camera position has a corresponding horizontal position in the game world.
+- The complete camera image fits inside the playable game stage without changing its aspect ratio. It expands until either its horizontal or vertical edge reaches the stage boundary.
 - Player avatars react continuously to the latest camera input.
 - Incoming obstacles or targets move toward the players.
 - New obstacles or targets appear only while the game is running.
@@ -69,7 +69,7 @@ Hand Rhythm uses hand position and recognized hand gesture instead of full-body 
 
 When multiple hands are visible for one player, each on-screen hand marker follows the nearest hand from the previous detection frame. Changes in detector confidence or result order do not swap the two markers, and a temporarily missing hand leaves its marker slot empty instead of moving the other marker into it.
 
-The main game view is split into one panel per configured player. Each panel fills its share of the stage width and uses a player-centered view of that player's grid, hand marker, incoming targets, and matching section of the camera feedback. Camera imagery and detection marks extend to the panel edges and are aligned to the grid inside the game world, including when the camera view is mirrored. Player panels remain ordered from left to right and are separated by visible dividers.
+The main game view is split into one panel per configured player. Each panel fills its share of the stage width and uses a player-centered view of that player's grid, hand marker, incoming targets, and matching section of the camera feedback. Camera imagery and detection marks fit inside the panel without cropping and are aligned to the grid inside the game world, including when the camera view is mirrored. Player panels remain ordered from left to right and are separated by visible dividers.
 
 Each player has a section of the camera view. The selected grid size divides each player section into either:
 

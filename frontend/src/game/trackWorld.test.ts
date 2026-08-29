@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { TRACK_MAX_X, TRACK_MIN_X, TRACK_WIDTH } from './gameConstants';
+import { PLAYER_BASE_Y, PLAYER_Z, TRACK_MAX_X, TRACK_MIN_X, TRACK_WIDTH } from './gameConstants';
 import { getHandRhythmPlayerMotion } from './levels/handRhythmLevel';
 import { getHandRhythmGridBounds, handRhythmPlayerWidth } from './levels/handRhythmLayout';
 import { getJumpDuckPlayerMotion } from './levels/jumpDuckLevel';
@@ -121,6 +121,34 @@ describe('hand rhythm virtual cameras', () => {
     });
   });
 
+  test('contains portrait camera sections in every split viewport', () => {
+    const cameraAspect = 9 / 16;
+
+    [1, 2, 3, 4].forEach((playerCount) => {
+      const cameras = createTrackCameras('hand-rhythm', playerCount, framing);
+      resizeTrackCameras(cameras, 1200, 800, cameraAspect);
+
+      cameras.forEach((camera, index) => {
+        const centerX = playerTrackX(index, playerCount);
+        const viewWidth = handRhythmPlayerWidth(playerCount);
+        const viewportCameraAspect = cameraAspect / playerCount;
+        const corners = [
+          projectWorldPoint(camera, centerX - viewWidth / 2, PLAYER_BASE_Y, PLAYER_Z, index, playerCount),
+          projectWorldPoint(camera, centerX + viewWidth / 2, PLAYER_BASE_Y, PLAYER_Z, index, playerCount),
+          projectWorldPoint(camera, centerX - viewWidth / 2, PLAYER_BASE_Y + viewWidth / viewportCameraAspect, PLAYER_Z, index, playerCount),
+          projectWorldPoint(camera, centerX + viewWidth / 2, PLAYER_BASE_Y + viewWidth / viewportCameraAspect, PLAYER_Z, index, playerCount),
+        ];
+
+        corners.forEach(({ x, y }) => {
+          expect(x).toBeGreaterThanOrEqual(index / playerCount);
+          expect(x).toBeLessThanOrEqual((index + 1) / playerCount);
+          expect(y).toBeGreaterThanOrEqual(-1e-10);
+          expect(y).toBeLessThanOrEqual(1 + 1e-10);
+        });
+      });
+    });
+  });
+
   test('fits the full pose-controlled track to both landscape and portrait viewports', () => {
     [
       { width: 1600, height: 900 },
@@ -134,12 +162,44 @@ describe('hand rhythm virtual cameras', () => {
     });
   });
 
-  test('preserves vertical projection overflow for aspect-correct camera cropping', () => {
+  test('uses height as the limiting boundary when the camera does not fit by width', () => {
     const camera = createTrackCameras('sideways', 4, framing)[0];
-    resizeTrackCameras([camera], 1600, 700);
+    const cameraAspect = 4 / 3;
+    resizeTrackCameras([camera], 1600, 700, cameraAspect);
 
-    expect(projectWorldPoint(camera, 0, 20, 2.6).y).toBeLessThan(0);
-    expect(projectWorldPoint(camera, 0, -20, 2.6).y).toBeGreaterThan(1);
+    const bottom = projectWorldPoint(camera, TRACK_MIN_X, PLAYER_BASE_Y, PLAYER_Z);
+    const top = projectWorldPoint(
+      camera,
+      TRACK_MAX_X,
+      PLAYER_BASE_Y + TRACK_WIDTH / cameraAspect,
+      PLAYER_Z
+    );
+
+    expect(bottom.x).toBeGreaterThan(0);
+    expect(top.x).toBeLessThan(1);
+    expect(bottom.y).toBeLessThanOrEqual(1);
+    expect(top.y).toBeGreaterThanOrEqual(0);
+    expect(Math.min(top.y, 1 - bottom.y)).toBeCloseTo(0, 5);
+  });
+
+  test('contains a portrait camera inside the world view', () => {
+    const camera = createTrackCameras('sideways', 4, framing)[0];
+    const cameraAspect = 9 / 16;
+    resizeTrackCameras([camera], 1280, 720, cameraAspect);
+
+    const corners = [
+      projectWorldPoint(camera, TRACK_MIN_X, PLAYER_BASE_Y, PLAYER_Z),
+      projectWorldPoint(camera, TRACK_MAX_X, PLAYER_BASE_Y, PLAYER_Z),
+      projectWorldPoint(camera, TRACK_MIN_X, PLAYER_BASE_Y + TRACK_WIDTH / cameraAspect, PLAYER_Z),
+      projectWorldPoint(camera, TRACK_MAX_X, PLAYER_BASE_Y + TRACK_WIDTH / cameraAspect, PLAYER_Z),
+    ];
+
+    corners.forEach(({ x, y }) => {
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(x).toBeLessThanOrEqual(1);
+      expect(y).toBeGreaterThanOrEqual(0);
+      expect(y).toBeLessThanOrEqual(1);
+    });
   });
 
   test('crops and mirrors each physical-camera section for its player plane', () => {

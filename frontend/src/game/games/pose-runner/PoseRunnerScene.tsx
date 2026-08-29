@@ -153,7 +153,7 @@ export function PoseRunnerScene({
     const resize = (): void => {
       const width = Math.max(1, mount.clientWidth);
       const height = Math.max(1, mount.clientHeight);
-      world.resize(width, height);
+      world.resize(width, height, videoAspectRatio);
       const projectionHeight = (TRACK_MAX_X - TRACK_MIN_X) / Math.max(0.1, videoAspectRatio);
       const corners = [
         projectWorldPoint(world.camera, TRACK_MIN_X, PLAYER_BASE_Y, PLAYER_Z),

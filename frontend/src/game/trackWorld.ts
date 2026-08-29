@@ -41,7 +41,8 @@ export function createTrackCameras(
 export function resizeTrackCameras(
   cameras: THREE.PerspectiveCamera[],
   width: number,
-  height: number
+  height: number,
+  cameraAspectRatio?: number
 ): void {
   const fullAspect = width / height;
   const viewportAspect = fullAspect / Math.max(1, cameras.length);
@@ -65,7 +66,28 @@ export function resizeTrackCameras(
       PLAYER_Z
     ).project(camera).x;
     const projectedHalfWidth = Math.max(Math.abs(left), Math.abs(right));
-    camera.zoom = projectedHalfWidth > 0 ? 1 / projectedHalfWidth : 1;
+    const widthZoom = projectedHalfWidth > 0 ? 1 / projectedHalfWidth : 1;
+
+    let heightZoom = Number.POSITIVE_INFINITY;
+    if (cameraAspectRatio !== undefined) {
+      const sourceAspect = Math.max(0.1, cameraAspectRatio);
+      const viewportContentAspect = sourceAspect / Math.max(1, cameras.length);
+      const contentHeight = playableWidth / viewportContentAspect;
+      const bottom = new THREE.Vector3(
+        camera.position.x,
+        PLAYER_BASE_Y,
+        PLAYER_Z
+      ).project(camera).y;
+      const top = new THREE.Vector3(
+        camera.position.x,
+        PLAYER_BASE_Y + contentHeight,
+        PLAYER_Z
+      ).project(camera).y;
+      const projectedHalfHeight = Math.max(Math.abs(bottom), Math.abs(top));
+      heightZoom = projectedHalfHeight > 0 ? 1 / projectedHalfHeight : 1;
+    }
+
+    camera.zoom = Math.min(widthZoom, heightZoom);
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld();
   });
@@ -404,10 +426,10 @@ function createTrackWorldInternal(
       renderer.setScissorTest(false);
       renderer.setViewport(0, 0, renderWidth, renderHeight);
     },
-    resize: (width, height) => {
+    resize: (width, height, cameraAspectRatio) => {
       renderWidth = Math.max(1, width);
       renderHeight = Math.max(1, height);
-      resizeTrackCameras(cameras, renderWidth, renderHeight);
+      resizeTrackCameras(cameras, renderWidth, renderHeight, cameraAspectRatio);
       renderer.setSize(renderWidth, renderHeight, false);
     },
     updateHandRhythmGrid: (cells) => handRhythmGrid?.update(cells),
