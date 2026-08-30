@@ -71,6 +71,8 @@ When multiple hands are visible for one player, each on-screen hand marker follo
 
 The main game view is split into one panel per configured player. Each panel fills its share of the stage width and uses a player-centered view of that player's grid, hand marker, incoming targets, and matching section of the camera feedback. Camera imagery and detection marks fit inside the panel without cropping and are aligned to the grid inside the game world, including when the camera view is mirrored. Player panels remain ordered from left to right and are separated by visible dividers.
 
+Each player panel includes a translucent rear horizon, row-height rails, and an overhead ceiling grid extending from the target spawn area to the hit area. These references use the same boundaries as the low, middle, and top target rows so incoming prompts remain easy to classify while they approach.
+
 Each player has a section of the camera view. The selected grid size divides each player section into either:
 
 - A 2 by 2 grid.

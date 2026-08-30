@@ -8,6 +8,7 @@ import {
   createHandRhythmCameraOverlay,
   type HandRhythmCameraOverlayOptions,
 } from './handRhythmCameraOverlay';
+import { createHandRhythmSpatialGuides } from './handRhythmSpatialGuides';
 import { createFallbackPlayer, disposeObject, loadPlayerModels } from './playerAvatar';
 import { playerTrackWidth, playerTrackX, positionToWorldX } from './trackLayout';
 
@@ -285,6 +286,9 @@ function createTrackWorldInternal(
   const isLaneBased = isJumpDuck || isHandRhythm;
   const showTrackSurface = !isHandRhythm || showHandRhythmFloor;
   const handRhythmGrid = isHandRhythm ? createHandRhythmGrid(scene, playerCount, handRhythmGridSize) : null;
+  const disposeHandRhythmSpatialGuides = isHandRhythm
+    ? createHandRhythmSpatialGuides(scene, playerCount, handRhythmGridSize)
+    : () => {};
   const handRhythmCameraOverlay = isHandRhythm && cameraOverlayOptions
     ? createHandRhythmCameraOverlay(scene, playerCount, handRhythmGridSize, cameraOverlayOptions)
     : null;
@@ -444,6 +448,7 @@ function createTrackWorldInternal(
       sideRailGeometry.dispose();
       guideGeometry.dispose();
       disposePlayerLaneMarkers();
+      disposeHandRhythmSpatialGuides();
       handRhythmGrid?.dispose();
       handRhythmCameraOverlay?.dispose();
       players.forEach((player) => {
