@@ -320,7 +320,6 @@ export function HandRhythmScene({
   return (
     <div className={`game-scene hand-rhythm-scene players-${playerCount}${phase === 'running' ? ' game-running' : ''}`} ref={mountRef}>
       <div className="stage-heading">
-        <p className="eyebrow">{t('game.heading')}</p>
         <h1>{t('game.handRhythmTitle')}</h1>
       </div>
       <div className="game-hud" aria-label={t('game.status')}><span>{statusLabel}</span></div>

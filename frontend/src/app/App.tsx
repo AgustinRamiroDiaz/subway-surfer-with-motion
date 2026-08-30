@@ -347,7 +347,7 @@ function MotionRunnerApp(): ReactElement {
               onHandRhythmFloorChange={(visible) => dispatchPreferences({ type: 'handRhythmFloorChanged', visible })}
             />
           ) : null}
-          <div className="stage-hud">
+          <div className="stage-hud" data-testid="stage-actions">
             <div className={`stage-monitor camera-readiness-${cameraReadiness.tone}`} role="status" aria-live="polite">
               <span className="camera-readiness-dot" aria-hidden="true" />
               <span>{cameraReadiness.label}</span>
@@ -362,6 +362,15 @@ function MotionRunnerApp(): ReactElement {
                 <kbd aria-hidden="true">Esc</kbd>
               </button>
             ) : null}
+            <button
+              type="button"
+              className="panel-toggle"
+              aria-label={sidebarCollapsed ? t('controls.showPanel') : t('controls.hidePanel')}
+              aria-expanded={!sidebarCollapsed}
+              onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+            >
+              <PanelToggleIcon />
+            </button>
           </div>
           {menuOpen ? (
             <PauseOverlay
@@ -392,16 +401,6 @@ function MotionRunnerApp(): ReactElement {
         </section>
 
         <aside className={`control-panel${sidebarCollapsed ? ' collapsed' : ''}`} aria-label={t('app.detectionControls')}>
-          <button
-            type="button"
-            className="panel-toggle"
-            aria-label={sidebarCollapsed ? t('controls.showPanel') : t('controls.hidePanel')}
-            aria-expanded={!sidebarCollapsed}
-            onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-          >
-            <PanelToggleIcon />
-          </button>
-
           {!sidebarCollapsed && (
             <DetectionControls
               task={detectorTask}

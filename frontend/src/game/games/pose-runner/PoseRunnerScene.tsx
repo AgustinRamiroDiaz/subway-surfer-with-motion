@@ -348,7 +348,7 @@ export function PoseRunnerScene({
 
   return (
     <div className={`game-scene${phase === 'running' ? ' game-running' : ''}`} ref={mountRef}>
-      <div className="stage-heading"><p className="eyebrow">{t('game.heading')}</p><h1>{t(level.titleKey)}</h1></div>
+      <div className="stage-heading"><h1>{t(level.titleKey)}</h1></div>
       <div className="game-hud" aria-label={t('game.status')}><span>{statusLabel}</span></div>
       <dl className="game-stats" aria-label={t('game.stats')}>
         <div><dt>{t('game.dodged')}</dt><dd>{stats.dodged}</dd></div>

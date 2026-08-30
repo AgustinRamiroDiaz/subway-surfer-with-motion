@@ -13,6 +13,8 @@ The main screen contains:
 - A control panel for starting, pausing, selecting modes, and adjusting camera and tracking preferences.
 - A game status area and game statistics.
 
+The game-stage header shows only the selected game title. Camera and detector status, processing time, the pause-menu control, and the sidebar toggle share one compact horizontal action row.
+
 The app supports English and Spanish interface text. Spanish is the default language when no saved preference exists.
 
 ## Game Modes

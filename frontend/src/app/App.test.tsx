@@ -42,6 +42,8 @@ test('renders the motion game shell', async () => {
   expect(within(screen.getByLabelText(/juego principal/i)).getByLabelText(/vista de cámara/i)).toHaveClass('in-game-camera');
   expect(within(screen.getByLabelText(/menú de minijuegos/i)).getByRole('button', { name: /activar cámara/i })).toBeEnabled();
   expect(screen.queryByRole('button', { name: /^menú$/i })).not.toBeInTheDocument();
+  expect(screen.queryByText(/^juego principal$/i)).not.toBeInTheDocument();
+  expect(within(screen.getByTestId('stage-actions')).getByRole('button', { name: /ocultar panel/i })).toBeInTheDocument();
   expect(screen.getByDisplayValue('Español')).toBeInTheDocument();
   expect(screen.getByDisplayValue('Cámara frontal')).toBeInTheDocument();
   expect(screen.getByRole('switch', { name: /espejar cámara/i })).toBeChecked();
@@ -52,6 +54,15 @@ test('renders the motion game shell', async () => {
   expect(screen.getByRole('slider', { name: /fps de renderizado/i })).toHaveAttribute('aria-valuenow', '60');
   expect(screen.getByRole('slider', { name: /jugadores/i })).toHaveAttribute('aria-valuenow', '2');
   expect(screen.getByRole('button', { name: /detener cámara/i })).toBeDisabled();
+});
+
+test('collapses the controls without leaving a sidebar gutter', () => {
+  renderApp();
+
+  fireEvent.click(screen.getByRole('button', { name: /ocultar panel/i }));
+
+  expect(screen.getByRole('button', { name: /mostrar panel/i })).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.getByLabelText(/controles de detección/i)).toHaveClass('collapsed');
 });
 
 test('defaults to MediaPipe Lite on GPU', () => {

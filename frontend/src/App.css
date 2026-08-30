@@ -1058,9 +1058,9 @@
 }
 
 .control-panel.collapsed {
-  align-items: center;
-  width: 56px;
-  padding: 16px 8px;
+  width: 0;
+  padding: 0;
+  border-left: 0;
   overflow: hidden;
 }
 
@@ -1083,16 +1083,11 @@
 }
 
 .panel-toggle svg {
-  transform: rotate(180deg);
   transition: transform 200ms ease;
 }
 
-.control-panel.collapsed .panel-toggle {
-  align-self: center;
-}
-
-.control-panel.collapsed .panel-toggle svg {
-  transform: none;
+.panel-toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
 }
 
 .eyebrow {
@@ -1412,14 +1407,19 @@
   transform: translateY(-4px);
 }
 
+.game-scene .stage-heading h1 {
+  margin: 0;
+}
+
 .stage-hud {
   position: absolute;
   top: max(28px, env(safe-area-inset-top));
   right: max(28px, env(safe-area-inset-right));
   z-index: 6;
-  display: grid;
-  justify-items: end;
-  gap: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .stage-monitor {
@@ -1448,7 +1448,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 46px;
+  min-height: 38px;
   padding: 0 14px 0 18px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 999px;
@@ -1459,6 +1459,14 @@
   font-weight: 800;
   font-size: 0.88rem;
   cursor: pointer;
+}
+
+.stage-hud .panel-toggle {
+  align-self: auto;
+  width: 38px;
+  height: 38px;
+  background: rgba(12, 15, 17, 0.82);
+  backdrop-filter: blur(10px);
 }
 
 .menu-trigger:hover {
@@ -1776,16 +1784,11 @@
   }
 
   .control-panel.collapsed {
-    max-height: 68px;
+    width: auto;
+    max-height: 0;
+    padding: 0;
+    border-top: 0;
     overflow: hidden;
-  }
-
-  .panel-toggle {
-    align-self: flex-start;
-  }
-
-  .control-panel.collapsed .panel-toggle {
-    align-self: center;
   }
 
   .game-stage {
@@ -1943,6 +1946,7 @@
   }
 
   .control-panel.collapsed {
-    padding: 16px 8px;
+    padding: 0;
   }
+
 }
