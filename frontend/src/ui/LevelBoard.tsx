@@ -9,6 +9,10 @@ import { getGameDescriptor } from '../game/levelRegistry';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../motion-mapping/playerPositions';
 import { ControlHelpLabel } from './detection-controls/ControlHelpLabel';
 import { BoltIcon, CheckIcon, SlidersIcon, TargetIcon } from './icons';
+import {
+  isHandRhythmRendererId,
+  type HandRhythmRendererId,
+} from '../game/games/hand-rhythm/handRhythmRendererTypes';
 
 type LevelBoardMetadata = {
   id: RunnerGameId;
@@ -55,6 +59,7 @@ export function LevelBoard({
   onHandRhythmGridSizeChange,
   onHandRhythmDoubleTargetChanceChange,
   onHandRhythmFloorChange,
+  onHandRhythmRendererChange,
 }: {
   disabled: boolean;
   isLoading: boolean;
@@ -68,6 +73,7 @@ export function LevelBoard({
   onHandRhythmGridSizeChange: (value: 2 | 3) => void;
   onHandRhythmDoubleTargetChanceChange: (value: number) => void;
   onHandRhythmFloorChange: (value: boolean) => void;
+  onHandRhythmRendererChange: (value: HandRhythmRendererId) => void;
 }): ReactElement {
   const { t } = useI18n();
   const selectedMetadata = LEVEL_BOARD_METADATA.find((item) => item.id === selectedGameId) ?? LEVEL_BOARD_METADATA[0];
@@ -173,6 +179,21 @@ export function LevelBoard({
                     if (value === '2' || value === '3') {
                       onHandRhythmGridSizeChange(Number(value) as 2 | 3);
                     }
+                  }}
+                />
+              </div>
+              <div className="level-setting-tile">
+                <Select
+                  aria-label={t('controls.handRhythmRenderer')}
+                  className="model-control"
+                  data={[
+                    { value: 'three', label: t('controls.handRhythmRendererThree') },
+                    { value: 'canvas2d', label: t('controls.handRhythmRendererCanvas2d') },
+                  ]}
+                  label={<ControlHelpLabel help={t('controls.handRhythmRendererHelp')}>{t('controls.handRhythmRenderer')}</ControlHelpLabel>}
+                  value={preferences.handRhythmRenderer}
+                  onChange={(value) => {
+                    if (isHandRhythmRendererId(value)) onHandRhythmRendererChange(value);
                   }}
                 />
               </div>

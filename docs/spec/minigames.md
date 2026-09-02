@@ -67,6 +67,13 @@ Each blocked piece that overlaps a player's current action cell counts as a hit.
 
 Hand Rhythm uses hand position and recognized hand gesture instead of full-body movement.
 
+Before playing, players can choose between the default Three.js 3D presentation and a native
+Canvas 2D presentation. The choice is saved. Both presentations consume the same hand input,
+music clock, target chart, matching rules, feedback, and render-rate limit; changing presentation
+does not reload or reconfigure the detector. The Canvas 2D presentation preserves the complete
+fitted camera area and represents target depth through perspective-correct movement and scaling:
+targets change slowly while distant and accelerate visually as they approach the hit area.
+
 When multiple hands are visible for one player, each on-screen hand marker follows the nearest hand from the previous detection frame. Changes in detector confidence or result order do not swap the two markers, and a temporarily missing hand leaves its marker slot empty instead of moving the other marker into it.
 
 The main game view is split into one panel per configured player. Each panel fills its share of the stage width and uses a player-centered view of that player's grid, hand marker, incoming targets, and matching section of the camera feedback. Camera imagery and detection marks fit inside the panel without cropping and are aligned to the grid inside the game world, including when the camera view is mirrored. Player panels remain ordered from left to right and are separated by visible dividers.

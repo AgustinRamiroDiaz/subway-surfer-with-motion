@@ -5,10 +5,7 @@ import {
   COLLISION_RADIUS_Z,
   OBSTACLE_DESPAWN_Z,
   OBSTACLE_SPAWN_Z,
-  PLAYER_BASE_Y,
   PLAYER_Z,
-  TRACK_MAX_X,
-  TRACK_MIN_X,
 } from '../../gameConstants';
 import type { GamePhase } from '../../gameTypes';
 import { recordPlayerHit, recordPlayerMiss, createDefaultStats } from '../../gameSimulation';
@@ -17,35 +14,21 @@ import { fitRhythmNoteToGrid, getCompanionRhythmNote, getHandRhythmSong } from '
 import type { RhythmMusicClock } from '../../rhythmMusicPlayer';
 import { shouldAddCompanionTarget } from '../../rhythmChartGenerator';
 import { getRhythmNoteTimes, getRhythmTargetZ, isRhythmNoteVisible } from '../../rhythmTiming';
-import { handRhythmPlayerWidth } from '../../levels/handRhythmLayout';
 import {
-  GESTURE_TO_EMOJI,
   getHandRhythmPlayerMotion,
   isHandRhythmPlayerReady,
-  type HandRhythmCell,
   type HandRhythmGridSize,
 } from '../../levels/handRhythmLevel';
-import {
-  updatePlayerGestureEmoji,
-  updatePlayerGestureEmojiPosition,
-  updatePlayerGestureEmojiSize,
-} from '../../playerAvatar';
-import { playerTrackX } from '../../trackLayout';
-import { createHandRhythmWorld } from '../../trackWorld';
-import { projectWorldPoint, type WorldProjection } from '../../shared/worldProjection';
-import {
-  createHandRhythmTargetSystem,
-  setHandRhythmTargetFeedback,
-} from './handRhythmTargets';
+import type { WorldProjection } from '../../shared/worldProjection';
 import { isHandRhythmTargetMatch } from './handRhythmJudgment';
 import { recordHandRhythmRender } from '../../../debug/handRhythmPerformanceProbe';
 import { createRenderFrameLimiter } from '../../shared/renderFrameLimiter';
-
-const HAND_RHYTHM_CAMERA = {
-  positionY: 2.45,
-  positionZ: 10.6,
-  targetZ: 0,
-} as const;
+import { createThreeHandRhythmRenderer } from './threeHandRhythmRenderer';
+import { createCanvas2dHandRhythmRenderer } from './canvas2dHandRhythmRenderer';
+import type {
+  HandRhythmRendererId,
+  HandRhythmVisualState,
+} from './handRhythmRendererTypes';
 
 export type HandRhythmSceneProps = {
   cameraMirrored: boolean;
@@ -60,6 +43,7 @@ export type HandRhythmSceneProps = {
   phase: GamePhase;
   playerCount: number;
   renderFps: number;
+  rendererId: HandRhythmRendererId;
   showCameraPreview: boolean;
   showDetectionOverlay: boolean;
   showFloor: boolean;
@@ -80,6 +64,7 @@ export function HandRhythmScene({
   phase,
   playerCount,
   renderFps,
+  rendererId,
   showCameraPreview,
   showDetectionOverlay,
   showFloor,
@@ -133,55 +118,33 @@ export function HandRhythmScene({
     let lastCountInBeat: number | null = null;
     let lastReadiness = Array.from({ length: playerCount }, () => false);
     let allPlayersReadySince: number | null = null;
-    const world = createHandRhythmWorld(
-      mount,
-      playerCount,
-      HAND_RHYTHM_CAMERA,
-      gridSize,
-      showFloor,
-      {
-        cameraMirrored,
-        detectionCanvas: detectionOverlayRef.current,
-        showCameraPreview,
-        showDetectionOverlay,
-        video: videoRef.current,
-      }
-    );
-    const targets = createHandRhythmTargetSystem(world.scene, playerCount, gridSize);
+    let nextTargetId = 1;
+    const visualState: HandRhythmVisualState = {
+      hands: Array.from({ length: playerCount }, () => []),
+      targets: [],
+    };
+    const cameraOptions = {
+      cameraMirrored,
+      detectionCanvas: detectionOverlayRef.current,
+      showCameraPreview,
+      showDetectionOverlay,
+      video: videoRef.current,
+    };
+    const renderer = rendererId === 'canvas2d'
+      ? createCanvas2dHandRhythmRenderer(mount, playerCount, gridSize, showFloor, cameraOptions)
+      : createThreeHandRhythmRenderer(mount, playerCount, gridSize, showFloor, cameraOptions);
     const renderFrameLimiter = createRenderFrameLimiter();
-    const renderWorld = (frameStartedAtMs: number): void => {
+    const renderWorld = (frameStartedAtMs: number, deltaSeconds = 0): void => {
       if (!renderFrameLimiter.shouldRender(frameStartedAtMs, renderFpsRef.current)) return;
       const renderStartedAtMs = performance.now();
-      world.render();
+      renderer.render(visualState, deltaSeconds);
       recordHandRhythmRender(frameStartedAtMs, renderStartedAtMs, performance.now());
     };
 
     const resize = (): void => {
       const width = Math.max(1, mount.clientWidth);
       const height = Math.max(1, mount.clientHeight);
-      world.resize(width, height, videoAspectRatio);
-      const corners = world.cameras.flatMap((camera, viewportIndex) => {
-        const centerX = world.cameras.length === 1 ? 0 : playerTrackX(viewportIndex, playerCount);
-        const viewWidth = world.cameras.length === 1
-          ? TRACK_MAX_X - TRACK_MIN_X
-          : handRhythmPlayerWidth(playerCount);
-        const viewportCameraAspect = Math.max(0.1, videoAspectRatio) / world.cameras.length;
-        const projectionHeight = viewWidth / viewportCameraAspect;
-        const leftX = centerX - viewWidth / 2;
-        const rightX = centerX + viewWidth / 2;
-        return [
-          projectWorldPoint(camera, leftX, PLAYER_BASE_Y, PLAYER_Z, viewportIndex, world.cameras.length),
-          projectWorldPoint(camera, rightX, PLAYER_BASE_Y, PLAYER_Z, viewportIndex, world.cameras.length),
-          projectWorldPoint(camera, leftX, PLAYER_BASE_Y + projectionHeight, PLAYER_Z, viewportIndex, world.cameras.length),
-          projectWorldPoint(camera, rightX, PLAYER_BASE_Y + projectionHeight, PLAYER_Z, viewportIndex, world.cameras.length),
-        ];
-      });
-      onWorldProjectionChange({
-        left: Math.min(...corners.map((corner) => corner.x)),
-        right: Math.max(...corners.map((corner) => corner.x)),
-        top: Math.min(...corners.map((corner) => corner.y)),
-        bottom: Math.max(...corners.map((corner) => corner.y)),
-      });
+      onWorldProjectionChange(renderer.resize(width, height, videoAspectRatio));
     };
 
     const resizeObserver = new ResizeObserver(resize);
@@ -216,7 +179,6 @@ export function HandRhythmScene({
       }
 
       const inputFrame = gameplayInputRef.current;
-      const activeCells: Array<HandRhythmCell[] | undefined> = [];
       const waitingForPlayers = !preflightCompleteRef.current;
       if (waitingForPlayers) {
         const readiness = Array.from({ length: playerCount }, (_, playerIndex) => {
@@ -232,29 +194,12 @@ export function HandRhythmScene({
         allPlayersReadySince = readiness.every(Boolean) ? allPlayersReadySince ?? now : null;
       }
 
-      world.players.forEach((player, playerIndex) => {
+      visualState.hands = Array.from({ length: playerCount }, (_, playerIndex) => {
         const hands = inputFrame.kind === 'gesture'
           ? inputFrame.players[playerIndex]?.hands ?? [inputFrame.players[playerIndex]?.hand ?? null]
           : [];
-        activeCells[playerIndex] = hands
-          .filter((hand): hand is NonNullable<typeof hand> => hand !== null)
-          .map((hand) => getHandRhythmPlayerMotion(hand, playerIndex, playerCount, gridSize).cell);
-        player.gestureSprites?.forEach((sprite, handIndex) => {
-          sprite.visible = hands[handIndex] !== null && hands[handIndex] !== undefined;
-        });
-        player.fallback.visible = false;
-        player.root.children.forEach((child) => {
-          if (child.name.startsWith('pose-driven-player')) child.visible = false;
-        });
-        hands.slice(0, player.gestureSprites?.length ?? 1).forEach((hand, handIndex) => {
-          if (!hand) return;
-          const motion = getHandRhythmPlayerMotion(hand, playerIndex, playerCount, gridSize);
-          updatePlayerGestureEmoji(player, GESTURE_TO_EMOJI[hand.gesture] ?? GESTURE_TO_EMOJI.None, handIndex);
-          updatePlayerGestureEmojiPosition(player, motion.emojiWorldX, motion.emojiWorldY, delta, handIndex);
-          updatePlayerGestureEmojiSize(player, motion.emojiWorldWidth, motion.emojiWorldHeight, delta, handIndex);
-        });
+        return hands.filter((hand): hand is NonNullable<typeof hand> => hand !== null);
       });
-      world.updateHandRhythmGrid(activeCells);
 
       if (waitingForPlayers) {
         if (allPlayersReadySince !== null && now - allPlayersReadySince >= 600) {
@@ -262,7 +207,7 @@ export function HandRhythmScene({
           setPreflightComplete(true);
           onPlayersReady();
         }
-        renderWorld(now);
+        renderWorld(now, delta);
         animationFrame = window.requestAnimationFrame(animate);
         return;
       }
@@ -274,19 +219,38 @@ export function HandRhythmScene({
         if (isRhythmNoteVisible(song, note, songTime, OBSTACLE_SPAWN_Z, PLAYER_Z, OBSTACLE_DESPAWN_Z)) {
           const gridNote = fitRhythmNoteToGrid(note, gridSize);
           for (let playerIndex = 0; playerIndex < playerCount; playerIndex += 1) {
-            targets.spawn(gridNote, playerIndex);
+            visualState.targets.push({
+              id: nextTargetId++,
+              cell: gridNote.cell,
+              gesture: gridNote.gesture,
+              note: gridNote,
+              result: 'pending',
+              strength: gridNote.strength,
+              targetPlayerIndex: playerIndex,
+              z: OBSTACLE_SPAWN_Z,
+            });
             if (shouldAddCompanionTarget(note, doubleTargetChance)) {
-              targets.spawn(getCompanionRhythmNote(gridNote, gridSize), playerIndex);
+              const companion = getCompanionRhythmNote(gridNote, gridSize);
+              visualState.targets.push({
+                id: nextTargetId++,
+                cell: companion.cell,
+                gesture: companion.gesture,
+                note: companion,
+                result: 'pending',
+                strength: companion.strength,
+                targetPlayerIndex: playerIndex,
+                z: OBSTACLE_SPAWN_Z,
+              });
             }
           }
         }
         nextNoteIndex += 1;
       }
 
-      for (let index = targets.targets.length - 1; index >= 0; index -= 1) {
-        const target = targets.targets[index];
-        target.root.position.z = getRhythmTargetZ(song, target.note, songTime, OBSTACLE_SPAWN_Z, PLAYER_Z);
-        const inHitZone = Math.abs(target.root.position.z - PLAYER_Z) < COLLISION_RADIUS_Z;
+      for (let index = visualState.targets.length - 1; index >= 0; index -= 1) {
+        const target = visualState.targets[index];
+        target.z = getRhythmTargetZ(song, target.note, songTime, OBSTACLE_SPAWN_Z, PLAYER_Z);
+        const inHitZone = Math.abs(target.z - PLAYER_Z) < COLLISION_RADIUS_Z;
         if (inHitZone && target.result === 'pending') {
           const hands = inputFrame.kind === 'gesture'
             ? inputFrame.players[target.targetPlayerIndex]?.hands ?? [inputFrame.players[target.targetPlayerIndex]?.hand ?? null]
@@ -296,15 +260,14 @@ export function HandRhythmScene({
             return isHandRhythmTargetMatch(hand, cell, target.gesture, target.cell);
           });
           target.result = hit ? 'hit' : 'missed';
-          setHandRhythmTargetFeedback(target, hit);
           setStats((current) => hit
             ? recordPlayerHit(current, target.targetPlayerIndex, 1)
             : recordPlayerMiss(current, target.targetPlayerIndex));
         }
-        if (target.root.position.z > OBSTACLE_DESPAWN_Z) targets.remove(target);
+        if (target.z > OBSTACLE_DESPAWN_Z) visualState.targets.splice(index, 1);
       }
 
-      renderWorld(now);
+      renderWorld(now, delta);
       animationFrame = window.requestAnimationFrame(animate);
     };
 
@@ -312,13 +275,12 @@ export function HandRhythmScene({
     return () => {
       window.cancelAnimationFrame(animationFrame);
       resizeObserver.disconnect();
-      targets.dispose();
-      world.dispose();
+      renderer.dispose();
     };
-  }, [cameraMirrored, detectionOverlayRef, doubleTargetChance, gameplayInputRef, gridSize, musicClock, onPlayersReady, onWorldProjectionChange, playerCount, showCameraPreview, showDetectionOverlay, showFloor, song, videoAspectRatio, videoRef]);
+  }, [cameraMirrored, detectionOverlayRef, doubleTargetChance, gameplayInputRef, gridSize, musicClock, onPlayersReady, onWorldProjectionChange, playerCount, rendererId, showCameraPreview, showDetectionOverlay, showFloor, song, videoAspectRatio, videoRef]);
 
   return (
-    <div className={`game-scene hand-rhythm-scene players-${playerCount}${phase === 'running' ? ' game-running' : ''}`} ref={mountRef}>
+    <div className={`game-scene hand-rhythm-scene renderer-${rendererId} players-${playerCount}${phase === 'running' ? ' game-running' : ''}`} data-renderer={rendererId} data-testid="hand-rhythm-scene" ref={mountRef}>
       <div className="stage-heading">
         <h1>{t('game.handRhythmTitle')}</h1>
       </div>

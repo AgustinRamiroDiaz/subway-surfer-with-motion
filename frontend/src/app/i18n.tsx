@@ -1,13 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactElement,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactElement, type ReactNode } from 'react';
 
 export const LANGUAGES = [
   { id: 'es', label: 'Español' },
@@ -143,6 +134,10 @@ const translations = {
     'controls.handRhythmDifficultyHard': 'Difícil',
     'controls.handRhythmFloor': 'Mostrar piso',
     'controls.handRhythmFloorHelp': 'Muestra u oculta el piso visual del nivel Ritmo de manos; los objetivos y la jugabilidad no cambian.',
+    'controls.handRhythmRenderer': 'Renderizador visual',
+    'controls.handRhythmRendererHelp': 'Cambia entre la escena 3D y el experimento nativo Canvas 2D sin modificar la detección ni las reglas del juego.',
+    'controls.handRhythmRendererThree': 'Three.js 3D',
+    'controls.handRhythmRendererCanvas2d': 'Canvas 2D nativo',
     'controls.handRhythmDoubleTargetChance': 'Dos objetivos simultáneos',
     'controls.handRhythmDoubleTargetChanceHelp': 'Los valores más altos convierten más acentos musicales fuertes en objetivos simultáneos para ambas manos.',
     'controls.confidence': 'Confianza',
@@ -355,6 +350,10 @@ const translations = {
     'controls.handRhythmDifficultyHard': 'Hard',
     'controls.handRhythmFloor': 'Show floor',
     'controls.handRhythmFloorHelp': 'Shows or hides the visual floor in Hand Rhythm; targets and gameplay are unchanged.',
+    'controls.handRhythmRenderer': 'Visual renderer',
+    'controls.handRhythmRendererHelp': 'Switches between the 3D scene and the native Canvas 2D experiment without changing detection or game rules.',
+    'controls.handRhythmRendererThree': 'Three.js 3D',
+    'controls.handRhythmRendererCanvas2d': 'Native Canvas 2D',
     'controls.handRhythmDoubleTargetChance': 'Simultaneous double targets',
     'controls.handRhythmDoubleTargetChanceHelp': 'Higher values turn more strong musical accents into simultaneous targets for both hands.',
     'controls.confidence': 'Confidence',

@@ -78,4 +78,15 @@ describe('appPreferencesReducer', () => {
     expect(changed.gameRenderFps).toBe(60);
     expect(getDetectorConfigurationKey(changed)).toBe(getDetectorConfigurationKey(DEFAULT_APP_PREFERENCES));
   });
+
+  test('changes the Hand Rhythm renderer without changing detector configuration', () => {
+    const beforeKey = getDetectorConfigurationKey(DEFAULT_APP_PREFERENCES);
+    const next = appPreferencesReducer(DEFAULT_APP_PREFERENCES, {
+      type: 'handRhythmRendererChanged',
+      renderer: 'three',
+    });
+
+    expect(next.handRhythmRenderer).toBe('three');
+    expect(getDetectorConfigurationKey(next)).toBe(beforeKey);
+  });
 });

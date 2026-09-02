@@ -28,6 +28,7 @@ const mediaPipeModel = process.env.PROFILE_MEDIAPIPE_MODEL ?? 'lite';
 const runnerGame = process.env.PROFILE_GAME ?? 'sideways';
 const playerCount = Number.parseInt(process.env.PROFILE_PLAYERS ?? '1', 10);
 const renderFps = Number.parseInt(process.env.PROFILE_RENDER_FPS ?? '60', 10);
+const handRhythmRenderer = process.env.PROFILE_HAND_RHYTHM_RENDERER ?? 'three';
 const showCameraPreview = process.env.PROFILE_SHOW_CAMERA_PREVIEW === 'true';
 const performanceProbeEnabled = process.env.PROFILE_PERFORMANCE_PROBE === 'true';
 const requireHands = process.env.PROFILE_REQUIRE_HANDS === 'true';
@@ -50,6 +51,9 @@ const pageSizeBytes = Number.parseInt(process.env.PROFILE_PAGE_SIZE_BYTES ?? '40
 
 if (renderFps < 15 || renderFps > 165 || (renderFps - 15) % 5 !== 0) {
   throw new Error('PROFILE_RENDER_FPS must be between 15 and 165 in increments of 5.');
+}
+if (!['three', 'canvas2d'].includes(handRhythmRenderer)) {
+  throw new Error('PROFILE_HAND_RHYTHM_RENDERER must be three or canvas2d.');
 }
 
 function parseProcStat(stat) {
@@ -716,7 +720,7 @@ async function main() {
     const client = await context.newCDPSession(page);
 
     await page.addInitScript(
-      ({ backend, mediaPipeDelegate, mediaPipeModel, playerCount, runnerGame, showCameraPreview }) => {
+      ({ backend, handRhythmRenderer, mediaPipeDelegate, mediaPipeModel, playerCount, runnerGame, showCameraPreview }) => {
         window.localStorage.setItem(
           'motion-runner:detection-preferences:v1',
           JSON.stringify({
@@ -728,6 +732,7 @@ async function main() {
             selectedMediaPipeModelId: mediaPipeModel,
             selectedMediaPipeDelegateId: mediaPipeDelegate,
             playerCount,
+            handRhythmRenderer,
             threshold: 0.45,
             cameraMirrored: true,
             cameraPreviewVisibility: {
@@ -746,7 +751,7 @@ async function main() {
           })
         );
       },
-      { backend, mediaPipeDelegate, mediaPipeModel, playerCount, runnerGame, showCameraPreview }
+      { backend, handRhythmRenderer, mediaPipeDelegate, mediaPipeModel, playerCount, runnerGame, showCameraPreview }
     );
 
     await client.send('Performance.enable');
@@ -756,6 +761,12 @@ async function main() {
     const profileUrl = new URL(baseUrl);
     if (performanceProbeEnabled) profileUrl.searchParams.set('handRhythmPerformanceProbe', '1');
     await page.goto(profileUrl.toString(), { waitUntil: 'networkidle' });
+    if (runnerGame === 'hand-rhythm') {
+      const appliedRenderer = await page.locator('.hand-rhythm-scene').getAttribute('data-renderer');
+      if (appliedRenderer !== handRhythmRenderer) {
+        throw new Error(`Hand Rhythm scene reported ${appliedRenderer}; expected ${handRhythmRenderer}.`);
+      }
+    }
     const renderFpsSlider = page.getByRole('slider', { name: /fps de renderizado|render fps/i });
     await renderFpsSlider.focus();
     await renderFpsSlider.press('Home');
@@ -866,6 +877,8 @@ async function main() {
         runnerGame,
         playerCount,
         renderFps,
+        handRhythmRenderer,
+        handRhythmRendererControlMethod: 'saved-app-preference',
         renderFpsControlMethod: 'ui-slider-keyboard',
         showCameraPreview,
       },

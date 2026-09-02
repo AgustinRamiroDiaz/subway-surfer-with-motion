@@ -169,6 +169,18 @@ test('uses hand-rhythm guides without pose position markers', () => {
   expect(screen.getByRole('slider', { name: /dos objetivos simultáneos/i })).toHaveAttribute('aria-valuenow', '0.1');
 });
 
+test('restores the saved Hand Rhythm renderer choice', () => {
+  window.localStorage.setItem(APP_PREFERENCES_STORAGE_KEY, JSON.stringify({
+    selectedRunnerGameId: 'hand-rhythm',
+    handRhythmRenderer: 'canvas2d',
+  }));
+
+  renderApp();
+
+  expect(screen.getByDisplayValue('Canvas 2D nativo')).toBeInTheDocument();
+  expect(screen.getByTestId('hand-rhythm-scene')).toHaveAttribute('data-renderer', 'canvas2d');
+});
+
 test('ignores invalid stored levels', async () => {
   window.localStorage.setItem(APP_PREFERENCES_STORAGE_KEY, JSON.stringify({
     selectedRunnerGameId: 'training-room',

@@ -14,6 +14,7 @@ import type { HandRhythmDifficulty } from '../game/handRhythmDifficulty';
 import type { RunnerGameId } from '../game/gameTypes';
 import { normalizeGameRenderFps } from '../game/shared/renderFrameLimiter';
 import type { AppPreferences } from './appPreferences';
+import type { HandRhythmRendererId } from '../game/games/hand-rhythm/handRhythmRendererTypes';
 
 export type AppPreferencesAction =
   | { type: 'replace'; preferences: AppPreferences }
@@ -33,6 +34,7 @@ export type AppPreferencesAction =
   | { type: 'handRhythmGridChanged'; gridSize: HandRhythmGridSize }
   | { type: 'handRhythmDoubleTargetChanceChanged'; chance: number }
   | { type: 'handRhythmFloorChanged'; visible: boolean }
+  | { type: 'handRhythmRendererChanged'; renderer: HandRhythmRendererId }
   | { type: 'gameRenderFpsChanged'; fps: number };
 
 export function appPreferencesReducer(
@@ -127,6 +129,10 @@ export function appPreferencesReducer(
       return action.visible === preferences.showHandRhythmFloor
         ? preferences
         : { ...preferences, showHandRhythmFloor: action.visible };
+    case 'handRhythmRendererChanged':
+      return action.renderer === preferences.handRhythmRenderer
+        ? preferences
+        : { ...preferences, handRhythmRenderer: action.renderer };
     case 'gameRenderFpsChanged': {
       const gameRenderFps = normalizeGameRenderFps(action.fps);
       return gameRenderFps === preferences.gameRenderFps

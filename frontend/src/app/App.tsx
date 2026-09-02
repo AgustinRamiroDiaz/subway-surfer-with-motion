@@ -310,6 +310,7 @@ function MotionRunnerApp(): ReactElement {
                 phase={gamePhase}
                 playerCount={preferences.playerCount}
                 renderFps={preferences.gameRenderFps}
+                rendererId={preferences.handRhythmRenderer}
                 showCameraPreview={preferences.cameraPreviewVisibility['hand-rhythm']}
                 showDetectionOverlay={preferences.detectionOverlayVisibility['hand-rhythm']}
                 showFloor={preferences.showHandRhythmFloor}
@@ -345,6 +346,7 @@ function MotionRunnerApp(): ReactElement {
               onHandRhythmGridSizeChange={(gridSize) => dispatchPreferences({ type: 'handRhythmGridChanged', gridSize })}
               onHandRhythmDoubleTargetChanceChange={(chance) => dispatchPreferences({ type: 'handRhythmDoubleTargetChanceChanged', chance })}
               onHandRhythmFloorChange={(visible) => dispatchPreferences({ type: 'handRhythmFloorChanged', visible })}
+              onHandRhythmRendererChange={(renderer) => dispatchPreferences({ type: 'handRhythmRendererChanged', renderer })}
             />
           ) : null}
           <div className="stage-hud" data-testid="stage-actions">

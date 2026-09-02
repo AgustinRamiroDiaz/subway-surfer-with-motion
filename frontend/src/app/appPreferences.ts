@@ -38,6 +38,11 @@ import {
   DEFAULT_GAME_RENDER_FPS,
   normalizeGameRenderFps,
 } from '../game/shared/renderFrameLimiter';
+import {
+  DEFAULT_HAND_RHYTHM_RENDERER,
+  isHandRhythmRendererId,
+  type HandRhythmRendererId,
+} from '../game/games/hand-rhythm/handRhythmRendererTypes';
 
 export const DEFAULT_THRESHOLD = 0.45;
 export const DEFAULT_CAMERA_MIRRORED = true;
@@ -64,6 +69,7 @@ export type AppPreferences = {
   handRhythmGridSize: HandRhythmGridSize;
   handRhythmDoubleTargetChance: number;
   showHandRhythmFloor: boolean;
+  handRhythmRenderer: HandRhythmRendererId;
   gameRenderFps: number;
   threshold: number;
   cameraMirrored: boolean;
@@ -89,6 +95,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   handRhythmGridSize: DEFAULT_HAND_RHYTHM_GRID_SIZE,
   handRhythmDoubleTargetChance: DEFAULT_HAND_RHYTHM_DOUBLE_TARGET_CHANCE,
   showHandRhythmFloor: true,
+  handRhythmRenderer: DEFAULT_HAND_RHYTHM_RENDERER,
   gameRenderFps: DEFAULT_GAME_RENDER_FPS,
   threshold: DEFAULT_THRESHOLD,
   cameraMirrored: DEFAULT_CAMERA_MIRRORED,
@@ -209,6 +216,9 @@ export function readStoredAppPreferences(): AppPreferences {
       ),
       showHandRhythmFloor:
         typeof stored.showHandRhythmFloor === 'boolean' ? stored.showHandRhythmFloor : defaults.showHandRhythmFloor,
+      handRhythmRenderer: isHandRhythmRendererId(stored.handRhythmRenderer)
+        ? stored.handRhythmRenderer
+        : defaults.handRhythmRenderer,
       gameRenderFps: normalizeGameRenderFps(stored.gameRenderFps),
       threshold:
         typeof stored.threshold === 'number' && Number.isFinite(stored.threshold)

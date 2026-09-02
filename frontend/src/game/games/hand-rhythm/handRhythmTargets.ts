@@ -65,7 +65,7 @@ export function createHandRhythmTargetSystem(
   gridSize: HandRhythmGridSize
 ): {
   targets: HandRhythmTarget[];
-  spawn: (note: RhythmNote, targetPlayerIndex: number) => void;
+  spawn: (note: RhythmNote, targetPlayerIndex: number) => HandRhythmTarget;
   remove: (target: HandRhythmTarget) => void;
   dispose: () => void;
 } {
@@ -87,7 +87,7 @@ export function createHandRhythmTargetSystem(
       visual.root.position.set(position.x, position.y, OBSTACLE_SPAWN_Z);
       if (playerCount > 1) visual.root.traverse((child) => child.layers.set(targetPlayerIndex + 1));
       scene.add(visual.root);
-      targets.push({
+      const target: HandRhythmTarget = {
         root: visual.root,
         targetPlayerIndex,
         gesture: note.gesture,
@@ -95,7 +95,9 @@ export function createHandRhythmTargetSystem(
         result: 'pending',
         note,
         feedbackMaterial: visual.feedbackMaterial,
-      });
+      };
+      targets.push(target);
+      return target;
     },
     remove,
     dispose: () => [...targets].forEach(remove),
