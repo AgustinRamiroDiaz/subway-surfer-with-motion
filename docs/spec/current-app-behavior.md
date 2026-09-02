@@ -37,6 +37,8 @@ The game can be in one of three states:
 
 The primary action enables the camera when it is off, then starts the run once the camera can be used. The pause action is only available while the game is running.
 
+When a level starts successfully, the control panel collapses so the game stage has more room. The panel can be reopened with the sidebar toggle; failed camera or detector startup leaves the panel available for troubleshooting.
+
 Every game mode plays music. Music-synchronized gameplay begins after a four-beat audible count-in. Jump and Duck performs its required calibration before the first count-in; Hand Rhythm performs its hand-readiness check before the first count-in. Pausing preserves the song position, and resuming uses another count-in before music and obstacles continue.
 
 Stopping the camera clears current detection state and returns the game to ready.

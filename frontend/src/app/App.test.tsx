@@ -1,15 +1,18 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { afterEach, beforeEach, expect, test, vi, type MockInstance } from 'vitest';
 import App from './App';
 import { I18nProvider } from './i18n';
 import { APP_PREFERENCES_STORAGE_KEY } from './appPreferences';
+import { loadDetectorClient } from '../pose-detection/detectorClient';
+import type { Detector } from '../pose-detection/aiDetector';
 
 vi.mock('../pose-detection/detectorClient', () => ({
   loadDetectorClient: vi.fn(),
 }));
 
 let getContextSpy: MockInstance;
+let mediaPlaySpy: MockInstance | null = null;
 
 function renderApp(): ReturnType<typeof render> {
   return render(
@@ -30,6 +33,15 @@ beforeEach(() => {
 
 afterEach(() => {
   getContextSpy.mockRestore();
+  mediaPlaySpy?.mockRestore();
+  mediaPlaySpy = null;
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: {
+      removeEventListener: vi.fn(),
+    },
+  });
+  vi.mocked(loadDetectorClient).mockReset();
   window.localStorage.clear();
 });
 
@@ -63,6 +75,35 @@ test('collapses the controls without leaving a sidebar gutter', () => {
 
   expect(screen.getByRole('button', { name: /mostrar panel/i })).toHaveAttribute('aria-expanded', 'false');
   expect(screen.getByLabelText(/controles de detección/i)).toHaveClass('collapsed');
+});
+
+test('collapses the sidebar after a level starts', async () => {
+  const cameraStream = {
+    getTracks: () => [],
+  } as unknown as MediaStream;
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: {
+      addEventListener: vi.fn(),
+      enumerateDevices: vi.fn().mockResolvedValue([]),
+      getUserMedia: vi.fn().mockResolvedValue(cameraStream),
+      removeEventListener: vi.fn(),
+    },
+  });
+  mediaPlaySpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+  vi.mocked(loadDetectorClient).mockResolvedValue({
+    detector: vi.fn() as unknown as Detector,
+    mode: 'stream',
+    runtime: 'MediaPipe GPU',
+  });
+
+  renderApp();
+  fireEvent.click(within(screen.getByLabelText(/menú de minijuegos/i)).getByRole('button', { name: /activar cámara/i }));
+
+  await waitFor(() => {
+    expect(screen.getByLabelText(/controles de detección/i)).toHaveClass('collapsed');
+  });
+  expect(screen.getByRole('button', { name: /mostrar panel/i })).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('defaults to MediaPipe Lite on GPU', () => {

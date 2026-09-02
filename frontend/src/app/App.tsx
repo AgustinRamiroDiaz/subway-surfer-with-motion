@@ -202,6 +202,7 @@ function MotionRunnerApp(): ReactElement {
       } else {
         gameMusic.stop();
       }
+      setSidebarCollapsed(true);
       setGamePhase('running');
     }
   }, [camera, detector, gameMusic, gamePhase]);
