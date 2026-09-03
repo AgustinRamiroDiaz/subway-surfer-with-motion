@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from 'react';
-import { HAND_RHYTHM_PLAYBACK } from './handRhythmSongMetadata';
+import { getSong, type SongId } from './songCatalog';
 import { createRhythmMusicPlayer } from './rhythmMusicPlayer';
 
-export function useGameMusic(): ReturnType<typeof createRhythmMusicPlayer> {
-  const music = useMemo(() => createRhythmMusicPlayer(HAND_RHYTHM_PLAYBACK), []);
+export function useGameMusic(songId: SongId): ReturnType<typeof createRhythmMusicPlayer> {
+  const music = useMemo(() => createRhythmMusicPlayer(getSong(songId)), [songId]);
 
   useEffect(() => {
     void music.preload().catch(() => undefined);

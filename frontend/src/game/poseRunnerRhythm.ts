@@ -1,5 +1,6 @@
 import { WONDERS_OF_THE_EARTH_ANALYSIS } from './handRhythmSong';
 import { HAND_RHYTHM_PLAYBACK } from './handRhythmSongMetadata';
+import { getSong, type SongId } from './songCatalog';
 import type { RhythmSongAnalysis } from './rhythmAnalysis';
 import { beatToTime, type RhythmPlaybackDefinition } from './rhythmTiming';
 
@@ -43,3 +44,11 @@ export function generatePoseRunnerRhythmEvents(
 export const POSE_RUNNER_RHYTHM_EVENTS = generatePoseRunnerRhythmEvents(
   WONDERS_OF_THE_EARTH_ANALYSIS
 );
+
+export function getPoseRunnerPlayback(songId: SongId): RhythmPlaybackDefinition {
+  return { ...getSong(songId), approachBeats: POSE_RUNNER_APPROACH_BEATS };
+}
+
+export function getPoseRunnerRhythmEvents(songId: SongId): PoseRunnerRhythmEvent[] {
+  return generatePoseRunnerRhythmEvents(getSong(songId).analysis);
+}

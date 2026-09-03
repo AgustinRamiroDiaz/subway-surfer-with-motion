@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import * as THREE from 'three';
 import { useI18n } from '../../../app/i18n';
 import { createCalibrationRun, type CalibrationRun, type JumpDuckCell, type JumpDuckGuide } from '../../../motion-mapping/jumpDuckActions';
@@ -14,6 +14,7 @@ import {
   TRACK_MIN_X,
 } from '../../gameConstants';
 import type { GamePhase, GameStats, Obstacle, PoseRunnerGameId } from '../../gameTypes';
+import type { SongId } from '../../songCatalog';
 import {
   advanceGameSimulation,
   clearHitStatus,
@@ -35,8 +36,8 @@ import { createRenderFrameLimiter } from '../../shared/renderFrameLimiter';
 import type { RhythmMusicClock } from '../../rhythmMusicPlayer';
 import { getRhythmNoteTimes, getRhythmTargetZ, isRhythmNoteVisible } from '../../rhythmTiming';
 import {
-  POSE_RUNNER_PLAYBACK,
-  POSE_RUNNER_RHYTHM_EVENTS,
+  getPoseRunnerPlayback,
+  getPoseRunnerRhythmEvents,
 } from '../../poseRunnerRhythm';
 
 export type PoseRunnerSceneProps = {
@@ -49,6 +50,7 @@ export type PoseRunnerSceneProps = {
   playerCount: number;
   renderFps: number;
   selectedGameId: PoseRunnerGameId;
+  songId: SongId;
   videoAspectRatio: number;
 };
 
@@ -75,6 +77,7 @@ export function PoseRunnerScene({
   playerCount,
   renderFps,
   selectedGameId,
+  songId,
   videoAspectRatio,
 }: PoseRunnerSceneProps): ReactElement {
   const { t } = useI18n();
@@ -86,6 +89,8 @@ export function PoseRunnerScene({
   const lastCalibrationProgressRef = useRef(-1);
   const jumpDuckActionsRef = useRef(getInitialJumpDuckActions(playerCount));
   const level = getPoseRunnerLevel(selectedGameId);
+  const playback = useMemo(() => getPoseRunnerPlayback(songId), [songId]);
+  const rhythmEvents = useMemo(() => getPoseRunnerRhythmEvents(songId), [songId]);
   const [stats, setStats] = useState<GameStats>(() => createDefaultStats(playerCount));
   const [countInBeat, setCountInBeat] = useState<number | null>(null);
   const [calibrationState, setCalibrationState] = useState<JumpDuckCalibrationState>({
@@ -257,11 +262,11 @@ export function PoseRunnerScene({
       }
 
       const songTime = musicClock.getSongTime();
-      while (nextRhythmEventIndex < POSE_RUNNER_RHYTHM_EVENTS.length) {
-        const event = POSE_RUNNER_RHYTHM_EVENTS[nextRhythmEventIndex];
-        if (!event || songTime < getRhythmNoteTimes(POSE_RUNNER_PLAYBACK, event).spawnTimeSeconds) break;
+      while (nextRhythmEventIndex < rhythmEvents.length) {
+        const event = rhythmEvents[nextRhythmEventIndex];
+        if (!event || songTime < getRhythmNoteTimes(playback, event).spawnTimeSeconds) break;
         if (isRhythmNoteVisible(
-          POSE_RUNNER_PLAYBACK,
+          playback,
           event,
           songTime,
           OBSTACLE_SPAWN_Z,
@@ -276,7 +281,7 @@ export function PoseRunnerScene({
       for (let index = obstacleSystem.obstacles.length - 1; index >= 0; index -= 1) {
         const obstacle = obstacleSystem.obstacles[index];
         obstacle.root.position.z = getRhythmTargetZ(
-          POSE_RUNNER_PLAYBACK,
+          playback,
           { beat: obstacle.hitBeat },
           songTime,
           OBSTACLE_SPAWN_Z,
@@ -344,7 +349,7 @@ export function PoseRunnerScene({
       obstacleSystem.dispose();
       world.dispose();
     };
-  }, [gameplayInputRef, level, musicClock, onJumpDuckGuidesChange, onPlayersReady, onWorldProjectionChange, playerCount, selectedGameId, videoAspectRatio]);
+  }, [gameplayInputRef, level, musicClock, onJumpDuckGuidesChange, onPlayersReady, onWorldProjectionChange, playerCount, playback, rhythmEvents, selectedGameId, videoAspectRatio]);
 
   return (
     <div className={`game-scene${phase === 'running' ? ' game-running' : ''}`} ref={mountRef}>

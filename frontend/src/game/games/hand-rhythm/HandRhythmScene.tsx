@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import type { GameplayInputFrame } from '../../../motion-mapping/gameplayInput';
 import { useI18n } from '../../../app/i18n';
 import {
@@ -8,6 +8,7 @@ import {
   PLAYER_Z,
 } from '../../gameConstants';
 import type { GamePhase } from '../../gameTypes';
+import type { SongId } from '../../songCatalog';
 import { recordPlayerHit, recordPlayerMiss, createDefaultStats } from '../../gameSimulation';
 import type { HandRhythmDifficulty } from '../../handRhythmDifficulty';
 import { fitRhythmNoteToGrid, getCompanionRhythmNote, getHandRhythmSong } from '../../handRhythmSong';
@@ -44,6 +45,7 @@ export type HandRhythmSceneProps = {
   playerCount: number;
   renderFps: number;
   rendererId: HandRhythmRendererId;
+  songId: SongId;
   showCameraPreview: boolean;
   showDetectionOverlay: boolean;
   showFloor: boolean;
@@ -65,6 +67,7 @@ export function HandRhythmScene({
   playerCount,
   renderFps,
   rendererId,
+  songId,
   showCameraPreview,
   showDetectionOverlay,
   showFloor,
@@ -72,7 +75,7 @@ export function HandRhythmScene({
   videoRef,
 }: HandRhythmSceneProps): ReactElement {
   const { t } = useI18n();
-  const song = getHandRhythmSong(difficulty);
+  const song = useMemo(() => getHandRhythmSong(difficulty, songId), [difficulty, songId]);
   const mountRef = useRef<HTMLDivElement | null>(null);
   const phaseRef = useRef<GamePhase>(phase);
   const renderFpsRef = useRef(renderFps);

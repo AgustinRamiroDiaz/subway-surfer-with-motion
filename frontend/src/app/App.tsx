@@ -82,7 +82,7 @@ function MotionRunnerApp(): ReactElement {
   const [videoAspectRatio, setVideoAspectRatio] = useState(4 / 3);
   const detectorConfigurationKey = getDetectorConfigurationKey(preferences);
   const previousDetectorConfigurationKeyRef = useRef(detectorConfigurationKey);
-  const gameMusic = useGameMusic();
+  const gameMusic = useGameMusic(preferences.selectedSongId);
 
   const detectorTask = useMemo(() => {
     return getGameDescriptor(preferences.selectedRunnerGameId).detectorTask;
@@ -306,6 +306,7 @@ function MotionRunnerApp(): ReactElement {
                 gameplayInputRef={detector.gameplayInputRef}
                 gridSize={preferences.handRhythmGridSize}
                 musicClock={gameMusic}
+                songId={preferences.selectedSongId}
                 onPlayersReady={handleGameReady}
                 onWorldProjectionChange={setWorldProjection}
                 phase={gamePhase}
@@ -329,6 +330,7 @@ function MotionRunnerApp(): ReactElement {
                 playerCount={preferences.playerCount}
                 renderFps={preferences.gameRenderFps}
                 selectedGameId={preferences.selectedRunnerGameId}
+                songId={preferences.selectedSongId}
                 videoAspectRatio={videoAspectRatio}
               />
             )}
@@ -341,6 +343,10 @@ function MotionRunnerApp(): ReactElement {
               selectedGameId={preferences.selectedRunnerGameId}
               startLabel={startLabel}
               onSelectGame={handleGameSelection}
+              onSelectSong={(songId) => {
+                gameMusic.stop();
+                dispatchPreferences({ type: 'songSelected', songId });
+              }}
               onStartRun={handleStartRun}
               onPlayerCountChange={handlePlayerCountChange}
               onHandRhythmDifficultyChange={(difficulty) => dispatchPreferences({ type: 'handRhythmDifficultyChanged', difficulty })}

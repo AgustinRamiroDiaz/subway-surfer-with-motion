@@ -9,7 +9,7 @@ All minigames run inside the same runner stage:
 - Incoming obstacles or targets move toward the players.
 - New obstacles or targets appear only while the game is running.
 - Spawning pauses while a mode is waiting for required calibration.
-- Every mode plays the same music and uses a four-beat audible count-in before music-synchronized play begins.
+- Every mode plays the song selected on the level board and uses a four-beat audible count-in before music-synchronized play begins. Each bundled song supplies its own beat timing and synchronized events.
 - Pausing stops music and obstacle movement at the same song position. Resuming begins another four-beat count-in before continuing.
 - Obstacles or targets that pass the players without being hit or matched count as dodged.
 - Hits are counted globally and per player.

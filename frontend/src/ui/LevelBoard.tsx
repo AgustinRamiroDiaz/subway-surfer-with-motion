@@ -6,6 +6,7 @@ import { formatPercent } from '../formatters';
 import { isHandRhythmDifficulty, type HandRhythmDifficulty } from '../game/handRhythmDifficulty';
 import type { RunnerGameId } from '../game/gameTypes';
 import { getGameDescriptor } from '../game/levelRegistry';
+import { SONGS, type SongId } from '../game/songCatalog';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../motion-mapping/playerPositions';
 import { ControlHelpLabel } from './detection-controls/ControlHelpLabel';
 import { BoltIcon, CheckIcon, SlidersIcon, TargetIcon } from './icons';
@@ -53,6 +54,7 @@ export function LevelBoard({
   selectedGameId,
   startLabel,
   onSelectGame,
+  onSelectSong,
   onStartRun,
   onPlayerCountChange,
   onHandRhythmDifficultyChange,
@@ -67,6 +69,7 @@ export function LevelBoard({
   selectedGameId: RunnerGameId;
   startLabel: string;
   onSelectGame: (gameId: RunnerGameId) => void;
+  onSelectSong: (songId: SongId) => void;
   onStartRun: () => void;
   onPlayerCountChange: (value: number) => void;
   onHandRhythmDifficultyChange: (value: HandRhythmDifficulty) => void;
@@ -142,6 +145,19 @@ export function LevelBoard({
               step={1}
               value={preferences.playerCount}
               onChange={onPlayerCountChange}
+            />
+          </div>
+
+          <div className="level-setting-tile">
+            <Select
+              aria-label={t('controls.song')}
+              className="model-control"
+              data={SONGS.map((song) => ({ value: song.id, label: `${song.title} · ${song.artist}` }))}
+              label={<ControlHelpLabel help={t('controls.songHelp')}>{t('controls.song')}</ControlHelpLabel>}
+              value={preferences.selectedSongId}
+              onChange={(value) => {
+                if (SONGS.some((song) => song.id === value)) onSelectSong(value as SongId);
+              }}
             />
           </div>
 

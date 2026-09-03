@@ -19,6 +19,7 @@ import type { HandRhythmRendererId } from '../game/games/hand-rhythm/handRhythmR
 export type AppPreferencesAction =
   | { type: 'replace'; preferences: AppPreferences }
   | { type: 'gameSelected'; gameId: RunnerGameId }
+  | { type: 'songSelected'; songId: AppPreferences['selectedSongId'] }
   | { type: 'backendSelected'; backendId: DetectorBackendId }
   | { type: 'yoloModelSelected'; modelId: YoloModelId }
   | { type: 'mediaPipeModelSelected'; modelId: MediaPipeModelId }
@@ -52,6 +53,10 @@ export function appPreferencesReducer(
             selectedRunnerGameId: action.gameId,
             selectedBackendId: getGameDescriptor(action.gameId).defaultBackend,
           };
+    case 'songSelected':
+      return action.songId === preferences.selectedSongId
+        ? preferences
+        : { ...preferences, selectedSongId: action.songId };
     case 'backendSelected':
       return action.backendId === preferences.selectedBackendId
         ? preferences

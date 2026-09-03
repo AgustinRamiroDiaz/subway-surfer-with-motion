@@ -1,35 +1,28 @@
-import analysisData from './beatmaps/wonders-of-the-earth.analysis.json';
 import type { HandRhythmDifficulty } from './handRhythmDifficulty';
 import { HAND_RHYTHM_GESTURES } from './levels/handRhythmLevel';
-import type { RhythmSongAnalysis } from './rhythmAnalysis';
+import { getSong, type SongId } from './songCatalog';
 import { deriveDifficultyChart, generateMusicAwareChart } from './rhythmChartGenerator';
-import { HAND_RHYTHM_PLAYBACK } from './handRhythmSongMetadata';
 import type { RhythmNote, RhythmSong } from './rhythmTiming';
 
-export const WONDERS_OF_THE_EARTH_ANALYSIS = analysisData as RhythmSongAnalysis;
+export const WONDERS_OF_THE_EARTH_ANALYSIS = getSong('wonders-of-the-earth').analysis;
 
-const hardNotes = generateMusicAwareChart(WONDERS_OF_THE_EARTH_ANALYSIS);
+export function getHandRhythmSongs(songId: SongId): Record<HandRhythmDifficulty, RhythmSong> {
+  const song = getSong(songId);
+  const hardNotes = generateMusicAwareChart(song.analysis);
+  return {
+    easy: { ...song, notes: deriveDifficultyChart(hardNotes, 'easy') },
+    medium: { ...song, notes: deriveDifficultyChart(hardNotes, 'medium') },
+    hard: { ...song, notes: hardNotes },
+  };
+}
 
-export const HAND_RHYTHM_SONGS: Record<HandRhythmDifficulty, RhythmSong> = {
-  easy: {
-    ...HAND_RHYTHM_PLAYBACK,
-    notes: deriveDifficultyChart(hardNotes, 'easy'),
-  },
-  medium: {
-    ...HAND_RHYTHM_PLAYBACK,
-    notes: deriveDifficultyChart(hardNotes, 'medium'),
-  },
-  hard: {
-    ...HAND_RHYTHM_PLAYBACK,
-    notes: hardNotes,
-  },
-};
+export const HAND_RHYTHM_SONGS = getHandRhythmSongs('wonders-of-the-earth');
 
 /** The original music-aware chart remains the Hard chart. */
 export const HAND_RHYTHM_SONG: RhythmSong = HAND_RHYTHM_SONGS.hard;
 
-export function getHandRhythmSong(difficulty: HandRhythmDifficulty): RhythmSong {
-  return HAND_RHYTHM_SONGS[difficulty];
+export function getHandRhythmSong(difficulty: HandRhythmDifficulty, songId: SongId = 'wonders-of-the-earth'): RhythmSong {
+  return getHandRhythmSongs(songId)[difficulty];
 }
 
 export function fitRhythmNoteToGrid(note: RhythmNote, gridSize: number): RhythmNote {

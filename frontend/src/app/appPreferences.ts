@@ -23,6 +23,7 @@ import {
 } from '../pose-detection/aiDetector';
 import { DEFAULT_PLAYER_COUNT, normalizePlayerCount } from '../motion-mapping/playerPositions';
 import type { RunnerGameId } from '../game/gameTypes';
+import { DEFAULT_SONG_ID, isSongId, type SongId } from '../game/songCatalog';
 import {
   DEFAULT_HAND_RHYTHM_GRID_SIZE,
   DEFAULT_HAND_RHYTHM_DOUBLE_TARGET_CHANCE,
@@ -58,6 +59,7 @@ function isRunnerGameId(value: unknown): value is RunnerGameId {
 
 export type AppPreferences = {
   selectedRunnerGameId: RunnerGameId;
+  selectedSongId: SongId;
   selectedBackendId: DetectorBackendId;
   selectedModelId: YoloModelId;
   selectedRuntimeId: DetectorRuntimeId;
@@ -84,6 +86,7 @@ type StoredAppPreferences = Partial<AppPreferences>;
 
 export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   selectedRunnerGameId: 'sideways',
+  selectedSongId: DEFAULT_SONG_ID,
   selectedBackendId: DEFAULT_POSE_BACKEND_ID,
   selectedModelId: DEFAULT_YOLO_MODEL_ID,
   selectedRuntimeId: DEFAULT_DETECTOR_RUNTIME_ID,
@@ -192,6 +195,7 @@ export function readStoredAppPreferences(): AppPreferences {
       selectedRunnerGameId: isRunnerGameId(stored.selectedRunnerGameId)
         ? stored.selectedRunnerGameId
         : defaults.selectedRunnerGameId,
+      selectedSongId: isSongId(stored.selectedSongId) ? stored.selectedSongId : defaults.selectedSongId,
       selectedBackendId:
         isOptionId(stored.selectedBackendId, POSE_BACKENDS) || isOptionId(stored.selectedBackendId, GESTURE_BACKENDS)
           ? stored.selectedBackendId

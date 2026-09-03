@@ -25,6 +25,8 @@ The game mode selector offers:
 - Jump and duck.
 - Hand Rhythm.
 
+The level setup panel offers the three bundled songs: Wonders of the Earth, Celtic, and Surf Rock. The selected song is used by every mode and is saved locally with the other preferences.
+
 Changing game mode while a run is active pauses the run. Each mode can use its own camera-preview and detection-overlay visibility preference.
 
 ## Run States
@@ -39,7 +41,7 @@ The primary action enables the camera when it is off, then starts the run once t
 
 When a level starts successfully, the control panel collapses so the game stage has more room. The panel can be reopened with the sidebar toggle; failed camera or detector startup leaves the panel available for troubleshooting.
 
-Every game mode plays music. Music-synchronized gameplay begins after a four-beat audible count-in. Jump and Duck performs its required calibration before the first count-in; Hand Rhythm performs its hand-readiness check before the first count-in. Pausing preserves the song position, and resuming uses another count-in before music and obstacles continue.
+Every game mode plays the selected song. Music-synchronized gameplay begins after a four-beat audible count-in. Jump and Duck performs its required calibration before the first count-in; Hand Rhythm performs its hand-readiness check before the first count-in. Pausing preserves the song position, and resuming uses another count-in before music and obstacles continue. Each bundled song has its own beat timing and level events.
 
 Stopping the camera clears current detection state and returns the game to ready.
 
